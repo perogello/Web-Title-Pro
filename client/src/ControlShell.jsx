@@ -1708,23 +1708,6 @@ function ControlShell() {
     }
   };
 
-  const saveUpdateConfig = async (patch) => {
-    try {
-      const nextState = await api('/api/updates/config', {
-        method: 'PUT',
-        body: patch,
-      });
-      setAppMeta((current) => ({
-        ...(current || { name: 'Web Title Pro', version: nextState.currentVersion }),
-        version: nextState.currentVersion,
-        updates: nextState,
-      }));
-      pushFeedback('Update settings saved');
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    }
-  };
-
   const checkForUpdates = async () => {
     try {
       const nextState = await api('/api/updates/check', {
@@ -2330,19 +2313,12 @@ function ControlShell() {
             <div className="meta-card">
               <span className="meta-label">Application</span>
               <strong>{appMeta?.name || 'Web Title Pro'} {appMeta?.version || updateState?.currentVersion || '0.0.0'}</strong>
-              <span className="output-note">Desktop packaging and GitHub-based update checks are prepared here. Automatic release delivery will start working after you provide the real repository URL.</span>
+              <span className="output-note">В desktop-версии проверка обновлений запускается автоматически при старте. Источник обновлений встроен в приложение и не редактируется пользователем.</span>
             </div>
             <div className="meta-card">
               <span className="meta-label">Update Source</span>
-              <label className="input-block compact">
-                <span>GitHub Repository URL</span>
-                <input
-                  key={`updates-${updateState?.repoUrl || 'default'}`}
-                  defaultValue={updateState?.repoUrl || 'https://github.com/your-org/web-title-pro'}
-                  onBlur={(event) => saveUpdateConfig({ repoUrl: event.target.value })}
-                  placeholder="https://github.com/your-org/web-title-pro"
-                />
-              </label>
+              <code>{updateState?.repoUrl || 'https://github.com/perogello/Web-Title-Pro'}</code>
+              <span className="output-note">Канал обновлений: {updateState?.channel || 'prerelease'}.</span>
               <div className="output-url-actions">
                 <button className="ghost-button compact-button" onClick={checkForUpdates}>Check Updates</button>
                 <button className="ghost-button compact-button" onClick={refreshAppMeta}>Refresh Status</button>
@@ -2355,11 +2331,12 @@ function ControlShell() {
               <code>Current: {appMeta?.version || updateState?.currentVersion || '0.0.0'}</code>
               <code>Latest: {updateState?.latestVersion || 'not available'}</code>
               <code>Last Check: {updateState?.lastCheckAt ? formatStatusTime(updateState.lastCheckAt) : 'never'}</code>
+              <code>Asset: {updateState?.assetName || 'not available'}</code>
             </div>
             <div className="meta-card">
               <span className="meta-label">Packaging</span>
-              <strong>Windows package script is included</strong>
-              <span className="output-note">Use `npm.cmd run package:win` to produce a desktop build that can be launched from a normal shortcut.</span>
+              <strong>Desktop updater is built around GitHub Releases</strong>
+              <span className="output-note">При наличии новой версии desktop-приложение может скачать релизный `.exe`, показать прогресс и завершить обновление через отдельное диалоговое окно.</span>
             </div>
           </div>
         )}

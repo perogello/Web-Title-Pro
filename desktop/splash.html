@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Web Title Pro Loading</title>
+    <title>Web Title Pro</title>
     <style>
       :root {
         color-scheme: dark;
@@ -17,6 +17,7 @@
       }
 
       * { box-sizing: border-box; }
+
       html, body {
         width: 100%;
         height: 100%;
@@ -95,9 +96,9 @@
   </head>
   <body>
     <div class="shell">
-      <div class="eyebrow">Broadcast Title Control</div>
-      <h1>Web Title Pro</h1>
-      <p class="status" id="status">Запуск приложения...</p>
+      <div class="eyebrow" id="eyebrow">Broadcast Title Control</div>
+      <h1 id="title">Web Title Pro</h1>
+      <p class="status" id="status">Launching application...</p>
       <div class="bar-shell">
         <div class="bar" id="bar"></div>
       </div>
@@ -107,9 +108,17 @@
       </div>
     </div>
     <script>
+      window.setShellMeta = (meta) => {
+        const nextTitle = meta && meta.title ? meta.title : 'Web Title Pro';
+        const nextEyebrow = meta && meta.eyebrow ? meta.eyebrow : 'Broadcast Title Control';
+        document.title = nextTitle;
+        document.getElementById('title').textContent = nextTitle;
+        document.getElementById('eyebrow').textContent = nextEyebrow;
+      };
+
       window.setLoadingState = (label, percent) => {
         const safePercent = Math.max(8, Math.min(100, Number(percent || 0)));
-        document.getElementById('status').textContent = label || 'Запуск приложения...';
+        document.getElementById('status').textContent = label || 'Launching application...';
         document.getElementById('step').textContent = label || 'Preparing';
         document.getElementById('percent').textContent = `${safePercent}%`;
         document.getElementById('bar').style.width = `${safePercent}%`;
