@@ -2088,6 +2088,7 @@ function ControlShell() {
           <button className={`tab-button ${settingsTab === 'bitfocus' ? 'is-active' : ''}`} onClick={() => setSettingsTab('bitfocus')}>Bitfocus</button>
           <button className={`tab-button ${settingsTab === 'midi' ? 'is-active' : ''}`} onClick={() => setSettingsTab('midi')}>MIDI</button>
           <button className={`tab-button ${settingsTab === 'updates' ? 'is-active' : ''}`} onClick={() => setSettingsTab('updates')}>Updates</button>
+          <button className={`tab-button ${settingsTab === 'test' ? 'is-active' : ''}`} onClick={() => setSettingsTab('test')}>Test</button>
         </div>
         {settingsTab === 'output' && (outputInfo ? (
           <div className="integration-grid">
@@ -2337,6 +2338,15 @@ function ControlShell() {
               <span className="meta-label">Packaging</span>
               <strong>Desktop updater is built around GitHub Releases</strong>
               <span className="output-note">При наличии новой версии desktop-приложение может скачать релизный `.exe`, показать прогресс и завершить обновление через отдельное диалоговое окно.</span>
+            </div>
+          </div>
+        )}
+        {settingsTab === 'test' && (
+          <div className="integration-grid">
+            <div className="meta-card">
+              <span className="meta-label">Test</span>
+              <strong>Update verification tab</strong>
+              <span className="output-note">This tab is intentionally empty and only exists so you can verify that a GitHub-delivered update was applied correctly.</span>
             </div>
           </div>
         )}
