@@ -1,0 +1,320 @@
+{
+  "selectedEntryId": "HK3mW00Sy_",
+  "selectedOutputId": "output-main",
+  "outputs": [
+    {
+      "id": "output-main",
+      "name": "OUTPUT 1",
+      "key": "main",
+      "selectedEntryId": "HK3mW00Sy_",
+      "program": {
+        "entryId": "HK3mW00Sy_",
+        "templateId": "builtin:fullscreen",
+        "entryName": "Максим Матющенко",
+        "templateName": "Fullscreen Overlay",
+        "visible": false,
+        "lastAction": "HIDE",
+        "revision": 616,
+        "updatedAt": "2026-03-27T17:48:13.591Z",
+        "fields": {
+          "tag": "Максим Матющенко",
+          "headline": "Руководитель Исследований Яндекса",
+          "subheadline": "mmaks@",
+          "body": ""
+        }
+      },
+      "previewProgram": {
+        "entryId": "HK3mW00Sy_",
+        "templateId": "builtin:fullscreen",
+        "entryName": "Максим Матющенко",
+        "templateName": "Fullscreen Overlay",
+        "visible": true,
+        "lastAction": "PREVIEW SHOW",
+        "revision": 112,
+        "updatedAt": "2026-03-27T17:48:12.630Z",
+        "fields": {
+          "tag": "Максим Матющенко",
+          "headline": "Руководитель Исследований Яндекса",
+          "subheadline": "mmaks@",
+          "body": ""
+        }
+      }
+    },
+    {
+      "id": "pxNaLieAKZ",
+      "name": "OUTPUT 2",
+      "key": "output-2",
+      "selectedEntryId": "oD_9fOYyl9",
+      "program": {
+        "entryId": "oD_9fOYyl9",
+        "templateId": "builtin:lower-third",
+        "entryName": "Елизавета Попова",
+        "templateName": "Lower Third",
+        "visible": false,
+        "lastAction": "HIDE",
+        "revision": 64,
+        "updatedAt": "2026-03-27T17:37:55.213Z",
+        "fields": {
+          "kicker": "Елизавета Попова",
+          "name": "Директор проектного офиса",
+          "title": "bazookich@"
+        }
+      },
+      "previewProgram": {
+        "entryId": null,
+        "templateId": null,
+        "entryName": "No title loaded",
+        "templateName": "No template",
+        "visible": false,
+        "lastAction": "IDLE",
+        "revision": 0,
+        "updatedAt": "2026-03-27T15:58:49.205Z",
+        "fields": {}
+      }
+    },
+    {
+      "id": "HKl0ZDEWnF",
+      "name": "OUTPUT 3",
+      "key": "output-3",
+      "selectedEntryId": "h3PoKpRhbd",
+      "program": {
+        "entryId": "h3PoKpRhbd",
+        "templateId": "builtin:scoreboard",
+        "entryName": "Елизавета Попова",
+        "templateName": "Scoreboard",
+        "visible": false,
+        "lastAction": "HIDE",
+        "revision": 34,
+        "updatedAt": "2026-03-27T17:37:58.717Z",
+        "fields": {
+          "homeTeam": "Елизавета Попова",
+          "homeScore": "Директор проектного офиса",
+          "period": "bazookich@",
+          "awayTeam": "",
+          "awayScore": ""
+        }
+      },
+      "previewProgram": {
+        "entryId": null,
+        "templateId": null,
+        "entryName": "No title loaded",
+        "templateName": "No template",
+        "visible": false,
+        "lastAction": "IDLE",
+        "revision": 0,
+        "updatedAt": "2026-03-27T15:58:49.205Z",
+        "fields": {}
+      }
+    },
+    {
+      "id": "dwukDn62b8",
+      "name": "OUTPUT 4",
+      "key": "output-4",
+      "selectedEntryId": "HK3mW00Sy_",
+      "program": {
+        "entryId": "HK3mW00Sy_",
+        "templateId": "builtin:fullscreen",
+        "entryName": "Максим Матющенко",
+        "templateName": "Fullscreen Overlay",
+        "visible": false,
+        "lastAction": "LOAD",
+        "revision": 34,
+        "updatedAt": "2026-03-27T17:48:12.630Z",
+        "fields": {
+          "tag": "Максим Матющенко",
+          "headline": "Руководитель Исследований Яндекса",
+          "subheadline": "mmaks@",
+          "body": ""
+        }
+      },
+      "previewProgram": {
+        "entryId": null,
+        "templateId": null,
+        "entryName": "No title loaded",
+        "templateName": "No template",
+        "visible": false,
+        "lastAction": "IDLE",
+        "revision": 0,
+        "updatedAt": "2026-03-27T15:58:49.205Z",
+        "fields": {}
+      }
+    }
+  ],
+  "integrations": {
+    "vmix": {
+      "host": "http://127.0.0.1:8088",
+      "selectedTimerInputKey": null
+    },
+    "updates": {
+      "repoUrl": "https://github.com/your-org/web-title-pro",
+      "channel": "stable",
+      "lastCheckAt": null,
+      "latestVersion": null,
+      "available": false,
+      "status": "not-configured",
+      "notes": "Add your GitHub repository URL to enable release checks."
+    }
+  },
+  "program": {
+    "entryId": "HK3mW00Sy_",
+    "templateId": "builtin:fullscreen",
+    "entryName": "Максим Матющенко",
+    "templateName": "Fullscreen Overlay",
+    "visible": false,
+    "lastAction": "HIDE",
+    "revision": 616,
+    "updatedAt": "2026-03-27T17:48:13.591Z",
+    "fields": {
+      "tag": "Максим Матющенко",
+      "headline": "Руководитель Исследований Яндекса",
+      "subheadline": "mmaks@",
+      "body": ""
+    }
+  },
+  "entries": [
+    {
+      "id": "HK3mW00Sy_",
+      "templateId": "builtin:fullscreen",
+      "name": "Максим Матющенко",
+      "fields": {
+        "tag": "Максим Матющенко",
+        "headline": "Руководитель Исследований Яндекса",
+        "subheadline": "mmaks@",
+        "body": ""
+      },
+      "createdAt": "2026-03-26T20:24:44.538Z",
+      "updatedAt": "2026-03-27T17:48:12.630Z",
+      "missingTemplate": false,
+      "hidden": false,
+      "shortcuts": {
+        "show": "",
+        "live": "",
+        "hide": ""
+      }
+    },
+    {
+      "id": "oD_9fOYyl9",
+      "templateId": "builtin:lower-third",
+      "name": "Елизавета Попова",
+      "fields": {
+        "kicker": "Елизавета Попова",
+        "name": "Директор проектного офиса",
+        "title": "bazookich@"
+      },
+      "createdAt": "2026-03-26T20:24:44.538Z",
+      "updatedAt": "2026-03-27T17:37:53.361Z",
+      "missingTemplate": false,
+      "hidden": false,
+      "shortcuts": {
+        "show": "",
+        "live": "",
+        "hide": ""
+      }
+    },
+    {
+      "id": "h3PoKpRhbd",
+      "templateId": "builtin:scoreboard",
+      "name": "Елизавета Попова",
+      "fields": {
+        "homeTeam": "Елизавета Попова",
+        "homeScore": "Директор проектного офиса",
+        "period": "bazookich@",
+        "awayTeam": "",
+        "awayScore": ""
+      },
+      "createdAt": "2026-03-26T20:24:44.538Z",
+      "updatedAt": "2026-03-27T16:52:00.730Z",
+      "missingTemplate": false,
+      "hidden": false,
+      "shortcuts": {
+        "show": "",
+        "live": "",
+        "hide": ""
+      }
+    },
+    {
+      "id": "example001",
+      "templateId": "builtin:example-title",
+      "name": "Максим Матющенко",
+      "fields": {
+        "fullName": "Максим Матющенко",
+        "position": "Руководитель Исследований Яндекса"
+      },
+      "createdAt": "2026-03-26T20:30:00.000Z",
+      "updatedAt": "2026-03-27T17:16:38.710Z",
+      "missingTemplate": false,
+      "hidden": false,
+      "shortcuts": {
+        "show": "",
+        "live": "",
+        "hide": ""
+      }
+    },
+    {
+      "id": "khural001",
+      "templateId": "builtin:khural-test-title",
+      "name": "Максим Матющенко",
+      "fields": {
+        "handle": "Максим Матющенко",
+        "fullName": "Руководитель Исследований Яндекса",
+        "position": "mmaks@"
+      },
+      "createdAt": "2026-03-27T08:00:00.000Z",
+      "updatedAt": "2026-03-27T16:35:06.121Z",
+      "missingTemplate": false,
+      "hidden": false,
+      "shortcuts": {
+        "show": "",
+        "live": "",
+        "hide": ""
+      }
+    }
+  ],
+  "timers": [
+    {
+      "id": "main",
+      "name": "Main Timer",
+      "mode": "countdown",
+      "durationMs": 300000,
+      "valueMs": 0,
+      "running": false,
+      "startedAt": null,
+      "sourceType": "local",
+      "targetTemplateId": "builtin:scoreboard",
+      "targetTimerId": "main",
+      "vmixInputKey": null,
+      "vmixTextField": "Text",
+      "displayFormat": "mm:ss"
+    },
+    {
+      "id": "gAciiHJt",
+      "name": "Timer 2",
+      "mode": "countdown",
+      "durationMs": 30000,
+      "valueMs": 30000,
+      "running": false,
+      "startedAt": null,
+      "sourceType": "local",
+      "targetTemplateId": "builtin:scoreboard",
+      "targetTimerId": "main",
+      "vmixInputKey": null,
+      "vmixTextField": "Text",
+      "displayFormat": "hh:mm:ss"
+    },
+    {
+      "id": "vLcYPF0V",
+      "name": "Timer 3",
+      "mode": "countdown",
+      "durationMs": 30000,
+      "valueMs": 30000,
+      "running": false,
+      "startedAt": null,
+      "sourceType": "local",
+      "targetTemplateId": null,
+      "targetTimerId": "vLcYPF0V",
+      "vmixInputKey": null,
+      "vmixTextField": "Text",
+      "displayFormat": "hh:mm:ss"
+    }
+  ]
+}

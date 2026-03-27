@@ -1,0 +1,60 @@
+.lt-root {
+  position: absolute;
+  left: 64px;
+  bottom: 64px;
+  display: grid;
+  grid-template-columns: 12px minmax(320px, auto);
+  gap: 16px;
+  align-items: stretch;
+  transform: translateX(-40px);
+  opacity: 0;
+  transition: transform 360ms ease, opacity 360ms ease;
+}
+
+.render-stage.is-visible .lt-root {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.render-stage.is-hiding .lt-root {
+  transform: translateX(-50px);
+  opacity: 0;
+}
+
+.lt-rail {
+  border-radius: 999px;
+  background: linear-gradient(180deg, #79ffb1 0%, #0f8a45 100%);
+  box-shadow: 0 0 24px rgba(93, 219, 146, 0.4);
+}
+
+.lt-copy {
+  min-width: 420px;
+  padding: 18px 24px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(4, 9, 16, 0.92), rgba(14, 18, 26, 0.86));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f6f8fb;
+}
+
+.lt-kicker {
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 204, 77, 0.18);
+  color: #ffd970;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lt-copy h1 {
+  margin: 12px 0 6px;
+  font-size: 42px;
+  line-height: 1;
+}
+
+.lt-copy p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 24px;
+}

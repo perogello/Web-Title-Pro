@@ -1,0 +1,201 @@
+const stage = document.getElementById('render-stage');
+const styleHost = document.getElementById('template-style-host');
+const scriptHost = document.getElementById('template-script-host');
+const connectionBadge = document.getElementById('renderer-connection');
+const stateBadge = document.getElementById('renderer-state');
+const templateBadge = document.getElementById('renderer-template');
+const wsUrl = `${window.location.origin.replace(/^http/, 'ws')}/ws`;
+const searchParams = new URLSearchParams(window.location.search);
+const usePreviewState = searchParams.get('preview') === '1';
+const isEmbedded = searchParams.get('embed') === '1';
+const isPreview = usePreviewState || isEmbedded;
+const requestedOutput = searchParams.get('output') || 'main';
+const PREVIEW_BASE_WIDTH = 1920;
+const PREVIEW_BASE_HEIGHT = 1080;
+
+let currentTemplateId = '';
+let currentTemplateApi = null;
+let currentSnapshot = null;
+let currentVisible = false;
+let hideTimer = null;
+
+const setConnection = (label) => {
+  connectionBadge.textContent = label;
+};
+
+document.body.dataset.preview = isPreview ? '1' : '0';
+document.body.dataset.embed = isEmbedded ? '1' : '0';
+
+const updatePreviewScale = () => {
+  if (!isPreview) {
+    return;
+  }
+
+  const inset = isEmbedded ? 0 : 36;
+  const availableWidth = Math.max(window.innerWidth - inset, 320);
+  const availableHeight = Math.max(window.innerHeight - inset, 180);
+  const scale = Math.min(1, availableWidth / PREVIEW_BASE_WIDTH, availableHeight / PREVIEW_BASE_HEIGHT);
+  document.documentElement.style.setProperty('--preview-scale', String(scale));
+};
+
+updatePreviewScale();
+window.addEventListener('resize', updatePreviewScale);
+
+const createContext = () => ({
+  stage,
+  snapshot: currentSnapshot,
+  program: resolveProgram(currentSnapshot),
+  timers: currentSnapshot?.timers || [],
+});
+
+const resolveProgram = (snapshot) => {
+  const matchedOutput =
+    snapshot?.outputs?.find((output) => output.id === requestedOutput || output.key === requestedOutput) || null;
+  if (usePreviewState) {
+    return matchedOutput?.previewProgram || matchedOutput?.program || snapshot?.previewProgram || snapshot?.program;
+  }
+  return matchedOutput?.program || snapshot?.program;
+};
+
+const loadScript = (src) =>
+  new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = reject;
+    scriptHost.appendChild(script);
+  });
+
+const clearTemplateRuntime = () => {
+  currentTemplateApi?.unmount?.(createContext());
+  currentTemplateApi = null;
+  window.WebTitleTemplate = undefined;
+  styleHost.innerHTML = '';
+  scriptHost.innerHTML = '';
+};
+
+const extractBodyMarkup = (htmlText) => {
+  const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+  return doc.body?.innerHTML || htmlText;
+};
+
+const ensureTemplate = async (template) => {
+  if (!template) {
+    stage.innerHTML = '';
+    currentTemplateId = '';
+    templateBadge.textContent = 'No template loaded';
+    return;
+  }
+
+  if (currentTemplateId === template.id) {
+    return;
+  }
+
+  clearTemplateRuntime();
+  currentTemplateId = template.id;
+  templateBadge.textContent = template.name;
+
+  const htmlResponse = await fetch(template.assetUrls.html);
+  const htmlText = await htmlResponse.text();
+  stage.innerHTML = extractBodyMarkup(htmlText);
+
+  for (const href of template.assetUrls.css || []) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    styleHost.appendChild(link);
+  }
+
+  for (const src of template.assetUrls.js || []) {
+    await loadScript(src);
+  }
+
+  currentTemplateApi = window.WebTitleTemplate || null;
+  currentTemplateApi?.mount?.(createContext());
+};
+
+const applyFields = (fields = {}) => {
+  stage.querySelectorAll('[data-field]').forEach((node) => {
+    const key = node.getAttribute('data-field');
+    const value = fields[key] ?? '';
+    if (node.tagName === 'IMG') {
+      node.src = value;
+    } else {
+      node.textContent = value;
+    }
+  });
+};
+
+const applyTimers = (timers = []) => {
+  const timerMap = new Map(timers.map((timer) => [timer.targetTimerId || timer.id, timer]));
+  stage.querySelectorAll('[data-timer]').forEach((node) => {
+    const timer = timerMap.get(node.getAttribute('data-timer'));
+    node.textContent = timer?.display || '00:00.0';
+  });
+};
+
+const getOutroDuration = () => {
+  const timingNode = stage.querySelector('[data-outro-ms]');
+  return Number(timingNode?.getAttribute('data-outro-ms') || 450);
+};
+
+const applyVisibility = (visible) => {
+  currentVisible = visible;
+  document.body.dataset.air = visible ? 'on' : 'off';
+  stateBadge.textContent = visible ? 'ON AIR' : 'STANDBY';
+
+  if (visible) {
+    clearTimeout(hideTimer);
+    stage.classList.remove('is-hidden', 'is-hiding');
+    stage.classList.add('is-visible');
+    currentTemplateApi?.show?.(createContext());
+    return;
+  }
+
+  stage.classList.remove('is-visible');
+  stage.classList.add('is-hiding');
+  currentTemplateApi?.hide?.(createContext());
+  hideTimer = window.setTimeout(() => {
+    if (currentVisible) return;
+    stage.classList.remove('is-hiding');
+    stage.classList.add('is-hidden');
+  }, getOutroDuration());
+};
+
+const applySnapshot = async (snapshot) => {
+  currentSnapshot = snapshot;
+  const program = resolveProgram(snapshot);
+  const template = snapshot.templates.find((item) => item.id === program?.templateId);
+  await ensureTemplate(template);
+  applyFields(program?.fields);
+  applyTimers(snapshot.timers);
+  applyVisibility(program?.visible);
+  currentTemplateApi?.update?.(createContext());
+};
+
+const fetchInitialState = async () => {
+  const response = await fetch('/api/render/state');
+  const snapshot = await response.json();
+  await applySnapshot(snapshot);
+};
+
+const connect = () => {
+  setConnection('CONNECTING');
+  const socket = new WebSocket(wsUrl);
+
+  socket.addEventListener('open', () => setConnection('CONNECTED'));
+  socket.addEventListener('message', async (event) => {
+    const message = JSON.parse(event.data);
+    if (message?.payload) {
+      await applySnapshot(message.payload);
+    }
+  });
+  socket.addEventListener('close', () => {
+    setConnection('RECONNECT');
+    window.setTimeout(connect, 1200);
+  });
+  socket.addEventListener('error', () => setConnection('ERROR'));
+};
+
+fetchInitialState().catch(() => setConnection('BOOT FAIL'));
+connect();

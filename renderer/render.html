@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Web Title Pro Renderer</title>
+    <link rel="stylesheet" href="/renderer-assets/render.css" />
+  </head>
+  <body data-air="off">
+    <div class="renderer-shell">
+      <div class="renderer-status">
+        <span id="renderer-connection">CONNECTING</span>
+        <span id="renderer-state">STANDBY</span>
+        <span id="renderer-template">No template loaded</span>
+      </div>
+      <div id="render-stage" class="render-stage is-hidden"></div>
+      <div id="template-style-host"></div>
+      <div id="template-script-host"></div>
+    </div>
+    <script type="module" src="/renderer-assets/render.js"></script>
+  </body>
+</html>
