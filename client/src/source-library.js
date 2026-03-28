@@ -22,6 +22,27 @@ const createRowTimer = (timer = {}) => ({
   format: timer.format || 'mm:ss',
 });
 
+const normalizeLinkedTimerId = (value) => {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  const normalized = String(value).trim();
+  return normalized || null;
+};
+
+const normalizeLinkedTimerMap = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([key, timerId]) => [String(key).trim(), normalizeLinkedTimerId(timerId)])
+      .filter(([key, timerId]) => key && timerId),
+  );
+};
+
 const normalizeRow = (row = {}, index = 0) => ({
   id: row.id || `${createId()}-${index}`,
   index: row.index || index + 1,
@@ -37,7 +58,8 @@ export const loadSourceLibrary = () => {
 
     return parsed.map((source) => ({
       ...source,
-      linkedTimerId: source.linkedTimerId || null,
+      linkedTimerId: normalizeLinkedTimerId(source.linkedTimerId),
+      linkedTimerByOutput: normalizeLinkedTimerMap(source.linkedTimerByOutput),
       rows: (source.rows || []).map((row, index) => normalizeRow(row, index)),
     }));
   } catch {
@@ -91,6 +113,7 @@ export const parseSourceText = ({ text, name, templateFields = [] }) => {
     name: name?.trim() || 'Imported Source',
     delimiter,
     linkedTimerId: null,
+    linkedTimerByOutput: {},
     columns,
     rows,
     createdAt: new Date().toISOString(),

@@ -9,9 +9,7 @@
 html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
 body { font-family: Bahnschrift, "Segoe UI Variable Text", "Segoe UI", sans-serif; }
 body[data-preview='1'] {
-  background:
-    radial-gradient(circle at top left, rgba(112, 173, 71, 0.12), transparent 26%),
-    linear-gradient(180deg, #101318 0%, #090b0f 100%);
+  background: #050608;
 }
 body[data-embed='1'] {
   background: transparent;
@@ -35,7 +33,7 @@ body[data-preview='1'] .render-stage {
   width: 1920px;
   height: 1080px;
   border-radius: 14px;
-  background: linear-gradient(180deg, rgba(9, 11, 15, 0.65), rgba(9, 11, 15, 0.35));
+  background: #050608;
   transform-origin: top left;
   transform: scale(var(--preview-scale, 1));
 }

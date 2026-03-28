@@ -2,6 +2,11 @@ import { EventEmitter } from 'node:events';
 import { JSDOM } from 'jsdom';
 
 const sanitizeHost = (value = '') => value.trim().replace(/\/+$/, '');
+const normalizeTitleAnimation = (value, fallback) => {
+  const normalizedValue = value === 'TitleBeginAnimation' ? 'TransitionIn' : value === 'TitleEndAnimation' ? 'TransitionOut' : value;
+  const normalizedFallback = fallback === 'TitleBeginAnimation' ? 'TransitionIn' : fallback === 'TitleEndAnimation' ? 'TransitionOut' : fallback;
+  return ['TransitionIn', 'TransitionOut', 'none'].includes(normalizedValue) ? normalizedValue : normalizedFallback;
+};
 
 const isProbablyTimerInput = (input) => {
   const title = `${input.title} ${input.shortTitle}`.toLowerCase();
@@ -22,6 +27,13 @@ const parseInteger = (value, fallback = 0) => {
 };
 
 const extractText = (node) => (node?.textContent || '').trim();
+const extractOwnText = (node) =>
+  [...(node?.childNodes || [])]
+    .filter((childNode) => childNode.nodeType === 3)
+    .map((childNode) => childNode.textContent || '')
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 const extractInputTextFields = (node) =>
   [...node.querySelectorAll('text')].map((textNode, index) => ({
     index: textNode.getAttribute('index') || String(index),
@@ -91,7 +103,7 @@ export class VmixService extends EventEmitter {
           key: node.getAttribute('key') || '',
           number: node.getAttribute('number') || '',
           type: node.getAttribute('type') || '',
-          title: extractText(node),
+          title: extractOwnText(node) || node.getAttribute('title') || '',
           shortTitle: node.getAttribute('shortTitle') || '',
           state: node.getAttribute('state') || '',
           duration: parseInteger(node.getAttribute('duration')),
@@ -266,11 +278,23 @@ export class VmixService extends EventEmitter {
     }
 
     if (action === 'show') {
-      await this.callFunction('TitleBeginAnimation', { Input: entry.vmixInputKey }).catch(() => {});
+      const showAction = normalizeTitleAnimation(entry.vmixShowAction, 'TransitionIn');
+      if (showAction !== 'none') {
+        await this.callFunction('TitleBeginAnimation', {
+          Input: entry.vmixInputKey,
+          Value: showAction,
+        }).catch(() => {});
+      }
     }
 
     if (action === 'hide') {
-      await this.callFunction('TitleEndAnimation', { Input: entry.vmixInputKey }).catch(() => {});
+      const hideAction = normalizeTitleAnimation(entry.vmixHideAction, 'TransitionOut');
+      if (hideAction !== 'none') {
+        await this.callFunction('TitleBeginAnimation', {
+          Input: entry.vmixInputKey,
+          Value: hideAction,
+        }).catch(() => {});
+      }
     }
 
     return true;

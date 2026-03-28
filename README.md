@@ -88,7 +88,7 @@ npm.cmd run package:win
 Результат сборки:
 
 ```text
-release/WebTitlePro-0.1.0.exe
+release/WebTitlePro-0.1.4.exe
 ```
 
 Рекомендуемый launcher:
@@ -120,6 +120,32 @@ launch-web-title-pro.cmd
 <span data-field="name" data-label="Name">John Doe</span>
 <span data-timer="speaker">00:30</span>
 ```
+
+### Правила шаблонов
+
+При импорте шаблон проходит автоматическую валидацию.
+
+Разрешено:
+
+- локальные `html`, `css`, `js`, `json`
+- локальные изображения
+- локальные шрифты
+- локальные видео `mp4` и `webm`
+
+Запрещено:
+
+- внешние `http://` и `https://` ресурсы
+- внешние CDN, внешние шрифты и внешние скрипты
+- теги `iframe`, `object`, `embed`
+
+Базовые лимиты импорта:
+
+- архив до `25 MB`
+- распакованный шаблон до `60 MB`
+- до `150` файлов в пакете
+- один файл до `30 MB`
+
+Если шаблон не проходит проверку, приложение показывает подробный список ошибок по файлам, чтобы дизайнер мог быстро исправить пакет.
 
 ### Интеграция с vMix
 
@@ -252,7 +278,7 @@ npm.cmd run package:win
 Build output:
 
 ```text
-release/WebTitlePro-0.1.0.exe
+release/WebTitlePro-0.1.4.exe
 ```
 
 Recommended launcher:
@@ -284,6 +310,32 @@ Example:
 <span data-field="name" data-label="Name">John Doe</span>
 <span data-timer="speaker">00:30</span>
 ```
+
+### Template Rules
+
+Imported templates are validated automatically.
+
+Allowed:
+
+- local `html`, `css`, `js`, `json`
+- local images
+- local fonts
+- local `mp4` and `webm` videos
+
+Blocked:
+
+- external `http://` and `https://` resources
+- external CDNs, fonts, and scripts
+- `iframe`, `object`, and `embed` tags
+
+Import limits:
+
+- archive up to `25 MB`
+- unpacked template up to `60 MB`
+- up to `150` files per package
+- single file up to `30 MB`
+
+If validation fails, the application shows a detailed per-file error report so the designer can fix the package quickly.
 
 ### vMix Integration
 

@@ -53,6 +53,17 @@ const buildVmixFieldDefinitions = (entry = {}) => {
   }));
 };
 
+const VMIX_ACTIONS = new Set(['TransitionIn', 'TransitionOut', 'none']);
+const LEGACY_VMIX_ACTIONS = new Map([
+  ['TitleBeginAnimation', 'TransitionIn'],
+  ['TitleEndAnimation', 'TransitionOut'],
+]);
+const normalizeVmixAction = (value, fallback) => {
+  const normalizedValue = LEGACY_VMIX_ACTIONS.get(value) || value;
+  const normalizedFallback = LEGACY_VMIX_ACTIONS.get(fallback) || fallback;
+  return VMIX_ACTIONS.has(normalizedValue) ? normalizedValue : normalizedFallback;
+};
+
 const normalizeEntryShortcuts = (shortcuts = {}) => ({
   show: typeof shortcuts.show === 'string' ? shortcuts.show : '',
   live: typeof shortcuts.live === 'string' ? shortcuts.live : '',
@@ -66,14 +77,18 @@ const slugifyOutputKey = (value = '') =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 32);
 
-const createOutput = ({ id, name, key, selectedEntryId = null, program, previewProgram } = {}, index = 1) => {
+const buildSyncGroupId = (outputId) => `sync-${outputId}`;
+
+const createOutput = ({ id, name, key, selectedEntryId = null, program, previewProgram, syncGroupId } = {}, index = 1) => {
   const fallbackName = `OUTPUT ${index}`;
   const fallbackKey = index === 1 ? 'main' : `output-${index}`;
+  const outputId = id || nanoid(10);
 
   return {
-    id: id || nanoid(10),
+    id: outputId,
     name: name?.trim() || fallbackName,
     key: slugifyOutputKey(key || name || fallbackKey) || fallbackKey,
+    syncGroupId: syncGroupId || buildSyncGroupId(outputId),
     selectedEntryId,
     program: {
       ...createDefaultProgram(),
@@ -100,6 +115,7 @@ const normalizeTimer = (timer = {}) => ({
   running: Boolean(timer.running),
   startedAt: timer.startedAt || null,
   sourceType: timer.sourceType === 'vmix' ? 'vmix' : 'local',
+  targetOutputId: timer.targetOutputId || null,
   targetTemplateId: timer.targetTemplateId || null,
   targetTimerId: timer.targetTimerId || timer.id || null,
   vmixInputKey: timer.vmixInputKey || null,
@@ -267,6 +283,7 @@ export class TitleStore extends EventEmitter {
         templateId: null,
         templateName: 'No template',
         templateFields: [],
+        templateTimers: [],
       };
     }
 
@@ -275,6 +292,7 @@ export class TitleStore extends EventEmitter {
         templateId: null,
         templateName: entry.vmixInputTitle || 'vMix Title',
         templateFields: buildVmixFieldDefinitions(entry),
+        templateTimers: [],
       };
     }
 
@@ -283,6 +301,7 @@ export class TitleStore extends EventEmitter {
       templateId: entry.templateId,
       templateName: template?.name || 'Missing template',
       templateFields: template?.fields || [],
+      templateTimers: template?.timers || [],
     };
   }
 
@@ -296,6 +315,8 @@ export class TitleStore extends EventEmitter {
             ...entry,
             templateId: null,
             fields: this.buildEntryFields(null, entry.fields || {}),
+            vmixShowAction: normalizeVmixAction(entry.vmixShowAction, 'TransitionIn'),
+            vmixHideAction: normalizeVmixAction(entry.vmixHideAction, 'TransitionOut'),
             hidden: Boolean(entry.hidden),
             shortcuts: normalizeEntryShortcuts(entry.shortcuts),
             missingTemplate: false,
@@ -410,6 +431,8 @@ export class TitleStore extends EventEmitter {
         ...deepClone(entry),
         templateName: presentation.templateName,
         templateFields: presentation.templateFields,
+        templateTimers: presentation.templateTimers,
+        hasTimer: Array.isArray(presentation.templateTimers) && presentation.templateTimers.length > 0,
       };
     });
   }
@@ -585,9 +608,55 @@ export class TitleStore extends EventEmitter {
       output.key = this.ensureUniqueOutputKey(output.key || output.name, output.id);
     }
 
+    if (typeof payload.syncGroupId === 'string') {
+      output.syncGroupId = payload.syncGroupId.trim() || buildSyncGroupId(output.id);
+    }
+
     this.ensureOutputsConsistent();
     this.touch();
     return deepClone(output);
+  }
+
+  toggleOutputSync(outputRef, targetOutputRef) {
+    const output = this.getOutputByRef(outputRef);
+    const targetOutput = this.getOutputByRef(targetOutputRef);
+
+    if (!output || !targetOutput) {
+      throw new Error('Output not found.');
+    }
+
+    const outputGroupId = output.syncGroupId || buildSyncGroupId(output.id);
+    const targetGroupId = targetOutput.syncGroupId || buildSyncGroupId(targetOutput.id);
+    const currentGroupMembers = this.state.outputs.filter((item) => item.syncGroupId === outputGroupId);
+
+    if (outputGroupId === targetGroupId) {
+      if (currentGroupMembers.length <= 1) {
+        return deepClone(this.state.outputs);
+      }
+
+      const nextTargetGroupId = buildSyncGroupId(targetOutput.id);
+      const remainingMembers = currentGroupMembers.filter((item) => item.id !== targetOutput.id);
+
+      if (nextTargetGroupId === outputGroupId) {
+        const nextRemainingGroupId = buildSyncGroupId(remainingMembers[0].id);
+
+        for (const item of remainingMembers) {
+          item.syncGroupId = nextRemainingGroupId;
+        }
+      }
+
+      targetOutput.syncGroupId = nextTargetGroupId;
+    } else {
+      for (const item of this.state.outputs) {
+        if (item.syncGroupId === outputGroupId || item.syncGroupId === targetGroupId) {
+          item.syncGroupId = outputGroupId;
+        }
+      }
+    }
+
+    this.ensureOutputsConsistent();
+    this.touch();
+    return deepClone(this.state.outputs);
   }
 
   deleteOutput(outputRef) {
@@ -640,6 +709,8 @@ export class TitleStore extends EventEmitter {
         vmixInputKey: payload.vmixInputKey || null,
         vmixInputTitle: payload.vmixInputTitle || 'vMix Title',
         vmixFieldMap: Array.isArray(payload.vmixFieldMap) ? payload.vmixFieldMap : buildVmixFieldDefinitions({ fields: initialFields }),
+        vmixShowAction: normalizeVmixAction(payload.vmixShowAction, 'TransitionIn'),
+        vmixHideAction: normalizeVmixAction(payload.vmixHideAction, 'TransitionOut'),
         hidden: false,
         shortcuts: normalizeEntryShortcuts(payload.shortcuts),
         createdAt: new Date().toISOString(),
@@ -700,6 +771,14 @@ export class TitleStore extends EventEmitter {
 
       if (Array.isArray(payload.vmixFieldMap)) {
         entry.vmixFieldMap = payload.vmixFieldMap;
+      }
+
+      if (payload.vmixShowAction !== undefined) {
+        entry.vmixShowAction = normalizeVmixAction(payload.vmixShowAction, entry.vmixShowAction || 'TransitionIn');
+      }
+
+      if (payload.vmixHideAction !== undefined) {
+        entry.vmixHideAction = normalizeVmixAction(payload.vmixHideAction, entry.vmixHideAction || 'TransitionOut');
       }
     } else if (payload.templateId && payload.templateId !== entry.templateId) {
       const newTemplate = this.getTemplate(payload.templateId);
@@ -1006,6 +1085,7 @@ export class TitleStore extends EventEmitter {
       running: false,
       startedAt: null,
       sourceType: payload.sourceType,
+      targetOutputId: payload.targetOutputId,
       targetTemplateId: payload.targetTemplateId,
       targetTimerId: payload.targetTimerId,
       vmixInputKey: payload.vmixInputKey,
@@ -1039,6 +1119,10 @@ export class TitleStore extends EventEmitter {
 
     if (payload.sourceType !== undefined) {
       timer.sourceType = payload.sourceType === 'vmix' ? 'vmix' : 'local';
+    }
+
+    if (payload.targetOutputId !== undefined) {
+      timer.targetOutputId = payload.targetOutputId || null;
     }
 
     if (payload.targetTemplateId !== undefined) {

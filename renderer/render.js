@@ -44,13 +44,16 @@ window.addEventListener('resize', updatePreviewScale);
 const createContext = () => ({
   stage,
   snapshot: currentSnapshot,
+  output: resolveOutput(currentSnapshot),
   program: resolveProgram(currentSnapshot),
   timers: currentSnapshot?.timers || [],
 });
 
+const resolveOutput = (snapshot) =>
+  snapshot?.outputs?.find((output) => output.id === requestedOutput || output.key === requestedOutput) || null;
+
 const resolveProgram = (snapshot) => {
-  const matchedOutput =
-    snapshot?.outputs?.find((output) => output.id === requestedOutput || output.key === requestedOutput) || null;
+  const matchedOutput = resolveOutput(snapshot);
   if (usePreviewState) {
     return matchedOutput?.previewProgram || matchedOutput?.program || snapshot?.previewProgram || snapshot?.program;
   }
@@ -126,10 +129,32 @@ const applyFields = (fields = {}) => {
   });
 };
 
-const applyTimers = (timers = []) => {
-  const timerMap = new Map(timers.map((timer) => [timer.targetTimerId || timer.id, timer]));
+const resolveTimerForSlot = (template, output, timers, slotId) => {
+  const eligibleTimers = (timers || []).filter((timer) => timer.sourceType !== 'vmix');
+  const slotMatches = eligibleTimers.filter((timer) => (timer.targetTimerId || timer.id) === slotId);
+  const exactTemplateMatches = slotMatches.filter((timer) => timer.targetTemplateId === template?.id);
+  const genericTemplateMatches = slotMatches.filter((timer) => !timer.targetTemplateId);
+  const exactOutputMatches = exactTemplateMatches.filter((timer) => timer.targetOutputId === output?.id);
+  const templateOnlyMatches = exactTemplateMatches.filter((timer) => !timer.targetOutputId);
+  const genericOutputMatches = genericTemplateMatches.filter((timer) => timer.targetOutputId === output?.id);
+  const genericMatches = genericTemplateMatches.filter((timer) => !timer.targetOutputId);
+
+  return (
+    exactOutputMatches.find((timer) => timer.running) ||
+    exactOutputMatches[0] ||
+    templateOnlyMatches.find((timer) => timer.running) ||
+    templateOnlyMatches[0] ||
+    genericOutputMatches.find((timer) => timer.running) ||
+    genericOutputMatches[0] ||
+    genericMatches.find((timer) => timer.running) ||
+    genericMatches[0] ||
+    null
+  );
+};
+
+const applyTimers = (template, output, timers = []) => {
   stage.querySelectorAll('[data-timer]').forEach((node) => {
-    const timer = timerMap.get(node.getAttribute('data-timer'));
+    const timer = resolveTimerForSlot(template, output, timers, node.getAttribute('data-timer'));
     node.textContent = timer?.display || '00:00.0';
   });
 };
@@ -164,11 +189,12 @@ const applyVisibility = (visible) => {
 
 const applySnapshot = async (snapshot) => {
   currentSnapshot = snapshot;
+  const output = resolveOutput(snapshot);
   const program = resolveProgram(snapshot);
   const template = snapshot.templates.find((item) => item.id === program?.templateId);
   await ensureTemplate(template);
   applyFields(program?.fields);
-  applyTimers(snapshot.timers);
+  applyTimers(template, output, snapshot.timers);
   applyVisibility(program?.visible);
   currentTemplateApi?.update?.(createContext());
 };

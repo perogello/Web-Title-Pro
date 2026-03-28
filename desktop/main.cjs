@@ -3,6 +3,7 @@ const os = require('node:os');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const { spawn } = require('node:child_process');
+const { pathToFileURL } = require('node:url');
 const electron = require('electron');
 
 const app = electron.app;
@@ -16,8 +17,8 @@ const APP_META_URL = `${SERVER_URL}/api/app/meta`;
 const UPDATE_CHECK_URL = `${SERVER_URL}/api/updates/check`;
 const BUILTIN_REPO_URL = 'https://github.com/perogello/Web-Title-Pro';
 
-let backendProcess = null;
-let ownsBackendProcess = false;
+let backendRuntime = null;
+let ownsBackendRuntime = false;
 let mainWindow = null;
 let splashWindow = null;
 let updateWindow = null;
@@ -198,35 +199,22 @@ const ensureBackend = async () => {
 
   startPseudoProgress('Starting local engine...', 16);
 
-  const childEnv = {
-    ...process.env,
-    ELECTRON_RUN_AS_NODE: '1',
-    WEB_TITLE_PRO_DATA_DIR: path.join(app.getPath('userData'), 'data'),
-    WEB_TITLE_PRO_STORAGE_DIR: path.join(app.getPath('userData'), 'storage'),
-  };
+  process.env.WEB_TITLE_PRO_DATA_DIR = path.join(app.getPath('userData'), 'data');
+  process.env.WEB_TITLE_PRO_STORAGE_DIR = path.join(app.getPath('userData'), 'storage');
+
   const serverEntry = path.resolve(__dirname, '..', 'server', 'index.js');
+  const serverModuleUrl = pathToFileURL(serverEntry).href;
+  const { startServer } = await import(serverModuleUrl);
 
-  log(`ensureBackend:spawn ${serverEntry}`);
-  backendProcess = spawn(process.execPath, [serverEntry], {
-    env: childEnv,
-    stdio: 'ignore',
-    windowsHide: true,
+  log(`ensureBackend:in-process ${serverEntry}`);
+  backendRuntime = await startServer({
+    onProgress: ({ label, percent }) => {
+      void setWindowProgress(splashWindow, label || 'Starting local engine...', percent || 16);
+    },
   });
-  ownsBackendProcess = true;
+  ownsBackendRuntime = true;
 
-  backendProcess.on('exit', (code) => {
-    log(`backend:exit ${code}`);
-    backendProcess = null;
-  });
-
-  const isHealthy = await waitForHealth();
   stopPseudoProgress();
-
-  if (!isHealthy) {
-    log('ensureBackend:health-failed');
-    throw new Error('Backend did not start in time.');
-  }
-
   log('ensureBackend:healthy');
   await setWindowProgress(splashWindow, 'Backend ready. Opening control panel...', 90);
 };
@@ -514,7 +502,9 @@ app.on('activate', async () => {
 app.on('before-quit', () => {
   stopPseudoProgress();
   log('app:before-quit');
-  if (ownsBackendProcess && backendProcess && !backendProcess.killed) {
-    backendProcess.kill();
+  if (ownsBackendRuntime && backendRuntime?.close) {
+    try {
+      backendRuntime.close();
+    } catch {}
   }
 });

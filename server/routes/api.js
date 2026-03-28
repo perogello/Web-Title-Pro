@@ -2,11 +2,18 @@ import os from 'node:os';
 import { Router } from 'express';
 import multer from 'multer';
 
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 25 * 1024 * 1024,
+    files: 150,
+  },
+});
 
 const sendError = (response, error) => {
   response.status(400).json({
     error: error.message || 'Unexpected error',
+    details: Array.isArray(error.details) ? error.details : undefined,
   });
 };
 
@@ -174,6 +181,15 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     }
   });
 
+  router.post('/outputs/:outputId/sync-toggle', (request, response) => {
+    try {
+      const outputs = store.toggleOutputSync(request.params.outputId, request.body.targetOutputId);
+      response.json(outputs);
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
   router.get('/templates', (_request, response) => {
     response.json(templateService.getTemplates());
   });
@@ -212,6 +228,21 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     try {
       store.deleteEntry(request.params.entryId);
       response.status(204).end();
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  router.post('/entries/:entryId/vmix-sync', async (request, response) => {
+    try {
+      const entry = store.getEntry(request.params.entryId);
+
+      if (!entry) {
+        throw new Error('Entry not found.');
+      }
+
+      await syncVmixEntryIfNeeded(entry, request.body?.action || 'update');
+      response.json({ ok: true });
     } catch (error) {
       sendError(response, error);
     }
@@ -294,20 +325,25 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     }
   });
 
-  router.post('/commands/:action', (request, response) => {
+  router.post('/commands/:action', async (request, response) => {
     try {
       const { action } = request.params;
+      let syncEntry = null;
 
       if (action === 'show') {
         store.showSelected(request.body.entryId, request.body.outputId);
+        syncEntry = getEntryForAction(request.body.entryId, request.body.outputId);
       } else if (action === 'update' || action === 'live') {
         store.updateProgram(request.body.entryId, request.body.outputId);
+        syncEntry = getEntryForAction(request.body.entryId, request.body.outputId);
       } else if (action === 'hide') {
+        syncEntry = store.getEntry(store.getProgram(request.body.outputId).entryId);
         store.hideProgram(request.body.outputId);
       } else {
         throw new Error('Unsupported command.');
       }
 
+      await syncVmixEntryIfNeeded(syncEntry, action === 'live' ? 'update' : action);
       response.json({ ok: true, action });
     } catch (error) {
       sendError(response, error);
