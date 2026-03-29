@@ -88,8 +88,12 @@ npm.cmd run package:win
 Результат сборки:
 
 ```text
-release/WebTitlePro-0.1.4.exe
+release/WebTitlePro-0.1.6.exe
+release/WebTitlePro.exe
 ```
+
+`WebTitlePro-0.1.6.exe` используется как versioned release asset.
+`WebTitlePro.exe` создается автоматически после сборки и используется как стабильный локальный файл для запуска и обновлений.
 
 Рекомендуемый launcher:
 
@@ -98,6 +102,11 @@ launch-web-title-pro.cmd
 ```
 
 Он очищает конфликтующие Electron-переменные окружения и безопасно запускает packaged app.
+Для прямого ярлыка пользователю лучше использовать:
+
+```text
+release/WebTitlePro.exe
+```
 
 ### Как использовать
 
@@ -278,8 +287,12 @@ npm.cmd run package:win
 Build output:
 
 ```text
-release/WebTitlePro-0.1.4.exe
+release/WebTitlePro-0.1.6.exe
+release/WebTitlePro.exe
 ```
+
+`WebTitlePro-0.1.6.exe` is the versioned release asset.
+`WebTitlePro.exe` is created automatically after packaging and is intended as the stable local executable for launch and updates.
 
 Recommended launcher:
 
@@ -288,6 +301,11 @@ launch-web-title-pro.cmd
 ```
 
 It clears conflicting Electron environment flags and starts the packaged app safely.
+For a direct desktop shortcut, prefer:
+
+```text
+release/WebTitlePro.exe
+```
 
 ### How To Use
 

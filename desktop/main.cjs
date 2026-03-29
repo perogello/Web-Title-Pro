@@ -16,6 +16,7 @@ const HEALTH_URL = `${SERVER_URL}/api/health`;
 const APP_META_URL = `${SERVER_URL}/api/app/meta`;
 const UPDATE_CHECK_URL = `${SERVER_URL}/api/updates/check`;
 const BUILTIN_REPO_URL = 'https://github.com/perogello/Web-Title-Pro';
+const STABLE_PORTABLE_EXE_NAME = 'WebTitlePro.exe';
 
 let backendRuntime = null;
 let ownsBackendRuntime = false;
@@ -321,6 +322,18 @@ const downloadFileWithProgress = async (url, destinationPath, onProgress) => {
 
 const escapeBatchValue = (value) => String(value).replace(/"/g, '""');
 
+const resolveStablePortableExePath = () => {
+  const currentPath = process.execPath;
+  const currentDir = path.dirname(currentPath);
+  const currentBase = path.basename(currentPath);
+
+  if (/^WebTitlePro-\d+\.\d+\.\d+\.exe$/i.test(currentBase)) {
+    return path.join(currentDir, STABLE_PORTABLE_EXE_NAME);
+  }
+
+  return currentPath;
+};
+
 const createUpdateScript = async ({ sourcePath, targetPath }) => {
   const scriptPath = path.join(app.getPath('temp'), `web-title-pro-apply-update-${Date.now()}.cmd`);
   const script = [
@@ -344,7 +357,7 @@ const createUpdateScript = async ({ sourcePath, targetPath }) => {
 };
 
 const applyDownloadedUpdate = async (downloadPath) => {
-  const targetPath = process.execPath;
+  const targetPath = resolveStablePortableExePath();
   const scriptPath = await createUpdateScript({
     sourcePath: downloadPath,
     targetPath,

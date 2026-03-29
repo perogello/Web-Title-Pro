@@ -1,6 +1,6 @@
 {
   "name": "web-title-pro",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "description": "Low-latency web title control system for vMix Browser Input",
   "type": "module",
   "main": "desktop/main.cjs",
@@ -12,7 +12,7 @@
     "start": "node server/index.js",
     "desktop": "npm run build && node scripts/run-desktop.cjs",
     "desktop:dev": "node scripts/run-desktop.cjs",
-    "package:win": "npm run build && electron-builder --win portable"
+    "package:win": "npm run build && electron-builder --win portable && node scripts/finalize-portable.cjs"
   },
   "keywords": [],
   "author": "",
@@ -60,7 +60,8 @@
       "target": [
         "portable"
       ],
-      "artifactName": "WebTitlePro-${version}.${ext}"
+      "artifactName": "WebTitlePro-${version}.${ext}",
+      "icon": "build/icon.ico"
     }
   }
 }
