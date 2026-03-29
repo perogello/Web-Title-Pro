@@ -1,6 +1,5 @@
 const fs = require('node:fs');
 const path = require('node:path');
-
 const rootDir = path.resolve(__dirname, '..');
 const packageJsonPath = path.join(rootDir, 'package.json');
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
@@ -14,5 +13,10 @@ if (!fs.existsSync(versionedExePath)) {
   process.exit(1);
 }
 
+if (fs.existsSync(stableExePath)) {
+  fs.rmSync(stableExePath, { force: true });
+}
+
 fs.copyFileSync(versionedExePath, stableExePath);
+
 console.log(`Created stable launcher executable: ${stableExePath}`);
