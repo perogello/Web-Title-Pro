@@ -1,58 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { loadSourceLibrary, parseSourceText, saveSourceLibrary } from './source-library.js';
-
-const BACKEND_ORIGIN = window.location.port === '5173' ? 'http://localhost:4000' : window.location.origin;
-const WS_ORIGIN = BACKEND_ORIGIN.replace(/^http/, 'ws');
+import {
+  createRemoteSourceConfig,
+  loadSourceLibrary,
+  normalizeSourceLibrary,
+  parseSourceText,
+  saveSourceLibrary,
+} from './source-library.js';
+import {
+  getRemoteSourceTypeLabel,
+  normalizeRemoteSourceType,
+} from './remote-sources/index.js';
+import { api, BACKEND_ORIGIN, copyText } from './control-shell/api.js';
+import {
+  buildSourceFromRemoteFetch,
+  fetchRemoteSourcePayload,
+  getRemoteImportFallbackName,
+} from './control-shell/source-service.js';
+import { useMidiState, useRealtimeState, useSystemInfo, useVmixState } from './control-shell/hooks.js';
+import ProjectPanel from './control-shell/ProjectPanel.jsx';
+import PreviewTitlePanel from './control-shell/PreviewTitlePanel.jsx';
+import SettingsPanel from './control-shell/SettingsPanel.jsx';
+import TitlesPanel from './control-shell/TitlesPanel.jsx';
+import LiveTab from './control-shell/tabs/LiveTab.jsx';
+import MappingTab from './control-shell/tabs/MappingTab.jsx';
+import SourcesTab from './control-shell/tabs/SourcesTab.jsx';
+import TimersTab from './control-shell/tabs/TimersTab.jsx';
+import {
+  ChevronUpIcon,
+} from './control-shell/icons.jsx';
 
 const isTypingTarget = (target) => {
   if (!target) return false;
   const tag = target.tagName;
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
-};
-
-const api = async (path, options = {}) => {
-  const response = await fetch(`${BACKEND_ORIGIN}${path}`, {
-    method: options.method || 'GET',
-    headers: options.body instanceof FormData ? undefined : { 'Content-Type': 'application/json' },
-    body:
-      options.body instanceof FormData
-        ? options.body
-        : options.body !== undefined
-          ? JSON.stringify(options.body)
-          : undefined,
-  });
-
-  if (!response.ok) {
-    const errorPayload = await response.json().catch(() => ({ error: 'Request failed' }));
-    const error = new Error(errorPayload.error || 'Request failed');
-    error.details = errorPayload.details || null;
-    throw error;
-  }
-
-  if (response.status === 204) {
-    return null;
-  }
-
-  return response.json();
-};
-
-const copyText = async (value) => {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(value);
-      return;
-    }
-  } catch {}
-
-  const textarea = document.createElement('textarea');
-  textarea.value = value;
-  textarea.setAttribute('readonly', '');
-  textarea.style.position = 'absolute';
-  textarea.style.left = '-9999px';
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand('copy');
-  document.body.removeChild(textarea);
 };
 
 const createClientId = (prefix = 'item') => {
@@ -118,133 +98,6 @@ const getLinkedTimerStatus = (timer, fallbackBaseMs = 0) => {
   return currentMs !== referenceMs ? 'paused' : 'idle';
 };
 
-const iconProps = {
-  width: 16,
-  height: 16,
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 2,
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
-  'aria-hidden': 'true',
-};
-
-const EditIcon = () => (
-  <svg {...iconProps}>
-    <path d="M12 20h9" />
-    <path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z" />
-  </svg>
-);
-
-const SaveIcon = () => (
-  <svg {...iconProps}>
-    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" />
-    <path d="M17 21v-8H7v8" />
-    <path d="M7 3v5h8" />
-  </svg>
-);
-
-const ChevronUpIcon = () => (
-  <svg {...iconProps}>
-    <path d="m18 15-6-6-6 6" />
-  </svg>
-);
-
-const ChevronDownIcon = () => (
-  <svg {...iconProps}>
-    <path d="m6 9 6 6 6-6" />
-  </svg>
-);
-
-const PlayIcon = () => (
-  <svg {...iconProps}>
-    <path d="m8 5 11 7-11 7z" />
-  </svg>
-);
-
-const PauseIcon = () => (
-  <svg {...iconProps}>
-    <path d="M10 4H6v16h4z" />
-    <path d="M18 4h-4v16h4z" />
-  </svg>
-);
-
-const ResetIcon = () => (
-  <svg {...iconProps}>
-    <path d="M3 12a9 9 0 1 0 3-6.7" />
-    <path d="M3 3v6h6" />
-  </svg>
-);
-
-const StopwatchIcon = () => (
-  <svg {...iconProps}>
-    <circle cx="12" cy="13" r="7" />
-    <path d="M12 13V9" />
-    <path d="M12 13l3 2" />
-    <path d="M9 3h6" />
-    <path d="M12 3v3" />
-  </svg>
-);
-
-const ZoomIcon = () => (
-  <svg {...iconProps}>
-    <circle cx="11" cy="11" r="6" />
-    <path d="M20 20l-4.2-4.2" />
-    <path d="M11 8v6" />
-    <path d="M8 11h6" />
-  </svg>
-);
-
-const EyeIcon = () => (
-  <svg {...iconProps}>
-    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
-const EyeOffIcon = () => (
-  <svg {...iconProps}>
-    <path d="M3 3l18 18" />
-    <path d="M10.7 5.1A11.5 11.5 0 0 1 12 5c6.5 0 10 7 10 7a18.7 18.7 0 0 1-4 4.9" />
-    <path d="M6.6 6.6A18.2 18.2 0 0 0 2 12s3.5 7 10 7c1.8 0 3.4-.4 4.8-1" />
-    <path d="M9.5 9.5A3.5 3.5 0 0 0 14.5 14.5" />
-  </svg>
-);
-
-const TrashIcon = () => (
-  <svg {...iconProps}>
-    <path d="M3 6h18" />
-    <path d="M8 6V4h8v2" />
-    <path d="M19 6l-1 14H6L5 6" />
-    <path d="M10 11v6" />
-    <path d="M14 11v6" />
-  </svg>
-);
-
-const GripIcon = () => (
-  <svg {...iconProps}>
-    <circle cx="8" cy="6" r="1.2" fill="currentColor" stroke="none" />
-    <circle cx="8" cy="12" r="1.2" fill="currentColor" stroke="none" />
-    <circle cx="8" cy="18" r="1.2" fill="currentColor" stroke="none" />
-    <circle cx="16" cy="6" r="1.2" fill="currentColor" stroke="none" />
-    <circle cx="16" cy="12" r="1.2" fill="currentColor" stroke="none" />
-    <circle cx="16" cy="18" r="1.2" fill="currentColor" stroke="none" />
-  </svg>
-);
-
-const ChevronLeftIcon = () => (
-  <svg {...iconProps}>
-    <path d="m15 18-6-6 6-6" />
-  </svg>
-);
-
-const ChevronRightIcon = () => (
-  <svg {...iconProps}>
-    <path d="m9 18 6-6-6-6" />
-  </svg>
-);
-
 const TIMER_FORMATS = ['hh:mm:ss', 'mm:ss', 'ss'];
 const VMIX_TITLE_ACTIONS = [
   { value: 'TransitionIn', label: 'TransitionIn' },
@@ -263,6 +116,12 @@ const formatStatusTime = (value) =>
     minute: '2-digit',
     second: '2-digit',
   }).format(new Date(value));
+
+const buildWindowTitle = (projectName, dirty) => {
+  const cleanProjectName = projectName && projectName !== 'Unsaved Project' ? projectName : null;
+  const dirtyMarker = dirty ? ' *' : '';
+  return cleanProjectName ? `${cleanProjectName}${dirtyMarker} - Web Title Pro` : `Web Title Pro${dirtyMarker}`;
+};
 
 const formatCompactTimer = (milliseconds, format = 'mm:ss') => {
   const safeMilliseconds = Math.max(0, milliseconds);
@@ -381,11 +240,74 @@ const formatShortcutFromEvent = (event) => {
   return [...parts, base].join('+');
 };
 
-const applyRowToFields = (templateFields, rowValues, currentFields) => {
+const buildEffectiveLocalFieldMap = (entry, templateFields = []) => {
+  const existing = Array.isArray(entry?.localFieldMap) ? entry.localFieldMap : [];
+  const mapByName = new Map(existing.filter((item) => item?.name).map((item) => [item.name, item]));
+
+  return templateFields.map((field, index) => {
+    const mapped = mapByName.get(field.name);
+    const sourceColumnIndex = Number.isInteger(mapped?.sourceColumnIndex)
+      ? mapped.sourceColumnIndex
+      : Number.parseInt(mapped?.sourceColumnIndex ?? '', 10);
+
+    return {
+      name: field.name,
+      label: field.label || field.name,
+      sourceColumnIndex: Number.isFinite(sourceColumnIndex) ? sourceColumnIndex : index,
+    };
+  });
+};
+
+const buildEffectiveVmixFieldMap = (entry, templateFields = []) => {
+  const existing = Array.isArray(entry?.vmixFieldMap) ? entry.vmixFieldMap : [];
+  const mapByName = new Map(existing.filter((item) => item?.name).map((item) => [item.name, item]));
+
+  return templateFields.map((field, index) => {
+    const mapped = mapByName.get(field.name);
+    const sourceColumnIndex = Number.isInteger(mapped?.sourceColumnIndex)
+      ? mapped.sourceColumnIndex
+      : Number.parseInt(mapped?.sourceColumnIndex ?? '', 10);
+
+    return {
+      name: field.name,
+      label: field.label || field.name,
+      vmixFieldName: mapped?.vmixFieldName || field.label || field.name,
+      sourceColumnIndex: Number.isFinite(sourceColumnIndex) ? sourceColumnIndex : index,
+    };
+  });
+};
+
+const buildEffectiveEntryFieldMap = (entry, templateFields = []) =>
+  entry?.entryType === 'vmix'
+    ? buildEffectiveVmixFieldMap(entry, templateFields)
+    : buildEffectiveLocalFieldMap(entry, templateFields);
+
+const buildFieldMapSignature = (fieldMap = []) =>
+  JSON.stringify(
+    (Array.isArray(fieldMap) ? fieldMap : []).map((field) => ({
+      name: field?.name || '',
+      sourceColumnIndex: Number.isFinite(Number(field?.sourceColumnIndex))
+        ? Number(field.sourceColumnIndex)
+        : null,
+      vmixFieldName: field?.vmixFieldName || '',
+    })),
+  );
+
+const applyRowToFields = (templateFields, rowValues, currentFields, fieldMap = null) => {
   const nextFields = { ...currentFields };
+  const mapByName = new Map(
+    Array.isArray(fieldMap)
+      ? fieldMap.filter((item) => item?.name).map((item) => [item.name, item])
+      : [],
+  );
 
   templateFields.forEach((field, index) => {
-    nextFields[field.name] = rowValues[index] ?? '';
+    const mapped = mapByName.get(field.name);
+    const sourceColumnIndex = Number.isInteger(mapped?.sourceColumnIndex)
+      ? mapped.sourceColumnIndex
+      : Number.parseInt(mapped?.sourceColumnIndex ?? '', 10);
+    const resolvedIndex = Number.isFinite(sourceColumnIndex) && sourceColumnIndex >= 0 ? sourceColumnIndex : null;
+    nextFields[field.name] = resolvedIndex === null ? '' : rowValues[resolvedIndex] ?? '';
   });
 
   return nextFields;
@@ -447,6 +369,7 @@ const buildVmixEntryConfig = (input) => {
       label: field.name || `Field ${index + 1}`,
       vmixFieldName: field.name || 'Text',
       index: field.index || String(index),
+      sourceColumnIndex: index,
     };
   });
 
@@ -456,155 +379,106 @@ const buildVmixEntryConfig = (input) => {
   };
 };
 
-const useRealtimeState = () => {
-  const [snapshot, setSnapshot] = useState(null);
-  const [connection, setConnection] = useState('connecting');
-  const [error, setError] = useState('');
+const buildPersistedEntry = (entry = {}) => {
+  const base = {
+    id: entry.id,
+    entryType: entry.entryType === 'vmix' ? 'vmix' : 'local',
+    templateId: entry.entryType === 'vmix' ? null : entry.templateId,
+    name: entry.name || '',
+    fields: entry.fields || {},
+    createdAt: entry.createdAt || null,
+    updatedAt: entry.updatedAt || null,
+    hidden: Boolean(entry.hidden),
+    shortcuts: entry.shortcuts || { show: '', live: '', hide: '' },
+  };
 
-  useEffect(() => {
-    let socket;
-    let reconnectTimer;
-    let mounted = true;
-
-    const loadInitial = async () => {
-      try {
-        const initial = await api('/api/state');
-        if (mounted) {
-          setSnapshot(initial);
-          setError('');
-        }
-      } catch (requestError) {
-        if (mounted) {
-          setError(requestError.message);
-        }
-      }
+  if (entry.entryType === 'vmix') {
+    return {
+      ...base,
+      vmixInputKey: entry.vmixInputKey || null,
+      vmixInputTitle: entry.vmixInputTitle || '',
+      vmixFieldMap: Array.isArray(entry.vmixFieldMap) ? entry.vmixFieldMap : [],
+      vmixShowAction: entry.vmixShowAction || 'TransitionIn',
+      vmixHideAction: entry.vmixHideAction || 'TransitionOut',
     };
+  }
 
-    const connect = () => {
-      setConnection('connecting');
-      socket = new WebSocket(`${WS_ORIGIN}/ws`);
-
-      socket.addEventListener('open', () => {
-        if (!mounted) return;
-        setConnection('connected');
-        setError('');
-      });
-
-      socket.addEventListener('message', (event) => {
-        if (!mounted) return;
-        const message = JSON.parse(event.data);
-        if (message?.payload) {
-          setSnapshot(message.payload);
-        }
-      });
-
-      socket.addEventListener('close', () => {
-        if (!mounted) return;
-        setConnection('reconnecting');
-        reconnectTimer = window.setTimeout(connect, 1200);
-      });
-
-      socket.addEventListener('error', () => {
-        if (!mounted) return;
-        setConnection('disconnected');
-        setError('WebSocket disconnected');
-      });
-    };
-
-    loadInitial();
-    connect();
-
-    return () => {
-      mounted = false;
-      window.clearTimeout(reconnectTimer);
-      socket?.close();
-    };
-  }, []);
-
-  return { snapshot, connection, error };
+  return {
+    ...base,
+    localFieldMap: Array.isArray(entry.localFieldMap) ? entry.localFieldMap : [],
+  };
 };
 
-const useSystemInfo = () => {
-  const [systemInfo, setSystemInfo] = useState(null);
+const buildPersistedTimer = (timer = {}) => ({
+  id: timer.id,
+  name: timer.name || 'New Timer',
+  mode: timer.mode === 'countup' ? 'countup' : 'countdown',
+  durationMs: Number(timer.durationMs ?? 0),
+  valueMs: Number(timer.valueMs ?? 0),
+  running: Boolean(timer.running),
+  startedAt: timer.startedAt || null,
+  sourceType: timer.sourceType === 'vmix' ? 'vmix' : 'local',
+  targetOutputId: timer.targetOutputId || null,
+  targetTemplateId: timer.targetTemplateId || null,
+  targetTimerId: timer.targetTimerId || null,
+  vmixInputKey: timer.vmixInputKey || null,
+  vmixTextField: timer.vmixTextField || 'Text',
+  displayFormat: timer.displayFormat || 'mm:ss',
+});
 
-  useEffect(() => {
-    let mounted = true;
+const buildPersistedProjectStateFromSnapshot = (snapshot) => ({
+  selectedOutputId: snapshot?.selectedOutputId || null,
+  outputs: (snapshot?.outputs || []).map((output) => ({
+    ...output,
+    program: output?.program || null,
+    previewProgram: output?.previewProgram || null,
+  })),
+  integrations: snapshot?.integrations || {},
+  entries: (snapshot?.entries || []).map((entry) => buildPersistedEntry(entry)),
+  timers: (snapshot?.timers || []).map((timer) => buildPersistedTimer(timer)),
+});
 
-    api('/api/system/info')
-      .then((payload) => {
-        if (mounted) {
-          setSystemInfo(payload);
-        }
-      })
-      .catch(() => {});
+const buildProjectSignature = ({ snapshot, sourceLibrary, selectedSourceId }) =>
+  JSON.stringify({
+    state: buildPersistedProjectStateFromSnapshot(snapshot),
+    sources: {
+      selectedSourceId: selectedSourceId || null,
+      items: normalizeSourceLibrary(sourceLibrary || []).map((source) => ({
+        id: source.id,
+        name: source.name,
+        delimiter: source.delimiter,
+        linkedTimerId: source.linkedTimerId || null,
+        linkedTimerByOutput: source.linkedTimerByOutput || {},
+        columns: source.columns || [],
+        rows: source.remote ? [] : source.rows || [],
+        remote: source.remote
+          ? {
+              type: source.remote.type || 'csv-url',
+              url: source.remote.url || '',
+              sheetName: source.remote.sheetName || '',
+              autoRefresh: Boolean(source.remote.autoRefresh),
+              refreshIntervalSec: Number(source.remote.refreshIntervalSec || 30),
+            }
+          : null,
+      })),
+    },
+  });
 
-    return () => {
-      mounted = false;
-    };
-  }, []);
+const isVmixTitleInput = (input) => {
+  if (!input) {
+    return false;
+  }
 
-  return systemInfo;
+  const title = `${input.title || ''} ${input.shortTitle || ''}`.toLowerCase();
+  const type = String(input.type || '').toLowerCase();
+  const hasTextFields = Array.isArray(input.textFields) && input.textFields.length > 0;
+
+  return hasTextFields && (title.includes('.gtzip') || title.includes('.gt') || type.includes('gt') || type.includes('title'));
 };
 
-const useVmixState = () => {
-  const [vmixState, setVmixState] = useState(null);
-
-  useEffect(() => {
-    let mounted = true;
-    let timerId;
-
-    const load = async () => {
-      try {
-        const nextState = await api('/api/vmix/status');
-
-        if (mounted) {
-          setVmixState(nextState);
-        }
-      } catch {}
-    };
-
-    load();
-    timerId = window.setInterval(load, 1500);
-
-    return () => {
-      mounted = false;
-      window.clearInterval(timerId);
-    };
-  }, []);
-
-  return [vmixState, setVmixState];
-};
-
-const useMidiState = () => {
-  const [midiState, setMidiState] = useState(null);
-
-  useEffect(() => {
-    let mounted = true;
-    let timerId;
-
-    const load = async () => {
-      try {
-        const nextState = await api('/api/midi');
-
-        if (mounted) {
-          setMidiState(nextState);
-        }
-      } catch {}
-    };
-
-    load();
-    timerId = window.setInterval(load, 4000);
-
-    return () => {
-      mounted = false;
-      window.clearInterval(timerId);
-    };
-  }, []);
-
-  return [midiState, setMidiState];
-};
 
 function ControlShell() {
+  const desktopBridge = window.webTitleDesktop || null;
   const { snapshot, connection, error } = useRealtimeState();
   const systemInfo = useSystemInfo();
   const [vmixState, setVmixState] = useVmixState();
@@ -617,6 +491,7 @@ function ControlShell() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [templateValidationReport, setTemplateValidationReport] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showProjectPanel, setShowProjectPanel] = useState(false);
   const [newEntryMode, setNewEntryMode] = useState('local');
   const [newEntryTemplateId, setNewEntryTemplateId] = useState('');
   const [newEntryName, setNewEntryName] = useState('');
@@ -635,9 +510,39 @@ function ControlShell() {
   const [sourcePayload, setSourcePayload] = useState('');
   const [sourceName, setSourceName] = useState('');
   const [sourceFileName, setSourceFileName] = useState('');
+  const [remoteSourceName, setRemoteSourceName] = useState('');
+  const [remoteSourceUrl, setRemoteSourceUrl] = useState('');
+  const [remoteSourceType, setRemoteSourceType] = useState('csv-url');
+  const [remoteSourceAutoRefresh, setRemoteSourceAutoRefresh] = useState(true);
+  const [remoteSourceRefreshIntervalSec, setRemoteSourceRefreshIntervalSec] = useState(30);
+  const [projectStatus, setProjectStatus] = useState({
+    supported: false,
+    currentProjectPath: null,
+    recentProjects: [],
+  });
+  const [yandexAuthState, setYandexAuthState] = useState({
+    supported: false,
+    encrypted: false,
+    clientId: '',
+    clientSecret: '',
+    redirectUri: '',
+    scope: 'cloud_api:disk.read',
+    accessToken: '',
+    refreshToken: '',
+    accountLogin: '',
+    accountName: '',
+    updatedAt: null,
+  });
+  const [yandexDeviceAuth, setYandexDeviceAuth] = useState({
+    status: 'idle',
+    error: '',
+  });
+  const [projectBaselineSignature, setProjectBaselineSignature] = useState(null);
+  const [projectDirty, setProjectDirty] = useState(false);
   const [manualRowValues, setManualRowValues] = useState({});
   const [editingSourceRows, setEditingSourceRows] = useState({});
   const [sourceRowDrafts, setSourceRowDrafts] = useState({});
+  const [entryFieldMapDraft, setEntryFieldMapDraft] = useState(null);
   const [vmixHostDraft, setVmixHostDraft] = useState('');
   const feedbackTimerRef = useRef(null);
   const saveTimerRef = useRef(null);
@@ -656,8 +561,27 @@ function ControlShell() {
   const [reminderDelaySec, setReminderDelaySec] = useState(15);
   const [pendingReminder, setPendingReminder] = useState(null);
   const reminderTimeoutRef = useRef(null);
+  const remoteRefreshStateRef = useRef({});
   const latestDraftRef = useRef({ name: '', fields: {} });
+  const appCloseAuthorizedRef = useRef(false);
   const outputs = snapshot?.outputs || [];
+  const currentProjectName = useMemo(() => {
+    const currentPath = projectStatus?.currentProjectPath || '';
+    if (!currentPath) {
+      return 'Unsaved Project';
+    }
+
+    const parts = currentPath.split(/[\\/]/).filter(Boolean);
+    return parts[parts.length - 1] || 'Unsaved Project';
+  }, [projectStatus?.currentProjectPath]);
+  const currentProjectDisplayName = useMemo(
+    () => currentProjectName.replace(/\.wtp-project(\.json)?$/i, '') || 'Unsaved Project',
+    [currentProjectName],
+  );
+  const currentProjectSignature = useMemo(
+    () => (snapshot ? buildProjectSignature({ snapshot, sourceLibrary, selectedSourceId }) : null),
+    [snapshot, sourceLibrary, selectedSourceId],
+  );
   const updateState = appMeta?.updates || snapshot?.integrations?.updates || null;
   const effectiveSelectedOutputId = pendingOutputId || snapshot?.selectedOutputId || null;
   const selectedOutput =
@@ -686,14 +610,77 @@ function ControlShell() {
     () => (selectedVmixInput?.textFields?.length ? selectedVmixInput.textFields : [{ name: 'Text', index: '0' }]),
     [selectedVmixInput],
   );
+  const showVmixFieldBinding = useMemo(() => {
+    const actualFields = (selectedVmixTextFields || []).filter((field) => String(field?.name || '').trim());
+    return actualFields.length > 1 || (actualFields[0]?.name || '') !== 'Text';
+  }, [selectedVmixTextFields]);
+  const vmixTitleInputs = useMemo(() => {
+    const inputs = vmixState?.inputs || [];
+    const strictMatches = inputs.filter((input) => isVmixTitleInput(input));
+
+    if (strictMatches.length) {
+      return strictMatches;
+    }
+
+    const textInputs = inputs.filter((input) => Array.isArray(input.textFields) && input.textFields.length > 0);
+    return textInputs.length ? textInputs : inputs;
+  }, [vmixState?.inputs]);
   const selectedNewVmixInput = useMemo(
     () =>
-      (vmixState?.inputs || []).find(
+      vmixTitleInputs.find(
         (input) => (input.key || input.number) === newVmixInputKey,
       ) || null,
-    [newVmixInputKey, vmixState?.inputs],
+    [newVmixInputKey, vmixTitleInputs],
   );
   const selectedSource = sourceLibrary.find((item) => item.id === selectedSourceId) || null;
+  const selectedEntryFieldMap = useMemo(
+    () => buildEffectiveEntryFieldMap(selectedEntry, selectedEntryFields),
+    [selectedEntry, selectedEntryFields],
+  );
+  const effectiveSelectedEntryFieldMap = useMemo(
+    () => (entryFieldMapDraft?.length ? entryFieldMapDraft : selectedEntryFieldMap),
+    [entryFieldMapDraft, selectedEntryFieldMap],
+  );
+  const selectedSourceDisplayColumns = useMemo(() => {
+    if (!selectedSource) {
+      return [];
+    }
+
+    const widestRow = (selectedSource.rows || []).reduce((max, row) => Math.max(max, row.values?.length || 0), 0);
+    const columnCount = Math.max(selectedSource.columns?.length || 0, widestRow, selectedEntryFields.length);
+
+    return Array.from({ length: columnCount }, (_item, index) => {
+      const storedColumn = selectedSource.columns?.[index];
+      const baseLabel =
+        storedColumn?.label ||
+        selectedEntryFields[index]?.label ||
+        selectedEntryFields[index]?.name ||
+        `Column ${index + 1}`;
+      const mappedField = effectiveSelectedEntryFieldMap.find((field) => field.sourceColumnIndex === index) || null;
+      const vmixFieldName = mappedField?.vmixFieldName || null;
+      const targetLabel = mappedField?.label || mappedField?.name || null;
+
+      return {
+        id: storedColumn?.id || `col-${index}`,
+        label: baseLabel,
+        binding:
+          selectedEntry?.entryType === 'vmix'
+            ? (targetLabel ? `${targetLabel}${vmixFieldName && vmixFieldName !== targetLabel ? ` · ${vmixFieldName}` : ''}` : null)
+            : (targetLabel || null),
+      };
+    });
+  }, [effectiveSelectedEntryFieldMap, selectedEntry?.entryType, selectedEntryFields, selectedSource]);
+  const sourceMappingColumns = useMemo(() => {
+    const widestRow = (selectedSource?.rows || []).reduce((max, row) => Math.max(max, row.values?.length || 0), 0);
+    const columnCount = Math.max(selectedSource?.columns?.length || 0, widestRow);
+
+    return Array.from({ length: columnCount }, (_item, index) => ({
+      index,
+      id: selectedSource?.columns?.[index]?.id || `col-${index}`,
+      label: selectedSource?.columns?.[index]?.label || `Column ${index + 1}`,
+    }));
+  }, [selectedSource]);
+  const sourceColumnChoices = useMemo(() => sourceMappingColumns, [sourceMappingColumns]);
   const selectedLinkedTimerId = getSourceLinkedTimerId(selectedSource, selectedOutput?.id);
   const selectedSyncGroupId = selectedOutput?.syncGroupId || null;
   const syncedOutputIds = useMemo(
@@ -850,6 +837,30 @@ function ControlShell() {
   }, [sourceLibrary, selectedSourceId]);
 
   useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      const now = Date.now();
+
+      sourceLibrary.forEach((source) => {
+        const remoteConfig = source.remote;
+        if (!remoteConfig?.autoRefresh || !remoteConfig?.url) {
+          return;
+        }
+
+        const refreshIntervalMs = Math.max(10, Number(remoteConfig.refreshIntervalSec || 30)) * 1000;
+        const lastFetchedAt = remoteConfig.lastFetchedAt ? Date.parse(remoteConfig.lastFetchedAt) : 0;
+
+        if (remoteRefreshStateRef.current[source.id] || (lastFetchedAt && now - lastFetchedAt < refreshIntervalMs)) {
+          return;
+        }
+
+        void refreshRemoteSource(source.id, { silent: true });
+      });
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [sourceLibrary]);
+
+  useEffect(() => {
     setActiveTimerRows((current) => {
       const next = { ...current };
       let changed = false;
@@ -873,12 +884,24 @@ function ControlShell() {
     if (!selectedEntry) {
       setDraftName('');
       setDraftFields({});
+      setEntryFieldMapDraft(null);
       return;
     }
 
     setDraftName(selectedEntry.name || '');
     setDraftFields(selectedEntry.fields || {});
+    setEntryFieldMapDraft(null);
   }, [selectedEntry?.id, selectedEntry?.updatedAt]);
+
+  useEffect(() => {
+    if (!entryFieldMapDraft?.length) {
+      return;
+    }
+
+    if (buildFieldMapSignature(entryFieldMapDraft) === buildFieldMapSignature(selectedEntryFieldMap)) {
+      setEntryFieldMapDraft(null);
+    }
+  }, [entryFieldMapDraft, selectedEntryFieldMap]);
 
   useEffect(() => {
     latestDraftRef.current = {
@@ -900,12 +923,18 @@ function ControlShell() {
   }, [templates]);
 
   useEffect(() => {
-    if (!vmixState?.inputs?.length) {
+    if (!vmixTitleInputs.length) {
       return;
     }
 
-    setNewVmixInputKey((current) => current || vmixState.inputs[0].key || vmixState.inputs[0].number || '');
-  }, [vmixState?.inputs]);
+    setNewVmixInputKey((current) => {
+      if (current && vmixTitleInputs.some((input) => (input.key || input.number) === current)) {
+        return current;
+      }
+
+      return vmixTitleInputs[0].key || vmixTitleInputs[0].number || '';
+    });
+  }, [vmixTitleInputs]);
 
   useEffect(() => {
     setVmixHostDraft(vmixState?.config?.host || snapshot?.integrations?.vmix?.host || 'http://127.0.0.1:8088');
@@ -926,6 +955,116 @@ function ControlShell() {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    if (!desktopBridge?.getProjectStatus) {
+      return undefined;
+    }
+
+    desktopBridge
+      .getProjectStatus()
+      .then((status) => {
+        if (mounted && status) {
+          setProjectStatus(status);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, [desktopBridge]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    if (!desktopBridge?.getYandexAuthSettings) {
+      return undefined;
+    }
+
+    desktopBridge
+      .getYandexAuthSettings()
+      .then((payload) => {
+        if (mounted && payload) {
+          setYandexAuthState((current) => ({ ...current, ...payload }));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, [desktopBridge]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    if (!desktopBridge?.getStartupProject) {
+      return undefined;
+    }
+
+    desktopBridge
+      .getStartupProject()
+      .then(async (result) => {
+        if (!mounted || !result) {
+          return;
+        }
+
+        if (result.status) {
+          setProjectStatus(result.status);
+        }
+
+        if (result.project) {
+          await applyProjectDocument(result.project, result.status || null);
+          pushFeedback(`Project opened: ${result.path?.split(/[\\/]/).pop() || 'project'}`);
+        } else if (result.error) {
+          pushFeedback(result.error);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, [desktopBridge]);
+
+  useEffect(() => {
+    const nextTitle = buildWindowTitle(currentProjectDisplayName, projectDirty);
+    document.title = nextTitle;
+    desktopBridge?.setWindowTitle?.({ title: nextTitle });
+  }, [currentProjectDisplayName, projectDirty, desktopBridge]);
+
+  useEffect(() => {
+    if (!currentProjectSignature) {
+      return;
+    }
+
+    setProjectBaselineSignature((current) => current || currentProjectSignature);
+  }, [currentProjectSignature]);
+
+  useEffect(() => {
+    if (!currentProjectSignature || !projectBaselineSignature) {
+      return;
+    }
+
+    setProjectDirty(currentProjectSignature !== projectBaselineSignature);
+  }, [currentProjectSignature, projectBaselineSignature]);
+
+  useEffect(() => {
+    const onBeforeUnload = (event) => {
+      if (!projectDirty || appCloseAuthorizedRef.current) {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [projectDirty]);
 
   useEffect(() => {
     const nextValues = {};
@@ -1215,7 +1354,7 @@ function ControlShell() {
       return;
     }
 
-    const nextFieldMap = (selectedEntry.vmixFieldMap || []).map((field) =>
+    const nextFieldMap = effectiveSelectedEntryFieldMap.map((field) =>
       field.name === fieldName
         ? {
             ...field,
@@ -1223,8 +1362,94 @@ function ControlShell() {
           }
         : field,
     );
+    await updateSelectedFieldMap(nextFieldMap, 'vMix title mapping updated');
+  };
 
-    await updateSelectedVmixEntry({ vmixFieldMap: nextFieldMap });
+  const updateSelectedFieldMap = async (nextFieldMap, feedbackMessage) => {
+    if (!selectedEntry) {
+      return;
+    }
+
+    setEntryFieldMapDraft(nextFieldMap);
+    const binding = selectedOutput?.id ? activeSourceRows[selectedOutput.id] || null : null;
+    const boundSource = binding?.sourceId ? sourceLibrary.find((item) => item.id === binding.sourceId) || null : null;
+    const boundRow = binding?.rowId ? (boundSource?.rows || []).find((row) => row.id === binding.rowId) || null : null;
+    const nextFields = boundRow
+      ? applyRowToFields(selectedEntryFields, boundRow.values, selectedEntry.fields || {}, nextFieldMap)
+      : null;
+    const nextName = boundRow?.values?.[0] || selectedEntry.name;
+    const patch = selectedEntry.entryType === 'vmix' ? { vmixFieldMap: nextFieldMap } : { localFieldMap: nextFieldMap };
+
+    try {
+      await api(`/api/entries/${selectedEntry.id}`, {
+        method: 'PUT',
+        body: {
+          ...patch,
+          ...(nextFields ? { fields: nextFields, name: nextName } : {}),
+        },
+      });
+
+      if (nextFields) {
+        setDraftFields(nextFields);
+        setDraftName(nextName);
+
+        if (autoUpdate) {
+          if (selectedEntry.entryType === 'vmix') {
+            await api(`/api/entries/${selectedEntry.id}/vmix-sync`, {
+              method: 'POST',
+              body: { action: 'update' },
+            });
+          } else if (program?.visible && program.entryId === selectedEntry.id) {
+            await api('/api/program/update', {
+              method: 'POST',
+              body: { entryId: selectedEntry.id, outputId: selectedOutput?.id },
+            });
+          }
+        }
+      }
+
+      pushFeedback(feedbackMessage);
+    } catch (requestError) {
+      setEntryFieldMapDraft(null);
+      pushFeedback(requestError.message);
+    }
+  };
+
+  const updateSelectedSourceColumnMapping = async (columnIndex, targetFieldName) => {
+    if (!selectedEntry) {
+      return;
+    }
+
+    const parsedIndex = Number.parseInt(columnIndex ?? '', 10);
+    const resolvedIndex = Number.isFinite(parsedIndex) ? parsedIndex : -1;
+    const nextFieldMap = effectiveSelectedEntryFieldMap.map((field) => {
+      if (!targetFieldName) {
+        return field.sourceColumnIndex === resolvedIndex
+          ? {
+              ...field,
+              sourceColumnIndex: -1,
+            }
+          : field;
+      }
+
+      if (field.name === targetFieldName) {
+        return {
+          ...field,
+          sourceColumnIndex: resolvedIndex,
+        };
+      }
+
+      if (field.sourceColumnIndex === resolvedIndex) {
+        return {
+          ...field,
+          sourceColumnIndex: -1,
+        };
+      }
+
+      return field;
+    });
+
+    await updateSelectedFieldMap(nextFieldMap, `${selectedEntry.entryType === 'vmix' ? 'vMix' : 'Local'} source mapping updated`);
   };
 
   const selectEntry = async (entryId) => {
@@ -1426,11 +1651,6 @@ function ControlShell() {
   };
 
   const importSourceDataset = async () => {
-    if (!selectedEntryFields.length) {
-      pushFeedback('Сначала выберите титр в rundown');
-      return;
-    }
-
     const rawText = sourcePayload.trim();
 
     if (!rawText) {
@@ -1461,6 +1681,234 @@ function ControlShell() {
     setSourcePayload(await file.text());
     setSourceFileName(file.name);
     setSourceName(file.name.replace(/\.[^.]+$/, ''));
+  };
+
+  const importRemoteSourceDataset = async () => {
+    const remoteConfig = createRemoteSourceConfig({
+      type: remoteSourceType,
+      url: remoteSourceUrl,
+      autoRefresh: remoteSourceAutoRefresh,
+      refreshIntervalSec: remoteSourceRefreshIntervalSec,
+    });
+
+    if (!remoteConfig?.url) {
+      pushFeedback('Add a remote CSV or Google Sheets URL first');
+      return;
+    }
+
+    try {
+      setBusyAction('import-remote-source');
+      const payload = await fetchRemoteSourcePayload(api, remoteConfig);
+      const dataset = buildSourceFromRemoteFetch({
+        payload,
+        fallbackName: getRemoteImportFallbackName({ remoteConfig, remoteSourceName, sourceName }),
+        remoteConfig,
+        fallbackFields: selectedEntryFields,
+      });
+
+        setSourceLibrary((current) => [dataset, ...current]);
+        setSelectedSourceId(dataset.id);
+        setRemoteSourceName('');
+        setRemoteSourceUrl('');
+        setRemoteSourceAutoRefresh(true);
+        setRemoteSourceRefreshIntervalSec(30);
+        pushFeedback(`${getRemoteSourceTypeLabel(remoteConfig.type)} source added`);
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const refreshRemoteSource = async (sourceId, { silent = false, remoteConfigOverride = null, sourceOverride = null } = {}) => {
+    const source = sourceOverride || sourceLibrary.find((item) => item.id === sourceId);
+    const remoteConfig = createRemoteSourceConfig({
+      ...(source?.remote || {}),
+      ...(remoteConfigOverride || {}),
+    });
+
+    if (!source || !remoteConfig?.url) {
+      return;
+    }
+
+    if (remoteRefreshStateRef.current[sourceId]) {
+      return remoteRefreshStateRef.current[sourceId];
+    }
+
+    const refreshPromise = (async () => {
+      try {
+        if (!silent) {
+          setBusyAction(`refresh-source-${sourceId}`);
+        }
+        const payload = await fetchRemoteSourcePayload(api, remoteConfig);
+        const nextSource = buildSourceFromRemoteFetch({
+          currentSource: source,
+          payload,
+          fallbackName: source.name,
+          remoteConfig,
+          fallbackFields: selectedEntryFields,
+        });
+
+        setSourceLibrary((current) => current.map((item) => (item.id === sourceId ? nextSource : item)));
+        if (!silent) {
+          pushFeedback(`${source.name} refreshed`);
+        }
+      } catch (requestError) {
+        setSourceLibrary((current) =>
+          current.map((item) =>
+            item.id === sourceId
+              ? {
+                  ...item,
+                  remote: createRemoteSourceConfig({
+                    ...(item.remote || {}),
+                    sheetName: item.remote?.sheetName || '',
+                    sheetNames: item.remote?.sheetNames || [],
+                    lastError: requestError.message,
+                  }),
+                }
+              : item,
+          ),
+        );
+        if (!silent) {
+          pushFeedback(requestError.message);
+        }
+      } finally {
+        delete remoteRefreshStateRef.current[sourceId];
+        if (!silent) {
+          setBusyAction((current) => (current === `refresh-source-${sourceId}` ? '' : current));
+        }
+      }
+    })();
+
+    remoteRefreshStateRef.current[sourceId] = refreshPromise;
+    return refreshPromise;
+  };
+
+  const updateSelectedSourceRemote = (patch = {}) => {
+    if (!selectedSource?.id || !selectedSource?.remote) {
+      return;
+    }
+
+    const nextRemoteConfig = createRemoteSourceConfig({
+      ...(selectedSource.remote || {}),
+      ...patch,
+    });
+
+    setSourceLibrary((current) =>
+      current.map((source) =>
+        source.id === selectedSource.id
+          ? {
+              ...source,
+              remote: nextRemoteConfig,
+            }
+          : source,
+      ),
+    );
+
+    if (patch.sheetName !== undefined) {
+      window.setTimeout(() => {
+        void refreshRemoteSource(selectedSource.id, {
+          silent: true,
+          sourceOverride: {
+            ...selectedSource,
+            remote: nextRemoteConfig,
+          },
+          remoteConfigOverride: nextRemoteConfig,
+        });
+      }, 0);
+    }
+  };
+
+  const reloadYandexAuthSettings = async () => {
+    if (!desktopBridge?.getYandexAuthSettings) {
+      pushFeedback('Yandex credentials are available in the desktop app only');
+      return;
+    }
+
+    try {
+      const payload = await desktopBridge.getYandexAuthSettings();
+      if (payload) {
+        setYandexAuthState((current) => ({ ...current, ...payload }));
+        pushFeedback('Yandex settings reloaded');
+      }
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
+  };
+
+  const saveYandexAuthSettings = async (nextSettings = null) => {
+    if (!desktopBridge?.saveYandexAuthSettings) {
+      pushFeedback('Yandex credentials are available in the desktop app only');
+      return null;
+    }
+
+    try {
+      const source = nextSettings || yandexAuthState;
+      const payload = await desktopBridge.saveYandexAuthSettings({
+        clientId: source.clientId || '',
+        clientSecret: source.clientSecret || '',
+        redirectUri: '',
+        scope: source.scope || 'cloud_api:disk.read',
+      });
+      if (payload) {
+        setYandexAuthState((current) => ({ ...current, ...payload }));
+      }
+      pushFeedback('Yandex settings saved locally');
+      return payload;
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+      return null;
+    }
+  };
+
+  const startYandexConnect = async () => {
+    if (!desktopBridge?.startYandexAuth) {
+      pushFeedback('Yandex connect is available in the desktop app only');
+      return;
+    }
+
+    try {
+      setYandexDeviceAuth({
+        status: 'waiting',
+        error: '',
+      });
+      const payload = await desktopBridge.startYandexAuth();
+      if (payload) {
+        setYandexAuthState((current) => ({ ...current, ...payload }));
+      }
+      setYandexDeviceAuth({
+        status: 'success',
+        error: '',
+      });
+      pushFeedback('Yandex connected');
+    } catch (requestError) {
+      setYandexDeviceAuth({
+        status: 'error',
+        error: requestError.message,
+      });
+      pushFeedback(requestError.message);
+    }
+  };
+
+  const disconnectYandex = async () => {
+    if (!desktopBridge?.disconnectYandexAuth) {
+      pushFeedback('Yandex disconnect is available in the desktop app only');
+      return;
+    }
+
+    try {
+      const payload = await desktopBridge.disconnectYandexAuth();
+      if (payload) {
+        setYandexAuthState((current) => ({ ...current, ...payload }));
+      }
+      setYandexDeviceAuth({
+        status: 'idle',
+        error: '',
+      });
+      pushFeedback('Yandex disconnected locally');
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
   };
 
   const setEntryHidden = async (entry, hidden) => {
@@ -1646,14 +2094,31 @@ function ControlShell() {
 
       for (const outputId of targetOutputIds) {
         const output = outputs.find((item) => item.id === outputId);
-        const outputEntry = snapshot?.entries?.find((entry) => entry.id === output?.selectedEntryId);
+        const snapshotEntry = snapshot?.entries?.find((entry) => entry.id === output?.selectedEntryId) || null;
+        const outputEntry =
+          outputId === selectedOutput.id && selectedEntry?.id === output?.selectedEntryId
+            ? {
+                ...(snapshotEntry || {}),
+                ...selectedEntry,
+                fields: latestDraftRef.current.fields || selectedEntry.fields || {},
+              }
+            : snapshotEntry;
         const outputFields = outputEntry?.templateFields || [];
+        const outputFieldMap =
+          outputId === selectedOutput.id && selectedEntry?.id === output?.selectedEntryId
+            ? effectiveSelectedEntryFieldMap
+            : buildEffectiveEntryFieldMap(outputEntry, outputFields);
 
         if (!output || !outputEntry || !outputFields.length) {
           continue;
         }
 
-        const nextFields = applyRowToFields(outputFields, row.values, outputEntry.fields || {});
+        const nextFields = applyRowToFields(
+          outputFields,
+          row.values,
+          outputEntry.fields || {},
+          outputFieldMap,
+        );
         const nextName = row.values[0] || outputEntry.name;
 
         await api(`/api/entries/${outputEntry.id}`, {
@@ -1807,14 +2272,31 @@ function ControlShell() {
 
     for (const outputId of boundOutputIds) {
       const output = outputs.find((item) => item.id === outputId);
-      const outputEntry = snapshot?.entries?.find((entry) => entry.id === output?.selectedEntryId);
+      const snapshotEntry = snapshot?.entries?.find((entry) => entry.id === output?.selectedEntryId) || null;
+      const outputEntry =
+        outputId === selectedOutput?.id && selectedEntry?.id === output?.selectedEntryId
+          ? {
+              ...(snapshotEntry || {}),
+              ...selectedEntry,
+              fields: latestDraftRef.current.fields || selectedEntry.fields || {},
+            }
+          : snapshotEntry;
       const outputFields = outputEntry?.templateFields || [];
+      const outputFieldMap =
+        outputId === selectedOutput?.id && selectedEntry?.id === output?.selectedEntryId
+          ? effectiveSelectedEntryFieldMap
+          : buildEffectiveEntryFieldMap(outputEntry, outputFields);
 
       if (!output || !outputEntry || !outputFields.length) {
         continue;
       }
 
-      const nextFields = applyRowToFields(outputFields, rowValues, outputEntry.fields || {});
+      const nextFields = applyRowToFields(
+        outputFields,
+        rowValues,
+        outputEntry.fields || {},
+        outputFieldMap,
+      );
       const nextName = rowValues[0] || outputEntry.name;
 
       await api(`/api/entries/${outputEntry.id}`, {
@@ -1857,6 +2339,28 @@ function ControlShell() {
       return next;
     });
     pushFeedback('Источник удален');
+  };
+
+  const updateSourceColumnLabel = (sourceId, columnId, nextLabel) => {
+    setSourceLibrary((current) =>
+      current.map((source) => {
+        if (source.id !== sourceId) {
+          return source;
+        }
+
+        return {
+          ...source,
+          columns: (source.columns || []).map((column) =>
+            column.id === columnId
+              ? {
+                  ...column,
+                  label: nextLabel,
+                }
+              : column,
+          ),
+        };
+      }),
+    );
   };
 
   const startSourceRowEdit = (sourceId, row) => {
@@ -2221,6 +2725,246 @@ function ControlShell() {
     }
   };
 
+  const buildProjectDocument = async () => {
+    const exported = await api('/api/project/export');
+
+    return {
+      version: 1,
+      meta: {
+        name: currentProjectDisplayName,
+        updatedAt: new Date().toISOString(),
+        appVersion: appMeta?.version || null,
+      },
+      state: exported?.state || {},
+      sources: {
+        selectedSourceId: selectedSourceId || null,
+        items: sourceLibrary,
+      },
+    };
+  };
+
+  const confirmProceedWithUnsavedProject = async (detail) => {
+    if (!projectDirty) {
+      return true;
+    }
+
+    if (desktopBridge?.confirmUnsavedChanges) {
+      const result = await desktopBridge.confirmUnsavedChanges({ detail });
+
+      if (result?.action === 'cancel') {
+        return false;
+      }
+
+      if (result?.action === 'save') {
+        const saveResult = await saveProject();
+        return Boolean(saveResult && !saveResult.canceled);
+      }
+
+      return true;
+    }
+
+    return window.confirm('The current project has unsaved changes. Continue without saving?');
+  };
+
+  useEffect(() => {
+    window.__webTitleHandleCloseRequest = async () => {
+      const shouldProceed = await confirmProceedWithUnsavedProject('Do you want to save the current project before closing Web Title Pro?');
+
+      if (!shouldProceed) {
+        return false;
+      }
+
+      if (desktopBridge?.requestAppClose) {
+        appCloseAuthorizedRef.current = true;
+        await desktopBridge.requestAppClose();
+      }
+
+      return true;
+    };
+
+    return () => {
+      delete window.__webTitleHandleCloseRequest;
+    };
+  }, [confirmProceedWithUnsavedProject, desktopBridge]);
+
+  const applyProjectDocument = async (projectDocument, nextProjectStatus = null) => {
+    await api('/api/project/load', {
+      method: 'POST',
+      body: {
+        state: projectDocument?.state || {},
+        seedExamples: false,
+      },
+    });
+
+    const nextSourceLibrary = normalizeSourceLibrary(projectDocument?.sources?.items || []);
+    setSourceLibrary(nextSourceLibrary);
+    setSelectedSourceId(projectDocument?.sources?.selectedSourceId || nextSourceLibrary[0]?.id || '');
+    setActiveSourceRows({});
+    setActiveTimerRows({});
+    setSourceRowTimers({});
+    setShowHiddenEntries(false);
+    setManageRundown(false);
+    setShowSourceSyncMenu(false);
+    setShowProjectPanel(false);
+
+    if (nextProjectStatus) {
+      setProjectStatus(nextProjectStatus);
+    }
+
+    const nextSignature = buildProjectSignature({
+      snapshot: {
+        selectedOutputId: projectDocument?.state?.selectedOutputId || null,
+        outputs: projectDocument?.state?.outputs || [],
+        integrations: projectDocument?.state?.integrations || {},
+        entries: projectDocument?.state?.entries || [],
+        timers: projectDocument?.state?.timers || [],
+      },
+      sourceLibrary: nextSourceLibrary,
+      selectedSourceId: projectDocument?.sources?.selectedSourceId || nextSourceLibrary[0]?.id || '',
+    });
+    setProjectBaselineSignature(nextSignature);
+    setProjectDirty(false);
+  };
+
+  const createNewProject = async () => {
+    try {
+      const shouldProceed = await confirmProceedWithUnsavedProject('Do you want to save the current project before creating a new one?');
+
+      if (!shouldProceed) {
+        return;
+      }
+
+      const nextSnapshot = await api('/api/project/load', {
+        method: 'POST',
+        body: {
+          state: {},
+          seedExamples: true,
+        },
+      });
+      setSourceLibrary([]);
+      setSelectedSourceId('');
+      setActiveSourceRows({});
+      setActiveTimerRows({});
+      setSourceRowTimers({});
+      setShowHiddenEntries(false);
+      setManageRundown(false);
+      setShowSourceSyncMenu(false);
+      setShowProjectPanel(false);
+
+      if (desktopBridge?.createNewProject) {
+        const status = await desktopBridge.createNewProject();
+        if (status) {
+          setProjectStatus(status);
+        }
+      }
+
+      const nextSignature = buildProjectSignature({
+        snapshot: nextSnapshot,
+        sourceLibrary: [],
+        selectedSourceId: '',
+      });
+      setProjectBaselineSignature(nextSignature);
+      setProjectDirty(false);
+
+      pushFeedback('New project created');
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
+  };
+
+  const openProject = async () => {
+    if (!desktopBridge?.openProjectDialog) {
+      pushFeedback('Project files are available in the desktop app only');
+      return;
+    }
+
+    try {
+      const shouldProceed = await confirmProceedWithUnsavedProject('Do you want to save the current project before opening another one?');
+
+      if (!shouldProceed) {
+        return;
+      }
+
+      const result = await desktopBridge.openProjectDialog();
+
+      if (result?.canceled) {
+        return;
+      }
+
+      await applyProjectDocument(result.project, result.status || null);
+      pushFeedback(`Project opened: ${result.path?.split(/[\\/]/).pop() || 'project'}`);
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
+  };
+
+  const openRecentProject = async (projectPath) => {
+    if (!desktopBridge?.openRecentProject || !projectPath) {
+      return;
+    }
+
+    try {
+      const shouldProceed = await confirmProceedWithUnsavedProject('Do you want to save the current project before opening another one?');
+
+      if (!shouldProceed) {
+        return;
+      }
+
+      const result = await desktopBridge.openRecentProject(projectPath);
+
+      if (result?.canceled) {
+        return;
+      }
+
+      await applyProjectDocument(result.project, result.status || null);
+      pushFeedback(`Project opened: ${result.path?.split(/[\\/]/).pop() || 'project'}`);
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
+  };
+
+  const saveProject = async ({ saveAs = false } = {}) => {
+    if (!desktopBridge?.saveProject || !desktopBridge?.saveProjectAs) {
+      pushFeedback('Project files are available in the desktop app only');
+      return { canceled: true };
+    }
+
+    try {
+      await persistDraft();
+      const project = await buildProjectDocument();
+      const savedSignature = buildProjectSignature({
+        snapshot: project.state || {},
+        sourceLibrary: project.sources?.items || [],
+        selectedSourceId: project.sources?.selectedSourceId || null,
+      });
+      const suggestedName = (project.meta?.name || 'WebTitleProject').replace(/[<>:\"/\\|?*]+/g, ' ').trim() || 'WebTitleProject';
+      const result = saveAs
+        ? await desktopBridge.saveProjectAs({ project, suggestedName })
+        : await desktopBridge.saveProject({
+            path: projectStatus?.currentProjectPath || null,
+            project,
+            suggestedName,
+          });
+
+      if (result?.canceled) {
+        return result;
+      }
+
+      if (result?.status) {
+        setProjectStatus(result.status);
+      }
+
+      setProjectBaselineSignature(savedSignature);
+      setProjectDirty(false);
+
+      pushFeedback(`Project saved: ${result.path?.split(/[\\/]/).pop() || 'project'}`);
+      return result;
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+      return { canceled: true, error: requestError.message };
+    }
+  };
+
   const saveEntryShortcut = async (entry, action, value) => {
     if (!entry?.id) {
       return;
@@ -2418,24 +3162,33 @@ function ControlShell() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="topbar-brand">
-          <div className="eyebrow">Broadcast Title Control</div>
-          <h1>Web Title Pro</h1>
-        </div>
-        <div className="topbar-actions topbar-utility-actions">
-          <span className={`connection-pill is-${connection}`}>{connection.toUpperCase()}</span>
-          <button className="ghost-button" onClick={() => setShowImportModal(true)}>TXT Rundown</button>
-          <button className="primary-button" onClick={() => setShowAddModal(true)}>Add Title</button>
-        </div>
-      </header>
+      <ProjectPanel
+        isOpen={showProjectPanel}
+        currentProjectName={currentProjectDisplayName}
+        projectStatus={projectStatus}
+        onClose={() => setShowProjectPanel(false)}
+        onNew={createNewProject}
+        onOpen={openProject}
+        onSave={() => saveProject()}
+        onSaveAs={() => saveProject({ saveAs: true })}
+        onOpenRecent={openRecentProject}
+      />
 
       <section className="tabs-card">
         <div className="tab-strip">
-          <button className={`tab-button ${activeTab === 'rundown' ? 'is-active' : ''}`} onClick={() => setActiveTab('rundown')}>Live Rundown</button>
+          <button className={`tab-button ${activeTab === 'rundown' ? 'is-active' : ''}`} onClick={() => setActiveTab('rundown')}>Live</button>
           <button className={`tab-button ${activeTab === 'sources' ? 'is-active' : ''}`} onClick={() => setActiveTab('sources')}>Data Source</button>
+          <button className={`tab-button ${activeTab === 'mapping' ? 'is-active' : ''}`} onClick={() => setActiveTab('mapping')}>Mapping</button>
           <button className={`tab-button ${activeTab === 'timers' ? 'is-active' : ''}`} onClick={() => setActiveTab('timers')}>Timers</button>
           <button className={`tab-button ${activeTab === 'settings' ? 'is-active' : ''}`} onClick={() => setActiveTab('settings')}>Output & Settings</button>
+        </div>
+        <div className="tab-toolbar">
+          <span className={`connection-pill is-${connection}`}>{connection.toUpperCase()}</span>
+          <button className={`ghost-button compact-button ${showProjectPanel ? 'is-active-manage' : ''}`} onClick={() => setShowProjectPanel((current) => !current)}>
+            Project
+          </button>
+          <button className="ghost-button compact-button" onClick={() => setShowImportModal(true)}>Bulk TXT Import</button>
+          <button className="primary-button compact-button" onClick={() => setShowAddModal(true)}>Add Title</button>
         </div>
       </section>
 
@@ -2448,7 +3201,7 @@ function ControlShell() {
           <div className="outputs-toolbar">
             <div className="outputs-live-group">
               <button className="top-air-button show" onClick={() => runProgramAction('show', selectedEntry?.id)} disabled={!selectedEntry || busyAction === 'show'}>SHOW</button>
-              <button className={`top-air-button live ${selectedEntry?.entryType === 'vmix' ? 'is-disabled-mode' : ''}`} onClick={() => runProgramAction('update', selectedEntry?.id)} disabled={!selectedEntry || selectedEntry?.entryType === 'vmix' || busyAction === 'update'}>LIVE</button>
+              <button className={`top-air-button set ${selectedEntry?.entryType === 'vmix' ? 'is-disabled-mode' : ''}`} onClick={() => runProgramAction('update', selectedEntry?.id)} disabled={!selectedEntry || selectedEntry?.entryType === 'vmix' || busyAction === 'update'}>SET</button>
               <button className="top-air-button hide" onClick={() => runProgramAction('hide')} disabled={busyAction === 'hide'}>HIDE</button>
             </div>
             <div className="outputs-status-group">
@@ -2471,1060 +3224,230 @@ function ControlShell() {
           ))}
         </div>
         {activeTab !== 'settings' && (
-          <div className="outputs-preview-shell">
-            <button className="preview-toggle-button" aria-label={showPreviewPanel ? 'Скрыть preview title' : 'Открыть preview title'} onClick={() => setShowPreviewPanel((current) => !current)}>
-              <span className={`preview-toggle-icon ${showPreviewPanel ? 'is-open' : ''}`}><ChevronDownIcon /></span>
-            </button>
-            {showPreviewPanel && (
-              <div className="preview-title-card">
-                <div className="preview-title-actions">
-                  <button className="ghost-button compact-button" onClick={() => runPreviewAction('show', selectedEntry?.id)} disabled={!selectedEntry || selectedEntry?.entryType === 'vmix' || busyAction === 'preview-show'}>Preview Show</button>
-                  <button className="ghost-button compact-button" onClick={() => runPreviewAction('hide')} disabled={selectedEntry?.entryType === 'vmix' || busyAction === 'preview-hide'}>Preview Hide</button>
-                </div>
-                <div className="preview-title-grid">
-                  <section className="active-panel preview-input-panel">
-                    <div className="panel-title-row">
-                      <div>
-                        <span className="panel-kicker">Active Input</span>
-                        <h2>{selectedEntry?.name || 'No title selected'}</h2>
-                      </div>
-                      <div className="topbar-actions">
-                        <label className="toggle">
-                          <input type="checkbox" checked={autoUpdate} onChange={(event) => setAutoUpdate(event.target.checked)} />
-                          <span>{selectedEntry?.entryType === 'vmix' ? 'Auto-send fields' : 'Live update'}</span>
-                        </label>
-                      </div>
-                    </div>
-                    {selectedEntry?.entryType === 'vmix' && (
-                      <div className="vmix-external-card">
-                        <div className="meta-card">
-                          <strong className="vmix-input-title">
-                            {selectedVmixInput?.number ? `${selectedVmixInput.number}. ` : ''}
-                            {selectedVmixInput?.title || selectedEntry?.vmixInputTitle || 'vMix Title Input'}
-                          </strong>
-                        </div>
-                        <div className="vmix-entry-grid">
-                          <label className="input-block compact">
-                            <span>SHOW Action</span>
-                            <select
-                              value={normalizeVmixTitleAction(selectedEntry?.vmixShowAction, 'TransitionIn')}
-                              onChange={(event) => updateSelectedVmixEntry({ vmixShowAction: event.target.value })}
-                            >
-                              {VMIX_TITLE_ACTIONS.map((action) => (
-                                <option key={`show-${action.value}`} value={action.value}>{action.label}</option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="input-block compact">
-                            <span>HIDE Action</span>
-                            <select
-                              value={normalizeVmixTitleAction(selectedEntry?.vmixHideAction, 'TransitionOut')}
-                              onChange={(event) => updateSelectedVmixEntry({ vmixHideAction: event.target.value })}
-                            >
-                              {VMIX_TITLE_ACTIONS.map((action) => (
-                                <option key={`hide-${action.value}`} value={action.value}>{action.label}</option>
-                              ))}
-                            </select>
-                          </label>
-                        </div>
-                      </div>
-                    )}
-                    {selectedEntry && selectedEntry.entryType !== 'vmix' && (
-                      <div className="output-note">
-                        Remove only takes this title out of rundown. Template files stay in the templates folder and can be added again later.
-                      </div>
-                    )}
-                    {selectedEntry ? (
-                      <div className={`preview-editor-fields ${selectedEntry?.entryType === 'vmix' ? 'is-vmix' : 'is-local'}`}>
-                        <label className="input-block compact entry-name-field">
-                          {selectedEntry?.entryType !== 'vmix' ? <span>Entry Name</span> : null}
-                          <input
-                            value={draftName}
-                            placeholder={selectedEntry?.entryType === 'vmix' ? 'Rundown name' : ''}
-                            onChange={(event) => {
-                              const nextName = event.target.value;
-                              setDraftName(nextName);
-                              schedulePersist({ name: nextName, fields: latestDraftRef.current.fields });
-                            }}
-                          />
-                        </label>
-                        {selectedEntryFields.map((field) => (
-                          selectedEntry?.entryType === 'vmix' ? (
-                            <div className="vmix-field-row" key={field.name}>
-                              <label className="input-block compact">
-                                <input
-                                  value={draftFields[field.name] ?? ''}
-                                  placeholder={field.label || field.placeholder || field.defaultValue || ''}
-                                  onChange={(event) => {
-                                    const nextFields = { ...latestDraftRef.current.fields, [field.name]: event.target.value };
-                                    setDraftFields(nextFields);
-                                    schedulePersist({ name: latestDraftRef.current.name, fields: nextFields });
-                                  }}
-                                />
-                              </label>
-                              <label className="input-block compact vmix-binding-select">
-                                <select
-                                  value={
-                                    (selectedEntry?.vmixFieldMap || []).find((item) => item.name === field.name)?.vmixFieldName ||
-                                    selectedVmixTextFields[0]?.name ||
-                                    'Text'
-                                  }
-                                  title={field.label || field.name}
-                                  onChange={(event) => updateSelectedVmixFieldBinding(field.name, event.target.value)}
-                                >
-                                  {selectedVmixTextFields.map((vmixField) => (
-                                    <option key={`${field.name}-${vmixField.index}-${vmixField.name}`} value={vmixField.name}>
-                                      {vmixField.name}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                            </div>
-                          ) : (
-                            <label className="input-block compact">
-                              <span>{field.label}</span>
-                              <input
-                                value={draftFields[field.name] ?? ''}
-                                placeholder={field.placeholder || field.defaultValue || ''}
-                                onChange={(event) => {
-                                  const nextFields = { ...latestDraftRef.current.fields, [field.name]: event.target.value };
-                                  setDraftFields(nextFields);
-                                  schedulePersist({ name: latestDraftRef.current.name, fields: nextFields });
-                                }}
-                              />
-                            </label>
-                          )
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="empty-state">Выберите титр в rundown, затем редактируйте поля и отправляйте его в preview или live.</div>
-                    )}
-                  </section>
-                  <section className="preview-render-pane">
-                    <div className="preview-dual-grid">
-                      <div className="preview-block">
-                        <div className="preview-block-head">
-                          <span className={`preview-state ${(snapshot?.previewProgram?.visible) ? 'is-on' : 'is-off'}`}>{snapshot?.previewProgram?.visible ? 'PREVIEW ON' : 'PREVIEW OFF'}</span>
-                          <strong>{snapshot?.previewProgram?.entryName || 'No preview title'}</strong>
-                          <button className="ghost-button compact-button icon-button preview-zoom-button" onClick={() => setExpandedRender('preview')} title="Увеличить preview" aria-label="Увеличить preview">
-                            <ZoomIcon />
-                          </button>
-                        </div>
-                        <div className="preview-monitor">
-                          {selectedEntry?.entryType === 'vmix' ? (
-                            <div className="preview-frame preview-frame-placeholder">
-                              <div className="preview-placeholder-copy">
-                                <strong>External vMix Preview</strong>
-                                <span>GT title graphics are rendered only inside vMix.</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <iframe key={`preview-${selectedOutput?.id || 'default'}`} className="preview-frame" title="Preview Renderer" src={embeddedPreviewUrl} />
-                          )}
-                        </div>
-                      </div>
-                      <div className="preview-block">
-                        <div className="preview-block-head">
-                          <span className={`preview-state ${program.visible ? 'is-on' : 'is-off'}`}>{program.visible ? 'LIVE ON' : 'LIVE OFF'}</span>
-                          <strong>{program.entryName}</strong>
-                          <button className="ghost-button compact-button icon-button preview-zoom-button" onClick={() => setExpandedRender('live')} title="Увеличить live" aria-label="Увеличить live">
-                            <ZoomIcon />
-                          </button>
-                        </div>
-                        <div className="preview-monitor">
-                          {selectedEntry?.entryType === 'vmix' ? (
-                            <div className="preview-frame preview-frame-placeholder">
-                              <div className="preview-placeholder-copy">
-                                <strong>External vMix Live</strong>
-                                <span>SHOW and HIDE control the configured vMix title actions.</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <iframe key={`live-${selectedOutput?.id || 'default'}`} className="preview-frame" title="Live Renderer" src={embeddedRenderUrl} />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                </div>
-                <div className="feedback-row preview-feedback-row"><span>{feedback || error || 'Ready for live operation'}</span></div>
-              </div>
-            )}
-          </div>
+          <PreviewTitlePanel
+            showPreviewPanel={showPreviewPanel}
+            selectedEntry={selectedEntry}
+            selectedVmixInput={selectedVmixInput}
+            autoUpdate={autoUpdate}
+            draftName={draftName}
+            draftFields={draftFields}
+            selectedEntryFields={selectedEntryFields}
+            selectedOutput={selectedOutput}
+            snapshot={snapshot}
+            program={program}
+            embeddedPreviewUrl={embeddedPreviewUrl}
+            embeddedRenderUrl={embeddedRenderUrl}
+            feedback={feedback}
+            error={error}
+            vmixTitleActions={VMIX_TITLE_ACTIONS}
+            normalizeVmixTitleAction={normalizeVmixTitleAction}
+            onToggleShowPreviewPanel={() => setShowPreviewPanel((current) => !current)}
+            onRunPreviewAction={runPreviewAction}
+            onSetAutoUpdate={setAutoUpdate}
+            onUpdateSelectedVmixEntry={updateSelectedVmixEntry}
+            onDraftNameChange={(nextName) => {
+              setDraftName(nextName);
+              schedulePersist({ name: nextName, fields: latestDraftRef.current.fields });
+            }}
+            onDraftFieldChange={(fieldName, value) => {
+              const nextFields = { ...latestDraftRef.current.fields, [fieldName]: value };
+              setDraftFields(nextFields);
+              schedulePersist({ name: latestDraftRef.current.name, fields: nextFields });
+            }}
+            onSetExpandedRender={setExpandedRender}
+          />
         )}
       </section>
 
-      {activeTab === 'settings' && <section className="output-card">
-        <div className="card-head">
-          <div>
-            <span className="panel-kicker">Output</span>
-            <h3>Output Settings & Integrations</h3>
-          </div>
-          <span className="output-note">Outputs, Bitfocus and MIDI are grouped here so setup stays separate from live operation.</span>
-        </div>
-        <div className="settings-tab-strip">
-          <button className={`tab-button ${settingsTab === 'output' ? 'is-active' : ''}`} onClick={() => setSettingsTab('output')}>Output</button>
-          <button className={`tab-button ${settingsTab === 'shortcuts' ? 'is-active' : ''}`} onClick={() => setSettingsTab('shortcuts')}>Shortcuts</button>
-          <button className={`tab-button ${settingsTab === 'bitfocus' ? 'is-active' : ''}`} onClick={() => setSettingsTab('bitfocus')}>Bitfocus</button>
-          <button className={`tab-button ${settingsTab === 'midi' ? 'is-active' : ''}`} onClick={() => setSettingsTab('midi')}>MIDI</button>
-          <button className={`tab-button ${settingsTab === 'updates' ? 'is-active' : ''}`} onClick={() => setSettingsTab('updates')}>Updates</button>
-          <button className={`tab-button ${settingsTab === 'test' ? 'is-active' : ''}`} onClick={() => setSettingsTab('test')}>Test</button>
-        </div>
-        {settingsTab === 'output' && (outputInfo ? (
-          <div className="integration-grid">
-            <div className="meta-card">
-              <span className="meta-label">Routing</span>
-              <strong>Each output has its own permanent URL</strong>
-              <span className="output-note">Add a Browser Source in vMix or OBS using `/render.html?output=key`. After that you only switch outputs in the panel and assign titles/data to that output.</span>
-            </div>
-            <div className="meta-card">
-              <span className="meta-label">Naming</span>
-              <strong>`name` is the label, `key` is the URL part</strong>
-              <span className="output-note">Example: `LOWER THIRD A` and `lower-third-a`. The final URL will be `/render.html?output=lower-third-a`.</span>
-            </div>
-            <div className="output-settings-grid">
-              {outputRenderTargets.map((output) => (
-                <div className="output-settings-card" key={output.id}>
-                  <div className="card-head output-settings-head">
-                    <div>
-                      <span className="panel-kicker">Output</span>
-                      <h3>{output.name}</h3>
-                    </div>
-                    <div className="topbar-actions">
-                      {output.id === selectedOutput?.id && <span className="flag flag-live">ACTIVE</span>}
-                      <button className="ghost-button compact-button" onClick={() => selectOutput(output.id)}>Open</button>
-                      <button className="ghost-button compact-button" onClick={() => deleteOutput(output.id)} disabled={outputs.length <= 1}>Delete</button>
-                    </div>
-                  </div>
-                  <div className="output-settings-fields">
-                    <label className="input-block compact">
-                      <span>Output Name</span>
-                      <input
-                        key={`${output.id}-name-${output.name}`}
-                        defaultValue={output.name}
-                        onBlur={(event) => updateOutput(output.id, { name: event.target.value })}
-                      />
-                    </label>
-                    <label className="input-block compact">
-                      <span>URL Key</span>
-                      <input
-                        key={`${output.id}-key-${output.key}`}
-                        defaultValue={output.key}
-                        onBlur={(event) => updateOutput(output.id, { key: event.target.value })}
-                      />
-                    </label>
-                  </div>
-                  <div className="output-url-list">
-                    <div className="output-url-row">
-                      <div className="output-url-copy">
-                        <strong>Render URL</strong>
-                        <code>{output.renderUrl}</code>
-                      </div>
-                      <div className="output-url-actions">
-                        <button className="ghost-button compact-button" onClick={() => copyText(output.renderUrl).then(() => pushFeedback(`Render URL ${output.name} copied`))}>Copy Render</button>
-                      </div>
-                    </div>
-                    <div className="output-url-row">
-                      <div className="output-url-copy">
-                        <strong>Preview URL</strong>
-                        <code>{output.previewUrl}</code>
-                      </div>
-                      <div className="output-url-actions">
-                        <button className="ghost-button compact-button" onClick={() => copyText(output.previewUrl).then(() => pushFeedback(`Preview URL ${output.name} copied`))}>Copy Preview</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {outputInfo.fallbackUrls.length > 0 && (
-              <div className="output-extra-card">
-                <span className="meta-label">Fallback base addresses</span>
-                <span className="output-note">If the primary network adapter changes, take any base address below and append `?output=key`.</span>
-                <div className="output-fallback-list">
-                  {outputInfo.fallbackUrls.map((url) => (
-                    <div className="output-fallback-row" key={url}>
-                      <code>{url}</code>
-                      <button className="ghost-button compact-button" onClick={() => copyText(url).then(() => pushFeedback('Base URL copied'))}>Copy</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="empty-state">Waiting for backend system info.</div>
-        ))}
-        {settingsTab === 'shortcuts' && (
-          <div className="integration-grid">
-            <div className="meta-card">
-              <span className="meta-label">Shortcuts</span>
-              <strong>Per-title shortcuts for keyboard and mouse</strong>
-              <span className="output-note">
-                Defaults are empty. Click Learn, then press a keyboard key or mouse button. Shortcuts are saved in the project state and restored on the next launch.
-              </span>
-            </div>
-            {learningShortcut && (
-              <div className="meta-card">
-                <span className="meta-label">Learning</span>
-                <strong>{learningShortcut.entry.name} / {String(learningShortcut.action).toUpperCase()}</strong>
-                <span className="output-note">Press the desired key or mouse button now.</span>
-                <div className="output-url-actions">
-                  <button className="ghost-button compact-button" onClick={() => setLearningShortcut(null)}>Cancel Learn</button>
-                </div>
-              </div>
-            )}
-            <div className="shortcut-list">
-              {(snapshot?.entries || []).map((entry) => (
-                <div className="shortcut-entry-card" key={`shortcut-${entry.id}`}>
-                  <div className="card-head">
-                    <div>
-                      <h3>{getRundownPrimaryLabel(entry)}</h3>
-                    </div>
-                    {entry.hidden && <span className="flag flag-standby">HIDDEN</span>}
-                  </div>
-                  <div className="shortcut-action-grid">
-                    {['show', 'live', 'hide'].map((action) => {
-                      const disabled = action === 'live' && entry.entryType === 'vmix';
-                      const value = entry.shortcuts?.[action] || '';
+      {activeTab === 'settings' && (
+        <SettingsPanel
+          settingsTab={settingsTab}
+          currentProjectName={currentProjectDisplayName}
+          projectDirty={projectDirty}
+          projectStatus={projectStatus}
+          outputInfo={outputInfo}
+          outputRenderTargets={outputRenderTargets}
+          selectedOutput={selectedOutput}
+          outputs={outputs}
+          learningShortcut={learningShortcut}
+          entries={snapshot?.entries || []}
+          getRundownPrimaryLabel={getRundownPrimaryLabel}
+          bitfocusActions={bitfocusActions}
+          midiState={midiState}
+          appMeta={appMeta}
+          updateState={updateState}
+          yandexAuthState={yandexAuthState}
+          yandexDeviceAuth={yandexDeviceAuth}
+          formatStatusTime={formatStatusTime}
+          onSetSettingsTab={setSettingsTab}
+          onSelectOutput={selectOutput}
+          onDeleteOutput={deleteOutput}
+          onUpdateOutput={updateOutput}
+          onCopyRenderUrl={(output) => copyText(output.renderUrl).then(() => pushFeedback(`Render URL ${output.name} copied`))}
+          onCopyPreviewUrl={(output) => copyText(output.previewUrl).then(() => pushFeedback(`Preview URL ${output.name} copied`))}
+          onCopyBaseUrl={(url) => copyText(url).then(() => pushFeedback('Base URL copied'))}
+          onStartLearningShortcut={(entry, action) => setLearningShortcut({ entry, action })}
+          onClearShortcut={(entry, action) => saveEntryShortcut(entry, action, '')}
+          onCancelLearningShortcut={() => setLearningShortcut(null)}
+          onCopyBitfocusUrl={(action) => copyText(action.url).then(() => pushFeedback(`URL ${action.label} copied`))}
+          onCopyBitfocusPayload={(action) => copyText(JSON.stringify(action.payload)).then(() => pushFeedback(`Payload ${action.label} copied`))}
+          onRefreshMidiState={refreshMidiState}
+          onStartMidiLearn={startMidiLearn}
+          onStopMidiLearn={stopMidiLearn}
+            onCheckForUpdates={checkForUpdates}
+            onRefreshAppMeta={refreshAppMeta}
+            onSaveYandexAuthSettings={saveYandexAuthSettings}
+            onReloadYandexAuthSettings={reloadYandexAuthSettings}
+            onConnectYandex={startYandexConnect}
+          onDisconnectYandex={disconnectYandex}
+        />
+      )}
 
-                      return (
-                        <div className={`shortcut-action-row ${disabled ? 'is-disabled' : ''}`} key={`${entry.id}-${action}`}>
-                          <strong>{action.toUpperCase()}</strong>
-                          <code>{disabled ? 'Not used for vMix title' : value || 'Not assigned'}</code>
-                          <div className="topbar-actions">
-                            <button className="ghost-button compact-button" onClick={() => setLearningShortcut({ entry, action })} disabled={disabled}>
-                              Learn
-                            </button>
-                            <button className="ghost-button compact-button" onClick={() => saveEntryShortcut(entry, action, '')} disabled={disabled || !value}>
-                              Clear
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+      {(activeTab === 'rundown' || activeTab === 'mapping' || activeTab === 'timers') && <main className={
+        activeTab === 'timers'
+          ? 'timer-tab-grid'
+          : activeTab === 'mapping'
+            ? 'workspace-grid live-rundown-grid'
+            : 'workspace-grid live-only-grid'
+      }>
+        {activeTab === 'mapping' && (
+          <TitlesPanel
+            visibleEntries={visibleEntries}
+            selectedEntry={selectedEntry}
+            program={program}
+            templateMap={templateMap}
+            manageRundown={manageRundown}
+            showHiddenEntries={showHiddenEntries}
+            draggedRundownEntryId={draggedRundownEntryId}
+            busyAction={busyAction}
+            onToggleManage={() => setManageRundown((current) => !current)}
+            onToggleShowHidden={() => setShowHiddenEntries((current) => !current)}
+            onSelectEntry={selectEntry}
+            onDragStartEntry={setDraggedRundownEntryId}
+            onDropEntry={(targetEntryId) => void reorderEntriesToTarget(draggedRundownEntryId, targetEntryId)}
+            onDragEndEntry={() => setDraggedRundownEntryId(null)}
+            onToggleEntryHidden={setEntryHidden}
+            onRemoveEntry={removeEntry}
+            getRundownPrimaryLabel={getRundownPrimaryLabel}
+            getRundownSecondaryLabel={getRundownSecondaryLabel}
+          />
         )}
-        {settingsTab === 'bitfocus' && (
-          <div className="integration-grid">
-            <div className="meta-card">
-              <span className="meta-label">Companion</span>
-              <strong>Bitfocus работает через HTTP API</strong>
-              <span className="output-note">Делайте обычные HTTP POST-запросы из Companion на эти адреса. Для LIVE добавлен отдельный alias, чтобы не путаться с update.</span>
-            </div>
-            {bitfocusActions.map((action) => (
-              <div className="output-url-row" key={action.id}>
-                <div className="output-url-copy">
-                  <strong>{action.label}</strong>
-                  <span className="output-note">Method: POST</span>
-                  <code>{action.url}</code>
-                  <code>{JSON.stringify(action.payload)}</code>
-                </div>
-                <div className="output-url-actions">
-                  <button className="ghost-button compact-button" onClick={() => copyText(action.url).then(() => pushFeedback(`URL ${action.label} скопирован`))}>Copy URL</button>
-                  <button className="ghost-button compact-button" onClick={() => copyText(JSON.stringify(action.payload)).then(() => pushFeedback(`Payload ${action.label} скопирован`))}>Copy Payload</button>
-                </div>
-              </div>
-            ))}
-          </div>
+
+        {activeTab === 'rundown' && (
+          <LiveTab
+            selectedSource={selectedSource}
+            selectedSourceId={selectedSourceId}
+            sourceLibrary={sourceLibrary}
+            selectedLinkedTimerId={selectedLinkedTimerId}
+            timers={timers}
+            showSourceSyncMenu={showSourceSyncMenu}
+            outputs={outputs}
+            selectedOutput={selectedOutput}
+            selectedSyncGroupId={selectedSyncGroupId}
+            syncedOutputIds={syncedOutputIds}
+            selectedSourceDisplayColumns={selectedSourceDisplayColumns}
+            activeSourceBinding={activeSourceBinding}
+            activeTimerBinding={activeTimerBinding}
+            linkedSourceTimer={linkedSourceTimer}
+            normalizeLinkedTimerId={normalizeLinkedTimerId}
+            getSourceRowTimerState={getSourceRowTimerState}
+            getTimerSegments={getTimerSegments}
+            onSelectSource={setSelectedSourceId}
+            onSetSelectedSourceLinkedTimer={setSelectedSourceLinkedTimer}
+            onToggleShowSourceSyncMenu={() => setShowSourceSyncMenu((current) => !current)}
+            onToggleSourceSyncOutput={toggleSourceSyncOutput}
+            onApplySourceRow={applySourceRow}
+            onControlSourceRowTimer={controlSourceRowTimer}
+            onAdjustSourceRowTimerSegment={adjustSourceRowTimerSegment}
+          />
         )}
-        {settingsTab === 'midi' && (
-          <div className="integration-grid">
-            <div className="card-head integration-head">
-              <div>
-                <span className="panel-kicker">MIDI</span>
-                <h3>{midiState?.enabled ? 'MIDI listener active' : 'MIDI listener unavailable'}</h3>
-              </div>
-              <div className="topbar-actions">
-                <button className="ghost-button compact-button" onClick={refreshMidiState}>Refresh Devices</button>
-                <span className={`connection-pill ${midiState?.enabled ? 'is-connected' : 'is-disconnected'}`}>{midiState?.enabled ? 'MIDI ON' : 'MIDI OFF'}</span>
-              </div>
-            </div>
-            <div className="meta-card">
-              <span className="meta-label">Devices</span>
-              <strong>{midiState?.inputs?.length || 0} input device(s)</strong>
-              <span className="output-note">{midiState?.error || 'Сервис слушает MIDI-входы автоматически при старте приложения.'}</span>
-            </div>
-            <div className="meta-card">
-              <span className="meta-label">Learn</span>
-              <strong>{midiState?.learningAction ? `Waiting for ${String(midiState.learningAction).toUpperCase()} trigger` : 'Ready to learn a binding'}</strong>
-              <span className="output-note">
-                {midiState?.lastMessage
-                  ? `Last signal: ${midiState.lastMessage.device} / ${midiState.lastMessage.type}${midiState.lastMessage.note !== undefined ? ` note ${midiState.lastMessage.note}` : ''}${midiState.lastMessage.controller !== undefined ? ` cc ${midiState.lastMessage.controller}` : ''}`
-                  : 'Нажмите Learn, затем нужную кнопку на MIDI-устройстве.'}
-              </span>
-              <div className="output-url-actions">
-                <button className="ghost-button compact-button" onClick={() => startMidiLearn('show')}>Learn SHOW</button>
-                <button className="ghost-button compact-button" onClick={() => startMidiLearn('live')}>Learn LIVE</button>
-                <button className="ghost-button compact-button" onClick={() => startMidiLearn('hide')}>Learn HIDE</button>
-                <button className="ghost-button compact-button" onClick={stopMidiLearn} disabled={!midiState?.learningAction}>Cancel Learn</button>
-              </div>
-            </div>
-            <div className="midi-device-list">
-              {(midiState?.inputs || []).map((input) => (
-                <div className="source-list-item" key={input.name}>
-                  <strong>{input.name}</strong>
-                  <span>MIDI Input</span>
-                </div>
-              ))}
-              {!midiState?.inputs?.length && <div className="empty-state">MIDI устройства не обнаружены.</div>}
-            </div>
-            <div className="midi-binding-list">
-              {(midiState?.bindings || []).map((binding, index) => (
-                <div className="output-url-row" key={`${binding.device}-${binding.note}-${index}`}>
-                  <div className="output-url-copy">
-                    <strong>{String(binding.action || '').toUpperCase()}</strong>
-                    <span className="output-note">{binding.device === 'any' ? 'Любое устройство' : binding.device}</span>
-                    <code>{binding.type}{binding.note !== undefined ? ` note ${binding.note}` : ''}{binding.controller !== undefined ? ` cc ${binding.controller}` : ''}</code>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+
+        {activeTab === 'timers' && (
+          <TimersTab
+            timers={timers}
+            reminderEnabled={reminderEnabled}
+            reminderDelaySec={reminderDelaySec}
+            localTimerTemplateMap={localTimerTemplateMap}
+            localTimerTemplates={localTimerTemplates}
+            vmixState={vmixState}
+            vmixHostDraft={vmixHostDraft}
+            onSetReminderEnabled={setReminderEnabled}
+            onSetReminderDelaySec={setReminderDelaySec}
+            onCreateTimer={createTimer}
+            onUpdateTimer={updateTimer}
+            onShiftTimerFormat={shiftTimerFormat}
+            onRunTimerPanelCommand={runTimerPanelCommand}
+            onDeleteTimer={deleteTimer}
+            onSetVmixHostDraft={setVmixHostDraft}
+            onConnectVmix={connectVmix}
+            onRefreshVmixState={refreshVmixState}
+          />
         )}
-        {settingsTab === 'updates' && (
-          <div className="integration-grid">
-            <div className="meta-card">
-              <span className="meta-label">Application</span>
-              <strong>{appMeta?.name || 'Web Title Pro'} {appMeta?.version || updateState?.currentVersion || '0.0.0'}</strong>
-              <span className="output-note">В desktop-версии проверка обновлений запускается автоматически при старте. Источник обновлений встроен в приложение и не редактируется пользователем.</span>
-            </div>
-            <div className="meta-card">
-              <span className="meta-label">Update Source</span>
-              <code>{updateState?.repoUrl || 'https://github.com/perogello/Web-Title-Pro'}</code>
-              <span className="output-note">Канал обновлений: {updateState?.channel || 'prerelease'}.</span>
-              <div className="output-url-actions">
-                <button className="ghost-button compact-button" onClick={checkForUpdates}>Check Updates</button>
-                <button className="ghost-button compact-button" onClick={refreshAppMeta}>Refresh Status</button>
-              </div>
-            </div>
-            <div className="meta-card">
-              <span className="meta-label">Status</span>
-              <strong>{String(updateState?.status || 'idle').toUpperCase()}</strong>
-              <span className="output-note">{updateState?.notes || 'No update checks have been run yet.'}</span>
-              <code>Current: {appMeta?.version || updateState?.currentVersion || '0.0.0'}</code>
-              <code>Latest: {updateState?.latestVersion || 'not available'}</code>
-              <code>Last Check: {updateState?.lastCheckAt ? formatStatusTime(updateState.lastCheckAt) : 'never'}</code>
-              <code>Asset: {updateState?.assetName || 'not available'}</code>
-            </div>
-            <div className="meta-card">
-              <span className="meta-label">Packaging</span>
-              <strong>Desktop updater is built around GitHub Releases</strong>
-              <span className="output-note">При наличии новой версии desktop-приложение может скачать релизный `.exe`, показать прогресс и завершить обновление через отдельное диалоговое окно.</span>
-            </div>
-          </div>
+        {activeTab === 'mapping' && (
+          <MappingTab
+            selectedEntry={selectedEntry}
+            selectedSource={selectedSource}
+            selectedTemplate={selectedTemplate}
+            selectedVmixInput={selectedVmixInput}
+            sourceColumnChoices={sourceColumnChoices}
+            selectedEntryFields={selectedEntryFields}
+            effectiveSelectedEntryFieldMap={effectiveSelectedEntryFieldMap}
+            showVmixFieldBinding={showVmixFieldBinding}
+            selectedVmixTextFields={selectedVmixTextFields}
+            onSourceColumnMappingChange={updateSelectedSourceColumnMapping}
+            onVmixFieldBindingChange={updateSelectedVmixFieldBinding}
+          />
         )}
-        {settingsTab === 'test' && (
-          <div className="integration-grid">
-            <div className="meta-card">
-              <span className="meta-label">Test</span>
-              <strong>Update verification tab</strong>
-              <span className="output-note">This tab is intentionally empty and only exists so you can verify that a GitHub-delivered update was applied correctly.</span>
-            </div>
-          </div>
-        )}
-      </section>}
-
-      {(activeTab === 'rundown' || activeTab === 'timers') && <main className={activeTab === 'timers' ? 'timer-tab-grid' : 'workspace-grid live-rundown-grid'}>
-        {activeTab === 'rundown' && <section className="card rundown-card">
-          <div className="card-head">
-            <div>
-              <span className="panel-kicker">Rundown</span>
-              <h3>{visibleEntries.length} entries</h3>
-            </div>
-            <div className="topbar-actions">
-              <button className={`ghost-button compact-button ${manageRundown ? 'is-active-manage' : ''}`} onClick={() => setManageRundown((current) => !current)}>
-                Manage
-              </button>
-              <button className={`ghost-button compact-button ${showHiddenEntries ? 'is-active-manage' : ''}`} onClick={() => setShowHiddenEntries((current) => !current)}>
-                Show Hidden
-              </button>
-            </div>
-          </div>
-          <div className="rundown-list">
-            {visibleEntries.map((entry, index) => {
-              const isSelected = entry.id === selectedEntry?.id;
-              const isProgram = entry.id === program.entryId;
-              const entryHasTimer =
-                Boolean(entry.hasTimer) ||
-                (entry.entryType !== 'vmix' && Array.isArray(templateMap.get(entry.templateId)?.timers) && templateMap.get(entry.templateId).timers.length > 0);
-
-              return (
-                <div
-                  key={entry.id}
-                  className={`rundown-item ${isSelected ? 'is-selected' : ''} ${isProgram ? 'is-program' : ''} ${entry.hidden ? 'is-hidden-entry' : ''} ${manageRundown ? 'is-manage' : ''} ${draggedRundownEntryId === entry.id ? 'is-dragging' : ''}`}
-                  onClick={() => selectEntry(entry.id)}
-                  draggable={manageRundown}
-                  onDragStart={(event) => {
-                    if (!manageRundown) {
-                      return;
-                    }
-                    event.dataTransfer.effectAllowed = 'move';
-                    setDraggedRundownEntryId(entry.id);
-                  }}
-                  onDragOver={(event) => {
-                    if (!manageRundown || !draggedRundownEntryId || draggedRundownEntryId === entry.id) {
-                      return;
-                    }
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = 'move';
-                  }}
-                  onDrop={(event) => {
-                    if (!manageRundown) {
-                      return;
-                    }
-                    event.preventDefault();
-                    void reorderEntriesToTarget(draggedRundownEntryId, entry.id);
-                  }}
-                  onDragEnd={() => setDraggedRundownEntryId(null)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      selectEntry(entry.id);
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  aria-disabled={busyAction === `select-${entry.id}`}
-                >
-                  {manageRundown && (
-                    <div className="rundown-manage-handle" aria-hidden="true">
-                      <GripIcon />
-                    </div>
-                  )}
-                  <div className="rundown-main">
-                    <div className="rundown-title-row">
-                      <strong>{getRundownPrimaryLabel(entry)}</strong>
-                      <span className={`entry-type-badge ${entry.entryType === 'vmix' ? 'is-vmix' : 'is-local'}`}>
-                        {entry.entryType === 'vmix' ? 'VMIX' : 'LOCAL'}
-                      </span>
-                      {entryHasTimer && (
-                        <span className="entry-feature-badge" title="В этом титре есть timer slot">
-                          <StopwatchIcon />
-                        </span>
-                      )}
-                    </div>
-                    {getRundownSecondaryLabel(entry) ? <span className="rundown-secondary-label">{getRundownSecondaryLabel(entry)}</span> : null}
-                  </div>
-                  <div className="rundown-flags">
-                    {isSelected && <span className="flag flag-selected">SELECTED</span>}
-                    {isProgram && <span className={`flag ${program.visible ? 'flag-live' : 'flag-standby'}`}>{program.visible ? 'LIVE' : 'READY'}</span>}
-                  </div>
-                  {manageRundown && (
-                    <div className="rundown-manage-actions" onClick={(event) => event.stopPropagation()}>
-                      <button className="ghost-button compact-button icon-button" onClick={() => setEntryHidden(entry, !entry.hidden)} disabled={busyAction === `${entry.hidden ? 'show' : 'hide'}-entry-${entry.id}`} aria-label={entry.hidden ? 'Restore title' : 'Hide title'}>
-                        {entry.hidden ? <EyeIcon /> : <EyeOffIcon />}
-                      </button>
-                      <button className="ghost-button compact-button icon-button danger-button" onClick={() => removeEntry(entry)} disabled={busyAction === `remove-entry-${entry.id}`} aria-label="Remove title">
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>}
-
-        {activeTab === 'rundown' && <section className="card live-source-card">
-          <div className="card-head">
-            <div>
-              <span className="panel-kicker">Live Data Source</span>
-              <h3>{selectedSource?.name || 'No source selected'}</h3>
-            </div>
-            <div className="topbar-actions">
-              <label className="input-block compact live-source-selector">
-                <span>Source</span>
-                <select value={selectedSourceId} onChange={(event) => setSelectedSourceId(event.target.value)}>
-                  {sourceLibrary.map((source) => (
-                    <option key={source.id} value={source.id}>{source.name}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="input-block compact live-source-selector">
-                <span>Timer</span>
-                <select
-                  value={selectedLinkedTimerId || ''}
-                  onChange={(event) => setSelectedSourceLinkedTimer(event.target.value)}
-                >
-                  <option value="">No timer link</option>
-                  {timers.map((timer) => (
-                    <option key={timer.id} value={normalizeLinkedTimerId(timer.id) || ''}>{timer.name}</option>
-                  ))}
-                </select>
-              </label>
-              <div className="live-source-selector sync-menu-control">
-                <span className="sync-menu-label">Sync</span>
-                <button className="ghost-button compact-button sync-menu-button" onClick={() => setShowSourceSyncMenu((current) => !current)}>
-                  <span className={`preview-toggle-icon ${showSourceSyncMenu ? 'is-open' : ''}`}><ChevronDownIcon /></span>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="live-source-toolbar">
-            <span className="output-note">
-              {linkedSourceTimer
-                ? `Связанный таймер: ${linkedSourceTimer.name}`
-                : 'Выберите timer для этого data source, чтобы синхронизировать время и формат.'}
-            </span>
-          </div>
-          {showSourceSyncMenu && (
-            <div className="sync-output-strip">
-              {outputs.map((output) => (
-                <button
-                  key={output.id}
-                  className={`output-chip sync-chip ${output.syncGroupId === selectedSyncGroupId ? 'is-active' : ''}`}
-                  onClick={() => toggleSourceSyncOutput(output.id)}
-                  disabled={output.id === selectedOutput?.id && syncedOutputIds.length <= 1}
-                >
-                  <strong>{output.name}</strong>
-                  <span>
-                    {output.id === selectedOutput?.id
-                      ? 'CURRENT'
-                      : output.syncGroupId === selectedSyncGroupId
-                        ? 'SYNC ON'
-                        : 'SYNC OFF'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-          {selectedSource ? (
-            <div className="source-table-wrapper live-source-wrapper">
-              <table className="source-table live-source-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    {selectedSource.columns.map((column) => <th key={column.id}>{column.label}</th>)}
-                    {selectedLinkedTimerId && <th>Timer</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedSource.rows.map((row) => {
-                    const isActiveRow =
-                      activeSourceBinding?.sourceId === selectedSource.id && activeSourceBinding?.rowId === row.id;
-                    const isTimerRow =
-                      activeTimerBinding?.sourceId === selectedSource.id &&
-                      activeTimerBinding?.rowId === row.id &&
-                      normalizeLinkedTimerId(activeTimerBinding?.timerId) === selectedLinkedTimerId;
-                    const timerState = getSourceRowTimerState(selectedSource.id, row, linkedSourceTimer, isTimerRow);
-                    const displayedTimerMs = Number(timerState.currentMs ?? (row.timer?.baseMs || 0));
-                    const timerFormat = linkedSourceTimer?.displayFormat || row.timer?.format || 'mm:ss';
-                    const timerSegments = getTimerSegments(displayedTimerMs, timerFormat);
-
-                    return (
-                      <tr
-                        key={row.id}
-                        className={isActiveRow ? 'is-active-source-row' : ''}
-                        onClick={() => applySourceRow(row)}
-                      >
-                        <td>{row.index}</td>
-                        {selectedSource.columns.map((column, index) => (
-                          <td key={column.id}>
-                            <span className="source-table-value">{row.values[index] || ''}</span>
-                          </td>
-                        ))}
-                        {selectedLinkedTimerId && <td>
-                          <div className="row-timer-cell" onClick={(event) => event.stopPropagation()}>
-                            <div className="row-timer-actions">
-                              <button
-                                className={`ghost-button compact-button icon-button timer-state-button is-${timerState.status}`}
-                                onClick={() => controlSourceRowTimer(selectedSource.id, row, 'toggle', {
-                                  syncTimerId: selectedLinkedTimerId,
-                                  linkedTimerId: selectedLinkedTimerId,
-                                  linkedTimer: linkedSourceTimer || null,
-                                  isTimerRow,
-                                })}
-                                title={timerState.status === 'running' ? 'Pause timer' : 'Start timer'}
-                              >
-                                {timerState.status === 'running' ? <PauseIcon /> : <PlayIcon />}
-                              </button>
-                              <button
-                                className="ghost-button compact-button icon-button"
-                                onClick={() => controlSourceRowTimer(selectedSource.id, row, 'reset', {
-                                  syncTimerId: selectedLinkedTimerId,
-                                  linkedTimerId: selectedLinkedTimerId,
-                                  linkedTimer: linkedSourceTimer || null,
-                                  isTimerRow,
-                                })}
-                                title="Reset timer"
-                              >
-                                <ResetIcon />
-                              </button>
-                            </div>
-                            <div className="row-timer-segments">
-                              {timerSegments.map((segment, index) => (
-                                <div className="row-timer-segment-group" key={`${row.id}-${segment.key}`}>
-                                  {index > 0 && <span className="row-timer-colon">:</span>}
-                                  <div className="row-timer-segment">
-                                    <button
-                                      className="row-timer-arrow"
-                                      onClick={() => adjustSourceRowTimerSegment(selectedSource.id, row, segment.key, 1, {
-                                        currentMs: displayedTimerMs,
-                                        syncTimerId: selectedLinkedTimerId,
-                                        linkedTimerId: selectedLinkedTimerId,
-                                        linkedTimer: linkedSourceTimer || null,
-                                      })}
-                                    >
-                                      <ChevronUpIcon />
-                                    </button>
-                                    <strong>{segment.value}</strong>
-                                    <button
-                                      className="row-timer-arrow"
-                                      onClick={() => adjustSourceRowTimerSegment(selectedSource.id, row, segment.key, -1, {
-                                        currentMs: displayedTimerMs,
-                                        syncTimerId: selectedLinkedTimerId,
-                                        linkedTimerId: selectedLinkedTimerId,
-                                        linkedTimer: linkedSourceTimer || null,
-                                      })}
-                                    >
-                                      <ChevronDownIcon />
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </td>}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="empty-state source-empty">Choose a source table and click a row to load it into the current output.</div>
-          )}
-        </section>}
-
-        {activeTab === 'timers' && <section className="card timer-card">
-          <div className="card-head">
-            <div>
-              <span className="panel-kicker">Timer Outputs</span>
-              <h3>{timers.length} timer{timers.length === 1 ? '' : 's'} with explicit output target</h3>
-            </div>
-            <button className="ghost-button" onClick={createTimer}>Add Timer</button>
-          </div>
-          <div className="timer-reminder-card">
-            <label className="toggle">
-              <input type="checkbox" checked={reminderEnabled} onChange={(event) => setReminderEnabled(event.target.checked)} />
-              <span>Напомнить о запуске таймера после выбора титра</span>
-            </label>
-            <label className="input-block compact reminder-delay-input">
-              <span>Через секунд</span>
-              <input type="number" min="1" step="1" value={reminderDelaySec} onChange={(event) => setReminderDelaySec(Number(event.target.value) || 1)} />
-            </label>
-          </div>
-          <div className="timer-grid">
-            {timers.map((timer) => (
-              <div className="timer-panel" key={timer.id}>
-                <div className="timer-source-head">
-                  <strong>{timer.name}</strong>
-                  <div className="mode-toggle" role="tablist" aria-label={`Timer output mode ${timer.name}`}>
-                    <button
-                      type="button"
-                      className={`mode-toggle-button ${timer.sourceType !== 'vmix' ? 'is-active' : ''}`}
-                      onClick={() => updateTimer(timer.id, { sourceType: 'local' })}
-                    >
-                      Local
-                    </button>
-                    <button
-                      type="button"
-                      className={`mode-toggle-button ${timer.sourceType === 'vmix' ? 'is-active' : ''}`}
-                      onClick={() => updateTimer(timer.id, { sourceType: 'vmix' })}
-                    >
-                      vMix
-                    </button>
-                  </div>
-                </div>
-                <label className="input-block compact">
-                  <span>Name</span>
-                  <input defaultValue={timer.name} onBlur={(event) => updateTimer(timer.id, { name: event.target.value })} />
-                </label>
-                <div className="timer-readout">{timer.display}</div>
-                <div className="timer-format-row">
-                  <span className="meta-label">Format</span>
-                  <div className="timer-format-switch">
-                    <button className="ghost-button compact-button icon-button" onClick={() => shiftTimerFormat(timer, 'left')}><ChevronLeftIcon /></button>
-                    <strong>{timer.displayFormat || 'mm:ss'}</strong>
-                    <button className="ghost-button compact-button icon-button" onClick={() => shiftTimerFormat(timer, 'right')}><ChevronRightIcon /></button>
-                  </div>
-                </div>
-                <div className="timer-controls">
-                  <select defaultValue={timer.mode} onChange={(event) => updateTimer(timer.id, { mode: event.target.value })}>
-                    <option value="countdown">Down</option>
-                    <option value="countup">Up</option>
-                  </select>
-                  <input type="number" min="0" step="1" defaultValue={Math.round(timer.durationMs / 1000)} onBlur={(event) => updateTimer(timer.id, { durationMs: Number(event.target.value) * 1000 })} />
-                </div>
-                {timer.sourceType !== 'vmix' ? (
-                  <>
-                    <label className="input-block compact">
-                      <span>Local title template</span>
-                      <select
-                        value={timer.targetTemplateId || ''}
-                        onChange={(event) => {
-                          const nextTemplate = localTimerTemplateMap.get(event.target.value);
-                          updateTimer(timer.id, {
-                            sourceType: 'local',
-                            targetTemplateId: event.target.value || null,
-                            targetTimerId: nextTemplate?.timers?.[0]?.id || null,
-                          });
-                        }}
-                      >
-                        <option value="">Select local title</option>
-                        {localTimerTemplates.map((template) => (
-                          <option key={template.id} value={template.id}>{template.name}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="input-block compact">
-                      <span>Timer field in template</span>
-                      <select
-                        value={timer.targetTimerId || ''}
-                        onChange={(event) => updateTimer(timer.id, { targetTimerId: event.target.value || null })}
-                        disabled={!timer.targetTemplateId}
-                      >
-                        <option value="">Select timer field</option>
-                        {(localTimerTemplateMap.get(timer.targetTemplateId)?.timers || []).map((slot) => (
-                          <option key={slot.id} value={slot.id}>{slot.label}</option>
-                        ))}
-                      </select>
-                    </label>
-                    {!localTimerTemplates.length && <div className="output-note">Сейчас среди локальных шаблонов нет ни одного `data-timer`, поэтому локальный вывод таймера некуда привязать.</div>}
-                    {timer.targetTemplateId && timer.targetTimerId && (
-                      <div className="output-note">Таймер появится, когда в эфир будет выведен шаблон `{localTimerTemplateMap.get(timer.targetTemplateId)?.name}` с полем `{timer.targetTimerId}`.</div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <label className="input-block compact">
-                      <span>vMix text input target</span>
-                      <select
-                        value={timer.vmixInputKey || ''}
-                        onChange={(event) => {
-                          const nextInput = (vmixState?.inputs || []).find((input) => (input.key || input.number) === event.target.value);
-                          updateTimer(timer.id, {
-                            sourceType: 'vmix',
-                            vmixInputKey: event.target.value || null,
-                            vmixTextField: nextInput?.textFields?.[0]?.name || 'Text',
-                          });
-                        }}
-                      >
-                        <option value="">Select vMix input</option>
-                        {(vmixState?.inputs || []).map((input) => (
-                          <option key={input.key || input.number} value={input.key || input.number}>
-                            {input.number}. {input.title || input.shortTitle || input.key}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="input-block compact">
-                      <span>vMix text field name</span>
-                      <select
-                        value={timer.vmixTextField || ((vmixState?.inputs || []).find((input) => (input.key || input.number) === timer.vmixInputKey)?.textFields?.[0]?.name || 'Text')}
-                        onChange={(event) => updateTimer(timer.id, { vmixTextField: event.target.value || 'Text' })}
-                      >
-                        {(((vmixState?.inputs || []).find((input) => (input.key || input.number) === timer.vmixInputKey)?.textFields) || [{ name: 'Text', index: '0' }]).map((field) => (
-                          <option key={`${field.index}-${field.name}`} value={field.name}>{field.name}</option>
-                        ))}
-                      </select>
-                    </label>
-                  </>
-                )}
-                <div className="timer-command-row">
-                  <button
-                    className="ghost-button compact-button icon-button"
-                    onClick={() => runTimerPanelCommand(timer, timer.running ? 'stop' : 'start')}
-                    aria-label={timer.running ? 'Stop timer' : 'Start timer'}
-                    title={timer.running ? 'Stop timer' : 'Start timer'}
-                  >
-                    {timer.running ? <PauseIcon /> : <PlayIcon />}
-                  </button>
-                  <button
-                    className="ghost-button compact-button icon-button"
-                    onClick={() => runTimerPanelCommand(timer, 'reset')}
-                    aria-label="Reset timer"
-                    title="Reset timer"
-                  >
-                    <ResetIcon />
-                  </button>
-                  <button
-                    className="ghost-button compact-button icon-button danger-button"
-                    onClick={() => deleteTimer(timer.id)}
-                    aria-label="Delete timer"
-                    title="Delete timer"
-                  >
-                    <TrashIcon />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>}
-
-        {activeTab === 'timers' && <section className="card vmix-card">
-          <div className="card-head">
-            <div>
-              <span className="panel-kicker">vMix Connection</span>
-              <h3>{vmixState?.connected ? 'Connected to vMix' : 'Disconnected from vMix'}</h3>
-            </div>
-            <div className="topbar-actions">
-              <button className="ghost-button compact-button" onClick={refreshVmixState}>Sync Now</button>
-              <span className={`connection-pill ${vmixState?.connected ? 'is-connected' : 'is-disconnected'}`}>{vmixState?.connected ? 'vMix Online' : 'vMix Offline'}</span>
-            </div>
-          </div>
-          <div className="vmix-grid">
-            <label className="input-block">
-              <span>vMix Host</span>
-              <input value={vmixHostDraft} onChange={(event) => setVmixHostDraft(event.target.value)} placeholder="http://127.0.0.1:8088" />
-            </label>
-            <div className="timer-command-row">
-              <button className="ghost-button" onClick={() => connectVmix(vmixHostDraft)}>Connect / Save Host</button>
-            </div>
-            <div className="vmix-readout">
-              <span className="meta-label">Discovered Inputs</span>
-              <strong>{vmixState?.inputs?.length || 0} input(s)</strong>
-            </div>
-            <div className="vmix-readout">
-              <span className="meta-label">Status</span>
-              <strong>{vmixState?.connected ? 'Connection active' : 'Waiting for connection'}</strong>
-              {vmixState?.error ? <span className="output-note">{vmixState.error}</span> : null}
-            </div>
-          </div>
-        </section>}
       </main>}
 
-      {activeTab === 'sources' && <section className="card source-table-card standalone-tab">
-        <div className="source-layout">
-          <aside className="source-sidebar">
-            <div className="source-import-card">
-              <label className="input-block">
-                <span>Source Name</span>
-                <input value={sourceName} onChange={(event) => setSourceName(event.target.value)} placeholder="Guests / Speakers / News List" />
-              </label>
-              <label className="input-block">
-                <span>TXT / CSV file</span>
-                <input type="file" accept=".txt,.csv" onChange={(event) => onSourceFilePicked(event.target.files?.[0]).catch((requestError) => pushFeedback(requestError.message))} />
-              </label>
-              {sourceFileName && <div className="file-chip">File: {sourceFileName}</div>}
-              <label className="input-block">
-                <span>Source Rows</span>
-                <textarea value={sourcePayload} onChange={(event) => setSourcePayload(event.target.value)} placeholder="Ivan Petrov|Presenter&#10;Maria Sokolova|Reporter" />
-              </label>
-              <button className="primary-button full-width" onClick={importSourceDataset}>Add Source Table</button>
-            </div>
-            <div className="source-list">
-              {sourceLibrary.map((item) => (
-                <button key={item.id} className={`source-list-item ${item.id === selectedSourceId ? 'is-selected' : ''}`} onClick={() => setSelectedSourceId(item.id)}>
-                  <strong>{item.name}</strong>
-                  <span>{item.rows.length} rows</span>
-                </button>
-              ))}
-              {!sourceLibrary.length && <div className="empty-state">Import a TXT/CSV source and it will appear here.</div>}
-            </div>
-          </aside>
-          <section className="source-table-card inner-source-card">
-              <div className="card-head">
-                <div>
-                  <span className="panel-kicker">Current Source</span>
-                  <h3>{selectedSource?.name || 'No source selected'}</h3>
-                </div>
-                <div className="topbar-actions">
-                  <button className="ghost-button" onClick={deleteSelectedSource} disabled={!selectedSource}>Delete Source</button>
-                </div>
-              </div>
-            {selectedSource ? (
-              <div className="source-table-wrapper">
-                <table className="source-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      {selectedSource.columns.map((column) => <th key={column.id}>{column.label}</th>)}
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedSource.rows.map((row) => {
-                      const rowKey = getSourceRowEditKey(selectedSource.id, row.id);
-                      const isEditing = Boolean(editingSourceRows[rowKey]);
-                      const rowValues = isEditing ? sourceRowDrafts[rowKey] || row.values : row.values;
+      {activeTab === 'sources' && (
+        <SourcesTab
+          sourceName={sourceName}
+          sourceFileName={sourceFileName}
+          sourcePayload={sourcePayload}
+          remoteSourceName={remoteSourceName}
+          remoteSourceUrl={remoteSourceUrl}
+          remoteSourceAutoRefresh={remoteSourceAutoRefresh}
+          remoteSourceRefreshIntervalSec={remoteSourceRefreshIntervalSec}
+          remoteSourceBusy={busyAction === 'import-remote-source'}
+          sourceLibrary={sourceLibrary}
+          selectedSourceId={selectedSourceId}
+          selectedSource={selectedSource}
+          selectedSourceRefreshing={busyAction === `refresh-source-${selectedSource?.id}`}
+          yandexConnected={Boolean(yandexAuthState?.accessToken)}
+          yandexConnecting={yandexDeviceAuth?.status === 'waiting'}
+          activeSourceBinding={activeSourceBinding}
+          editingSourceRows={editingSourceRows}
+          sourceRowDrafts={sourceRowDrafts}
+          manualRowColumns={manualRowColumns}
+          manualRowValues={manualRowValues}
+          onSourceNameChange={setSourceName}
+          onSourceFilePicked={(file) => onSourceFilePicked(file).catch((requestError) => pushFeedback(requestError.message))}
+          onSourcePayloadChange={setSourcePayload}
+          onImportSourceDataset={importSourceDataset}
+          onRemoteSourceNameChange={setRemoteSourceName}
+          onRemoteSourceUrlChange={setRemoteSourceUrl}
+          onRemoteSourceTypeChange={(value) => setRemoteSourceType(normalizeRemoteSourceType(value))}
+          onRemoteSourceAutoRefreshChange={setRemoteSourceAutoRefresh}
+          onRemoteSourceRefreshIntervalChange={(value) => setRemoteSourceRefreshIntervalSec(Number.parseInt(value || '30', 10) || 30)}
+          onImportRemoteSourceDataset={importRemoteSourceDataset}
+          onConnectYandex={startYandexConnect}
+          onSelectSource={setSelectedSourceId}
+          onDeleteSelectedSource={deleteSelectedSource}
+          onRefreshSelectedSource={() => refreshRemoteSource(selectedSource?.id)}
+          onUpdateSelectedSourceRemote={updateSelectedSourceRemote}
+          onUpdateSourceColumnLabel={updateSourceColumnLabel}
+          getSourceRowEditKey={getSourceRowEditKey}
+          onApplySourceRow={applySourceRow}
+          onUpdateSourceRowCell={updateSourceRowCell}
+          onSaveSourceRowEdit={saveSourceRowEdit}
+          onStartSourceRowEdit={startSourceRowEdit}
+          onDeleteSourceRow={deleteSourceRow}
+          onManualRowValueChange={(index, value) => setManualRowValues((current) => ({ ...current, [index]: value }))}
+          onAddManualSourceRow={addManualSourceRow}
+        />
+      )}
 
-                      return (
-                        <tr
-                          key={row.id}
-                          className={activeSourceBinding?.sourceId === selectedSource.id && activeSourceBinding?.rowId === row.id ? 'is-active-source-row' : ''}
-                          onClick={() => !isEditing && applySourceRow(row)}
-                        >
-                          <td>{row.index}</td>
-                          {selectedSource.columns.map((column, index) => (
-                            <td key={column.id}>
-                              {isEditing ? (
-                                <input
-                                  className="source-table-input"
-                                  value={rowValues[index] || ''}
-                                  onClick={(event) => event.stopPropagation()}
-                                  onChange={(event) => updateSourceRowCell(selectedSource.id, row.id, index, event.target.value)}
-                                />
-                              ) : (
-                                <span className="source-table-value">{row.values[index] || ''}</span>
-                              )}
-                            </td>
-                          ))}
-                          <td>
-                            <div className="source-row-actions" onClick={(event) => event.stopPropagation()}>
-                              <button
-                                className="ghost-button compact-button icon-button"
-                                onClick={() => (isEditing ? saveSourceRowEdit(selectedSource.id, row.id) : startSourceRowEdit(selectedSource.id, row))}
-                                title={isEditing ? 'Save row' : 'Edit row'}
-                                aria-label={isEditing ? 'Save row' : 'Edit row'}
-                              >
-                                {isEditing ? <SaveIcon /> : <EditIcon />}
-                              </button>
-                              <button className="ghost-button compact-button danger-button" onClick={() => deleteSourceRow(selectedSource.id, row.id)}>Delete</button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="empty-state source-empty">Load a TXT/CSV source on the left, then use a row here to feed the current title.</div>
-            )}
-            <div className="manual-row-card">
-              <div className="card-head">
-                <div>
-                  <h3>Add Row</h3>
-                </div>
-                <span className="output-note">The fields below come from the selected title. If the title has 4 variables, this form will show 4 fields too.</span>
-              </div>
-              <div className="manual-row-grid">
-                {manualRowColumns.map((column, index) => (
-                  <label className="input-block" key={column.id}>
-                    <span>{column.label}</span>
-                    <input
-                      value={manualRowValues[index] || ''}
-                      onChange={(event) => setManualRowValues((current) => ({ ...current, [index]: event.target.value }))}
-                      placeholder={`Value ${index + 1}`}
-                    />
-                  </label>
-                ))}
-                {!manualRowColumns.length && <div className="empty-state">Select a title or a source first so the row fields can be generated.</div>}
-              </div>
-              <div className="manual-row-actions">
-                <button className="primary-button" onClick={addManualSourceRow}>+ Add Row</button>
-                <span className="output-note">{selectedSource ? 'The row will be added into the selected source table.' : 'If no table exists yet, a new Manual Source will be created.'}</span>
-              </div>
-            </div>
-          </section>
-        </div>
-      </section>}
 
       {pendingReminder && reminderRow && (
         <div className="modal-backdrop" onClick={() => setPendingReminder(null)}>
@@ -3671,13 +3594,13 @@ function ControlShell() {
                   </label>
                 ) : (
                   <>
-                    {!(vmixState?.inputs || []).length && (
+                    {!vmixTitleInputs.length && (
                       <div className="output-note">Connect and sync vMix first to discover title inputs and text fields.</div>
                     )}
                     <label className="input-block">
                       <span>vMix Input</span>
                       <select value={newVmixInputKey} onChange={(event) => setNewVmixInputKey(event.target.value)}>
-                        {(vmixState?.inputs || []).map((input) => (
+                        {vmixTitleInputs.map((input) => (
                           <option key={input.key || input.number} value={input.key || input.number}>
                             {input.number ? `${input.number} · ` : ''}{input.title || input.shortTitle || 'Untitled input'}
                           </option>
@@ -3700,7 +3623,7 @@ function ControlShell() {
                 <button
                   className="primary-button full-width"
                   onClick={createEntry}
-                  disabled={busyAction === 'create-entry' || (newEntryMode === 'vmix' && !(vmixState?.inputs || []).length)}
+                  disabled={busyAction === 'create-entry' || (newEntryMode === 'vmix' && !vmixTitleInputs.length)}
                 >
                   Add To Rundown
                 </button>
@@ -3761,3 +3684,10 @@ function ControlShell() {
 }
 
 export default ControlShell;
+
+
+
+
+
+
+

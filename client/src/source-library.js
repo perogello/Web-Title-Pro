@@ -1,3 +1,5 @@
+import { normalizeRemoteSourceType } from './remote-sources/index.js';
+
 const STORAGE_KEY = 'web-title-pro-source-library';
 
 const normalizeLine = (line) => line.trim();
@@ -43,6 +45,29 @@ const normalizeLinkedTimerMap = (value) => {
   );
 };
 
+const normalizeRemoteSourceConfig = (remote = {}) => {
+  if (!remote || typeof remote !== 'object' || Array.isArray(remote)) {
+    return null;
+  }
+
+  const type = normalizeRemoteSourceType(remote.type);
+  const refreshIntervalSec = Number.parseInt(remote.refreshIntervalSec ?? '', 10);
+
+  return {
+    type,
+    url: typeof remote.url === 'string' ? remote.url.trim() : '',
+    sheetName: typeof remote.sheetName === 'string' ? remote.sheetName : '',
+    sheetNames: Array.isArray(remote.sheetNames)
+      ? remote.sheetNames.map((value) => String(value || '').trim()).filter(Boolean)
+      : [],
+    autoRefresh: Boolean(remote.autoRefresh),
+    refreshIntervalSec: Number.isFinite(refreshIntervalSec) && refreshIntervalSec > 0 ? refreshIntervalSec : 30,
+    lastFetchedAt: remote.lastFetchedAt || null,
+    lastError: remote.lastError || null,
+    lastResolvedUrl: typeof remote.lastResolvedUrl === 'string' ? remote.lastResolvedUrl.trim() : '',
+  };
+};
+
 const normalizeRow = (row = {}, index = 0) => ({
   id: row.id || `${createId()}-${index}`,
   index: row.index || index + 1,
@@ -51,17 +76,27 @@ const normalizeRow = (row = {}, index = 0) => ({
   timer: createRowTimer(row.timer),
 });
 
+const normalizeColumn = (column = {}, index = 0) => ({
+  id: column.id || `col-${index}`,
+  label: typeof column.label === 'string' ? column.label : `Column ${index + 1}`,
+});
+
+export const normalizeSourceLibrary = (library = []) =>
+  (Array.isArray(library) ? library : []).map((source) => ({
+    ...source,
+    linkedTimerId: normalizeLinkedTimerId(source.linkedTimerId),
+    linkedTimerByOutput: normalizeLinkedTimerMap(source.linkedTimerByOutput),
+    remote: normalizeRemoteSourceConfig(source.remote),
+    columns: (source.columns || []).map((column, index) => normalizeColumn(column, index)),
+    rows: (source.rows || []).map((row, index) => normalizeRow(row, index)),
+  }));
+
 export const loadSourceLibrary = () => {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
 
-    return parsed.map((source) => ({
-      ...source,
-      linkedTimerId: normalizeLinkedTimerId(source.linkedTimerId),
-      linkedTimerByOutput: normalizeLinkedTimerMap(source.linkedTimerByOutput),
-      rows: (source.rows || []).map((row, index) => normalizeRow(row, index)),
-    }));
+    return normalizeSourceLibrary(parsed);
   } catch {
     return [];
   }
@@ -114,8 +149,22 @@ export const parseSourceText = ({ text, name, templateFields = [] }) => {
     delimiter,
     linkedTimerId: null,
     linkedTimerByOutput: {},
+    remote: null,
     columns,
     rows,
     createdAt: new Date().toISOString(),
   };
 };
+
+export const createRemoteSourceConfig = (config = {}) =>
+  normalizeRemoteSourceConfig({
+    type: config.type,
+    url: config.url,
+    sheetName: config.sheetName,
+    sheetNames: config.sheetNames,
+    autoRefresh: config.autoRefresh,
+    refreshIntervalSec: config.refreshIntervalSec,
+    lastFetchedAt: config.lastFetchedAt,
+    lastError: config.lastError,
+    lastResolvedUrl: config.lastResolvedUrl,
+  });

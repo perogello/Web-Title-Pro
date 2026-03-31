@@ -2,56 +2,22 @@
 
 ## RU
 
-Web Title Pro — это desktop-first система управления титрами для live production.
-Проект объединяет React-панель управления, low-latency Node.js backend и browser renderer для `vMix`, `OBS` и других browser-based графических пайплайнов.
+Web Title Pro — desktop-first система управления титрами для live production.
+Приложение объединяет React-панель управления, Node.js backend, browser renderer и Windows desktop shell для работы с локальными HTML-титрами, `vMix` и data-driven графикой.
 
-### Возможности
+### Что умеет
 
-- Управление локальными HTML/CSS/JS титрами без перезагрузки Browser Source
-- Несколько независимых outputs со своими render URL
-- Поддержка локальных шаблонов и `vMix` title inputs
-- Live rundown, data source таблицы, таймеры спикеров, preview/live состояния
-- Горячие клавиши, MIDI, HTTP API для Bitfocus Companion
-- Desktop-упаковка для Windows
+- Локальные HTML/CSS/JS титры без перезагрузки Browser Source
+- `vMix` titles и text fields
+- Несколько независимых outputs
+- `Data Source` таблицы с ручным вводом, `TXT / CSV`, `CSV URL`, `Google Sheets`, `Yandex Disk`
+- Mapping данных в титры
+- Таймеры, shortcuts, MIDI, Bitfocus / HTTP API
+- Проекты: `New / Open / Save / Save As / Recent`
+- Автозагрузка последнего проекта
+- Portable Windows build с автообновлением
 
-### Основные функции
-
-- `SHOW / LIVE / HIDE` с real-time обновлениями
-- Live rundown с типами `Local` и `vMix`
-- Data source таблицы с редактируемыми строками
-- Таймеры, связанные со строками и output-ами
-- Интеграция с `vMix` для text/title fields и timer inputs
-- Настраиваемые shortcuts для каждого титра
-- MIDI integration
-- Companion / Bitfocus HTTP control
-- Portable Windows build со splash screen и сохранением состояния
-
-### Структура проекта
-
-```text
-client/       React control panel
-server/       Express + WebSocket backend
-renderer/     Browser renderer for Browser Input
-desktop/      Electron desktop shell
-templates/    Встроенные локальные шаблоны
-data/         Базовое состояние проекта
-scripts/      Скрипты запуска и обслуживания
-```
-
-### Что нужно для работы
-
-Для обычного использования desktop-приложения:
-
-- Windows ПК
-- `vMix` — только если нужна интеграция с `vMix`
-- MIDI-устройство — только если нужен MIDI-контроль
-
-Для запуска из исходников:
-
-- Node.js
-- npm
-
-### Установка и запуск из исходников
+### Быстрый старт из исходников
 
 ```bash
 npm install
@@ -67,190 +33,98 @@ npm.cmd run dev
 
 Локальные адреса:
 
-- Панель управления: `http://localhost:5173`
+- Control UI: `http://localhost:5173`
 - Backend: `http://localhost:4000`
-- Browser renderer: `http://localhost:4000/render.html`
+- Renderer: `http://localhost:4000/render.html`
 
-### Desktop-режим
+### Desktop режим
 
-Для запуска desktop-версии в dev-режиме:
+Запуск desktop-версии:
 
 ```bash
 npm.cmd run desktop
 ```
 
-Для сборки portable `.exe`:
+Сборка portable `.exe`:
 
 ```bash
 npm.cmd run package:win
 ```
 
-Результат сборки:
+Результат:
 
 ```text
-release/WebTitlePro-0.1.6.exe
+release/WebTitlePro-0.2.1.exe
 release/WebTitlePro.exe
 ```
 
-`WebTitlePro-0.1.6.exe` используется как versioned release asset.
-`WebTitlePro.exe` создается автоматически после сборки и используется как стабильный локальный файл для запуска и обновлений.
-
-Рекомендуемый launcher:
-
-```text
-launch-web-title-pro.cmd
-```
-
-Он очищает конфликтующие Electron-переменные окружения и безопасно запускает packaged app.
-Для прямого ярлыка пользователю лучше использовать:
-
-```text
-release/WebTitlePro.exe
-```
+- `WebTitlePro-0.2.1.exe` — versioned release asset
+- `WebTitlePro.exe` — основной стабильный файл для запуска пользователем
 
 ### Как использовать
 
-1. Запусти desktop-приложение или dev-режим.
+1. Открой приложение.
 2. Создай или выбери `Output`.
-3. Добавь локальный титр или `vMix` title.
-4. Выбери строку из live data source таблицы.
-5. Используй `SHOW`, `LIVE` или `HIDE`.
-6. Скопируй render URL output-а в `vMix` или `OBS` Browser Source.
+3. Добавь локальный или `vMix` титр.
+4. Загрузи `Data Source` или введи данные вручную.
+5. При необходимости настрой `Mapping`.
+6. Используй `SHOW`, `SET` и `HIDE`.
+7. Подключи render URL в `vMix` или `OBS` Browser Source.
 
-### Локальные шаблоны
+### Data Source
 
-Локальные шаблоны — это обычные HTML/CSS/JS папки.
-Текстовые поля определяются через `data-field`.
-Таймеры определяются через `data-timer`.
+Поддерживаются:
 
-Пример:
+- Text
+- TXT / CSV File
+- CSV URL
+- Google Sheets
+- Yandex Disk public link
 
-```html
-<span data-field="name" data-label="Name">John Doe</span>
-<span data-timer="speaker">00:30</span>
-```
+Для `Google Sheets` и `Yandex Disk` доступны `Refresh` и `Auto-refresh`.
 
-### Правила шаблонов
+### Yandex
 
-При импорте шаблон проходит автоматическую валидацию.
-
-Разрешено:
-
-- локальные `html`, `css`, `js`, `json`
-- локальные изображения
-- локальные шрифты
-- локальные видео `mp4` и `webm`
-
-Запрещено:
-
-- внешние `http://` и `https://` ресурсы
-- внешние CDN, внешние шрифты и внешние скрипты
-- теги `iframe`, `object`, `embed`
-
-Базовые лимиты импорта:
-
-- архив до `25 MB`
-- распакованный шаблон до `60 MB`
-- до `150` файлов в пакете
-- один файл до `30 MB`
-
-Если шаблон не проходит проверку, приложение показывает подробный список ошибок по файлам, чтобы дизайнер мог быстро исправить пакет.
-
-### Интеграция с vMix
-
-Web Title Pro умеет:
-
-- читать список `vMix` inputs
-- отправлять текст в `vMix` title fields
-- управлять timer-related text outputs
-
-Типичный локальный адрес API:
+Интеграция с Yandex настраивается локально в:
 
 ```text
-http://127.0.0.1:8088
+Settings -> Yandex
 ```
 
-### Shortcuts
+Приложение не поставляется с готовыми credentials или токенами.
+Подробная инструкция:
 
-Клавиатурные и mouse shortcuts настраиваются в:
+- [docs/YANDEX_CREDENTIALS.md](docs/YANDEX_CREDENTIALS.md)
 
-```text
-Settings -> Shortcuts
-```
-
-Настройки сохраняются в состоянии приложения и не теряются между перезапусками.
-
-### Updates
-
-Во вкладке updates можно подключить GitHub-репозиторий и проверку версий:
-
-```text
-Settings -> Updates
-```
-
-### Полезно знать
-
-- Текущая Windows-сборка portable
-- Пользовательские данные лежат в app data, а не в папке проекта
-- Для публикации на GitHub удобно иметь установленный `Git for Windows`
-
-### Troubleshooting
-
-- Если packaged app не стартует напрямую из `.exe`, используй `launch-web-title-pro.cmd`
-- Если `git` не распознается после установки, открой новый терминал
-- Если поля `vMix` не видны, проверь доступность Web API
-
-## EN
-
-Web Title Pro is a desktop-first title control system for live production.
-It combines a React control panel, a low-latency Node.js backend, and a browser renderer for `vMix`, `OBS`, and other browser-based graphics workflows.
-
-### Features
-
-- Controls local HTML/CSS/JS titles without reloading the browser source
-- Supports multiple independent outputs with separate render URLs
-- Works with both local templates and `vMix` title inputs
-- Includes live rundown, data source tables, speaker timers, preview/live states, shortcuts, MIDI, and Bitfocus-ready HTTP API
-- Packages as a Windows desktop app for broadcast operation
-
-### Main Functions
-
-- `SHOW / LIVE / HIDE` title control with real-time updates
-- Live rundown with `Local` and `vMix` entries
-- Editable data source tables
-- Timers linked to rows and outputs
-- `vMix` integration for timer inputs and text/title fields
-- Configurable per-title shortcuts
-- MIDI integration
-- Companion / Bitfocus HTTP control
-- Portable Windows build with splash screen and persistent state
-
-### Project Structure
+### Структура проекта
 
 ```text
 client/       React control panel
 server/       Express + WebSocket backend
-renderer/     Browser renderer for Browser Input
+renderer/     Browser renderer
 desktop/      Electron desktop shell
 templates/    Built-in local templates
-data/         Default project state
-scripts/      Launch and helper scripts
+scripts/      Build and helper scripts
 ```
 
-### Requirements
+### EN
 
-For normal packaged app usage:
+Web Title Pro is a desktop-first title control system for live production.
+It combines a React control panel, Node.js backend, browser renderer, and Windows desktop shell for local HTML titles, `vMix`, and data-driven graphics workflows.
 
-- Windows PC
-- `vMix` only if you need `vMix` integration
-- MIDI device only if you need MIDI control
+### Main Features
 
-For running from source:
+- Local HTML/CSS/JS titles without reloading the Browser Source
+- `vMix` titles and text fields
+- Multiple independent outputs
+- `Data Source` tables from manual text, `TXT / CSV`, `CSV URL`, `Google Sheets`, and `Yandex Disk`
+- Mapping from source data into titles
+- Timers, shortcuts, MIDI, Bitfocus / HTTP API
+- Project workflow: `New / Open / Save / Save As / Recent`
+- Auto-load last project on startup
+- Portable Windows build with updater flow
 
-- Node.js
-- npm
-
-### Install And Run From Source
+### Quick Start From Source
 
 ```bash
 npm install
@@ -266,13 +140,13 @@ npm.cmd run dev
 
 Local URLs:
 
-- Control panel: `http://localhost:5173`
+- Control UI: `http://localhost:5173`
 - Backend: `http://localhost:4000`
-- Browser renderer: `http://localhost:4000/render.html`
+- Renderer: `http://localhost:4000/render.html`
 
 ### Desktop Mode
 
-Run desktop mode in development:
+Run the desktop app:
 
 ```bash
 npm.cmd run desktop
@@ -287,118 +161,44 @@ npm.cmd run package:win
 Build output:
 
 ```text
-release/WebTitlePro-0.1.6.exe
+release/WebTitlePro-0.2.1.exe
 release/WebTitlePro.exe
 ```
 
-`WebTitlePro-0.1.6.exe` is the versioned release asset.
-`WebTitlePro.exe` is created automatically after packaging and is intended as the stable local executable for launch and updates.
+- `WebTitlePro-0.2.1.exe` is the versioned release asset
+- `WebTitlePro.exe` is the main stable executable for end users
 
-Recommended launcher:
+### Basic Workflow
 
-```text
-launch-web-title-pro.cmd
-```
-
-It clears conflicting Electron environment flags and starts the packaged app safely.
-For a direct desktop shortcut, prefer:
-
-```text
-release/WebTitlePro.exe
-```
-
-### How To Use
-
-1. Start the desktop app or the dev environment.
+1. Open the app.
 2. Create or select an `Output`.
-3. Add a local title or a `vMix` title.
-4. Select a row from the live data source table.
-5. Use `SHOW`, `LIVE`, or `HIDE`.
-6. Copy the output render URL into `vMix` or `OBS` Browser Source.
+3. Add a local or `vMix` title.
+4. Load a `Data Source` or enter data manually.
+5. Configure `Mapping` when needed.
+6. Use `SHOW`, `SET`, and `HIDE`.
+7. Connect the render URL to `vMix` or `OBS` Browser Source.
 
-### Local Templates
+### Data Sources
 
-Local templates are standard HTML/CSS/JS folders.
-Dynamic text fields are detected via `data-field`.
-Timers are detected via `data-timer`.
+Supported input types:
 
-Example:
+- Text
+- TXT / CSV File
+- CSV URL
+- Google Sheets
+- Yandex Disk public link
 
-```html
-<span data-field="name" data-label="Name">John Doe</span>
-<span data-timer="speaker">00:30</span>
-```
+`Google Sheets` and `Yandex Disk` support `Refresh` and `Auto-refresh`.
 
-### Template Rules
+### Yandex
 
-Imported templates are validated automatically.
-
-Allowed:
-
-- local `html`, `css`, `js`, `json`
-- local images
-- local fonts
-- local `mp4` and `webm` videos
-
-Blocked:
-
-- external `http://` and `https://` resources
-- external CDNs, fonts, and scripts
-- `iframe`, `object`, and `embed` tags
-
-Import limits:
-
-- archive up to `25 MB`
-- unpacked template up to `60 MB`
-- up to `150` files per package
-- single file up to `30 MB`
-
-If validation fails, the application shows a detailed per-file error report so the designer can fix the package quickly.
-
-### vMix Integration
-
-Web Title Pro can:
-
-- read `vMix` inputs
-- send text to `vMix` title fields
-- control timer-related text outputs
-
-Typical local API address:
+Yandex integration is configured locally in:
 
 ```text
-http://127.0.0.1:8088
+Settings -> Yandex
 ```
 
-### Shortcuts
+The app does not ship with built-in credentials or tokens.
+See:
 
-Keyboard and mouse shortcuts are configured in:
-
-```text
-Settings -> Shortcuts
-```
-
-They are stored in app state and persist between launches.
-
-### Updates
-
-The updates tab can be used to connect GitHub-based version checking:
-
-```text
-Settings -> Updates
-```
-
-### Helpful Notes
-
-- The current Windows build is portable
-- User data is stored in the application data directory, not in the project folder
-- `Git for Windows` is recommended if you plan to publish from this machine
-
-### Troubleshooting
-
-- If the packaged app does not start directly from the `.exe`, use `launch-web-title-pro.cmd`
-- If `git` is not recognized after installation, open a new terminal window
-- If `vMix` fields do not appear, confirm that the Web API is enabled and reachable
-
-## License
-
-MIT
+- [docs/YANDEX_CREDENTIALS.md](docs/YANDEX_CREDENTIALS.md)

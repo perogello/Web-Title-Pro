@@ -147,8 +147,18 @@ export const startServer = async (options = {}) => {
     async close() {
       timerManager.stop();
       vmixService.stop();
-      wsServer.close();
-      server.close();
+      await store.close();
+      await new Promise((resolve) => wsServer.close(resolve));
+      await new Promise((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
       activeRuntime = null;
     },
   };

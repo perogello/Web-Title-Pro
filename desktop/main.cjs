@@ -5,11 +5,14 @@ const fsp = require('node:fs/promises');
 const { spawn } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 const electron = require('electron');
+const { createYandexAuthIntegration } = require('./integrations/yandex-auth.cjs');
 
 const app = electron.app;
 const BrowserWindow = electron.BrowserWindow;
 const dialog = electron.dialog;
+const ipcMain = electron.ipcMain;
 const shell = electron.shell;
+const safeStorage = electron.safeStorage;
 
 const SERVER_URL = 'http://127.0.0.1:4000';
 const HEALTH_URL = `${SERVER_URL}/api/health`;
@@ -17,6 +20,7 @@ const APP_META_URL = `${SERVER_URL}/api/app/meta`;
 const UPDATE_CHECK_URL = `${SERVER_URL}/api/updates/check`;
 const BUILTIN_REPO_URL = 'https://github.com/perogello/Web-Title-Pro';
 const STABLE_PORTABLE_EXE_NAME = 'WebTitlePro.exe';
+const PROJECT_EXTENSION = 'wtp-project.json';
 
 let backendRuntime = null;
 let ownsBackendRuntime = false;
@@ -25,8 +29,27 @@ let splashWindow = null;
 let updateWindow = null;
 let splashProgressTimer = null;
 let startupUpdateCheckStarted = false;
+let allowMainWindowClose = false;
+let projectSession = {
+  currentProjectPath: null,
+  recentProjects: [],
+};
+let integrationSecrets = {
+  yandexAuth: {
+    clientId: '',
+    clientSecret: '',
+    redirectUri: 'http://127.0.0.1:43145/yandex/callback',
+    scope: 'cloud_api:disk.read',
+    accessToken: '',
+    refreshToken: '',
+    updatedAt: null,
+  },
+};
+let yandexAuthIntegration = null;
 
 const logFile = path.join(os.tmpdir(), 'web-title-pro-desktop.log');
+const getProjectSessionFile = () => path.join(app.getPath('userData'), 'project-session.json');
+const getIntegrationSecretsFile = () => path.join(app.getPath('userData'), 'integration-secrets.json');
 
 const log = (message) => {
   try {
@@ -36,6 +59,362 @@ const log = (message) => {
 log('desktop:module-loaded');
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const normalizeProjectSession = (value = {}) => ({
+  currentProjectPath: typeof value.currentProjectPath === 'string' ? value.currentProjectPath : null,
+  recentProjects: Array.isArray(value.recentProjects)
+    ? value.recentProjects
+        .filter((item) => item && typeof item.path === 'string')
+        .map((item) => ({
+          path: item.path,
+          name: item.name || path.basename(item.path),
+          openedAt: item.openedAt || null,
+        }))
+        .slice(0, 10)
+    : [],
+});
+
+const normalizeIntegrationSecrets = (value = {}) => ({
+  yandexAuth: yandexAuthIntegration.normalizeSecrets(value.yandexAuth || {}),
+});
+
+const canEncryptSecrets = () => {
+  try {
+    return safeStorage?.isEncryptionAvailable?.() === true;
+  } catch {
+    return false;
+  }
+};
+
+const encryptSecretValue = (value) => {
+  if (!value) {
+    return '';
+  }
+
+  if (!canEncryptSecrets()) {
+    return value;
+  }
+
+  return safeStorage.encryptString(String(value)).toString('base64');
+};
+
+const decryptSecretValue = (value, encrypted = false) => {
+  if (!value) {
+    return '';
+  }
+
+  if (!encrypted) {
+    return typeof value === 'string' ? value : '';
+  }
+
+  if (!canEncryptSecrets()) {
+    return '';
+  }
+
+  try {
+    return safeStorage.decryptString(Buffer.from(String(value), 'base64'));
+  } catch {
+    return '';
+  }
+};
+
+const serializeIntegrationSecrets = (value = integrationSecrets) => ({
+  yandexAuth: {
+    redirectUri: value?.yandexAuth?.redirectUri || '',
+    scope: value?.yandexAuth?.scope || 'cloud_api:disk.read',
+    accountLogin: value?.yandexAuth?.accountLogin || '',
+    accountName: value?.yandexAuth?.accountName || '',
+    updatedAt: value?.yandexAuth?.updatedAt || null,
+    encryption: {
+      electronSafeStorage: canEncryptSecrets(),
+    },
+    clientId: encryptSecretValue(value?.yandexAuth?.clientId || ''),
+    clientSecret: encryptSecretValue(value?.yandexAuth?.clientSecret || ''),
+    accessToken: encryptSecretValue(value?.yandexAuth?.accessToken || ''),
+    refreshToken: encryptSecretValue(value?.yandexAuth?.refreshToken || ''),
+  },
+});
+
+const deserializeIntegrationSecrets = (value = {}) => {
+  const normalized = normalizeIntegrationSecrets(value);
+  const encrypted = Boolean(value?.yandexAuth?.encryption?.electronSafeStorage);
+
+  return {
+    yandexAuth: {
+      redirectUri: normalized.yandexAuth.redirectUri,
+      scope: normalized.yandexAuth.scope,
+      accountLogin: normalized.yandexAuth.accountLogin,
+      accountName: normalized.yandexAuth.accountName,
+      updatedAt: normalized.yandexAuth.updatedAt,
+      clientId: decryptSecretValue(value?.yandexAuth?.clientId, encrypted) || normalized.yandexAuth.clientId,
+      clientSecret: decryptSecretValue(value?.yandexAuth?.clientSecret, encrypted) || normalized.yandexAuth.clientSecret,
+      accessToken: decryptSecretValue(value?.yandexAuth?.accessToken, encrypted) || normalized.yandexAuth.accessToken,
+      refreshToken: decryptSecretValue(value?.yandexAuth?.refreshToken, encrypted) || normalized.yandexAuth.refreshToken,
+    },
+  };
+};
+
+const loadProjectSession = async () => {
+  try {
+    const sessionFile = getProjectSessionFile();
+    const existing = await fsp.readFile(sessionFile, 'utf8');
+    projectSession = normalizeProjectSession(JSON.parse(existing));
+  } catch {
+    projectSession = normalizeProjectSession();
+  }
+};
+
+const loadIntegrationSecrets = async () => {
+  try {
+    const secretsFile = getIntegrationSecretsFile();
+    const existing = await fsp.readFile(secretsFile, 'utf8');
+    integrationSecrets = deserializeIntegrationSecrets(JSON.parse(existing));
+  } catch {
+    integrationSecrets = normalizeIntegrationSecrets();
+  }
+};
+
+const persistProjectSession = async () => {
+  const sessionFile = getProjectSessionFile();
+  await fsp.mkdir(path.dirname(sessionFile), { recursive: true });
+  await fsp.writeFile(sessionFile, JSON.stringify(projectSession, null, 2), 'utf8');
+};
+
+const persistIntegrationSecrets = async () => {
+  const secretsFile = getIntegrationSecretsFile();
+  await fsp.mkdir(path.dirname(secretsFile), { recursive: true });
+  await fsp.writeFile(secretsFile, JSON.stringify(serializeIntegrationSecrets(integrationSecrets), null, 2), 'utf8');
+};
+
+yandexAuthIntegration = createYandexAuthIntegration({
+  shell,
+  persist: persistIntegrationSecrets,
+  getState: () => integrationSecrets.yandexAuth,
+  setState: (nextState) => {
+    integrationSecrets.yandexAuth = yandexAuthIntegration.normalizeSecrets(nextState);
+  },
+  canEncryptSecrets,
+});
+
+const touchRecentProject = async (projectPath) => {
+  if (!projectPath) {
+    return;
+  }
+
+  const normalizedPath = path.normalize(projectPath);
+  projectSession.currentProjectPath = normalizedPath;
+  projectSession.recentProjects = [
+    {
+      path: normalizedPath,
+      name: path.basename(normalizedPath),
+      openedAt: new Date().toISOString(),
+    },
+    ...projectSession.recentProjects.filter((item) => path.normalize(item.path) !== normalizedPath),
+  ].slice(0, 10);
+
+  await persistProjectSession();
+};
+
+const clearCurrentProject = async () => {
+  projectSession.currentProjectPath = null;
+  await persistProjectSession();
+};
+
+const getProjectStatusPayload = () => ({
+  supported: true,
+  currentProjectPath: projectSession.currentProjectPath,
+  recentProjects: projectSession.recentProjects,
+});
+
+const removeRecentProject = async (projectPath) => {
+  if (!projectPath) {
+    return;
+  }
+
+  const normalizedPath = path.normalize(projectPath);
+  projectSession.recentProjects = projectSession.recentProjects.filter((item) => path.normalize(item.path) !== normalizedPath);
+  if (projectSession.currentProjectPath && path.normalize(projectSession.currentProjectPath) === normalizedPath) {
+    projectSession.currentProjectPath = null;
+  }
+  await persistProjectSession();
+};
+
+const readProjectFile = async (projectPath) => {
+  const raw = await fsp.readFile(projectPath, 'utf8');
+  const parsed = JSON.parse(raw);
+
+  if (!parsed || typeof parsed !== 'object' || !parsed.state) {
+    throw new Error('Invalid project file.');
+  }
+
+  return parsed;
+};
+
+ipcMain.handle('project:get-status', async () => getProjectStatusPayload());
+
+ipcMain.handle('settings:get-yandex-auth', async () => ({
+  ...yandexAuthIntegration.getPayload(),
+}));
+
+ipcMain.handle('settings:save-yandex-auth', async (_event, payload = {}) => yandexAuthIntegration.save(payload));
+
+ipcMain.handle('settings:disconnect-yandex-auth', async () => yandexAuthIntegration.disconnect());
+
+ipcMain.handle('settings:start-yandex-auth', async () => yandexAuthIntegration.connect());
+
+ipcMain.handle('project:get-startup-project', async () => {
+  if (!projectSession.currentProjectPath) {
+    return { project: null, status: getProjectStatusPayload() };
+  }
+
+  try {
+    const project = await readProjectFile(projectSession.currentProjectPath);
+    await touchRecentProject(projectSession.currentProjectPath);
+    return {
+      project,
+      path: projectSession.currentProjectPath,
+      status: getProjectStatusPayload(),
+    };
+  } catch (error) {
+    await removeRecentProject(projectSession.currentProjectPath);
+    return {
+      project: null,
+      status: getProjectStatusPayload(),
+      error: error.message || 'Could not open the last project automatically.',
+    };
+  }
+});
+
+ipcMain.handle('project:confirm-unsaved', async (_event, payload = {}) => {
+  const result = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: 'Unsaved Changes',
+    message: 'The current project has unsaved changes.',
+    detail: payload?.detail || 'Do you want to save the project before continuing?',
+    buttons: ['Save', "Don't Save", 'Cancel'],
+    defaultId: 0,
+    cancelId: 2,
+  });
+
+  return {
+    action: result.response === 0 ? 'save' : result.response === 1 ? 'discard' : 'cancel',
+  };
+});
+
+ipcMain.handle('project:open-dialog', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Open Project',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Web Title Pro Project', extensions: ['json', 'wtp-project'] },
+      { name: 'JSON', extensions: ['json'] },
+    ],
+  });
+
+  if (result.canceled || !result.filePaths?.[0]) {
+    return { canceled: true };
+  }
+
+  const projectPath = result.filePaths[0];
+  const project = await readProjectFile(projectPath);
+  await touchRecentProject(projectPath);
+
+  return {
+    canceled: false,
+    path: projectPath,
+    project,
+    status: getProjectStatusPayload(),
+  };
+});
+
+ipcMain.handle('project:open-recent', async (_event, projectPath) => {
+  if (!projectPath) {
+    throw new Error('Project path is required.');
+  }
+
+  const project = await readProjectFile(projectPath);
+  await touchRecentProject(projectPath);
+
+  return {
+    canceled: false,
+    path: projectPath,
+    project,
+    status: getProjectStatusPayload(),
+  };
+});
+
+ipcMain.handle('project:save', async (_event, payload = {}) => {
+  const suggestedName = String(payload.suggestedName || 'WebTitleProject').trim() || 'WebTitleProject';
+  const targetPath =
+    payload.path ||
+    projectSession.currentProjectPath ||
+    (await (async () => {
+      const result = await dialog.showSaveDialog(mainWindow, {
+        title: 'Save Project',
+        defaultPath: `${suggestedName}.${PROJECT_EXTENSION}`,
+        filters: [{ name: 'Web Title Pro Project', extensions: ['json', 'wtp-project'] }],
+      });
+      return result.canceled ? null : result.filePath;
+    })());
+
+  if (!targetPath) {
+    return { canceled: true };
+  }
+
+  await fsp.mkdir(path.dirname(targetPath), { recursive: true });
+  await fsp.writeFile(targetPath, JSON.stringify(payload.project || {}, null, 2), 'utf8');
+  await touchRecentProject(targetPath);
+
+  return {
+    canceled: false,
+    path: targetPath,
+    status: getProjectStatusPayload(),
+  };
+});
+
+ipcMain.handle('project:save-as', async (_event, payload = {}) => {
+  const suggestedName = String(payload.suggestedName || 'WebTitleProject').trim() || 'WebTitleProject';
+  const result = await dialog.showSaveDialog(mainWindow, {
+    title: 'Save Project As',
+    defaultPath: `${suggestedName}.${PROJECT_EXTENSION}`,
+    filters: [{ name: 'Web Title Pro Project', extensions: ['json', 'wtp-project'] }],
+  });
+
+  if (result.canceled || !result.filePath) {
+    return { canceled: true };
+  }
+
+  await fsp.mkdir(path.dirname(result.filePath), { recursive: true });
+  await fsp.writeFile(result.filePath, JSON.stringify(payload.project || {}, null, 2), 'utf8');
+  await touchRecentProject(result.filePath);
+
+  return {
+    canceled: false,
+    path: result.filePath,
+    status: getProjectStatusPayload(),
+  };
+});
+
+ipcMain.handle('project:new', async () => {
+  await clearCurrentProject();
+  return getProjectStatusPayload();
+});
+
+ipcMain.handle('project:request-close', async () => {
+  allowMainWindowClose = true;
+  app.quit();
+  return { ok: true };
+});
+
+ipcMain.handle('window:set-title', async (_event, payload = {}) => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return { ok: false };
+  }
+
+  const title = typeof payload.title === 'string' && payload.title.trim() ? payload.title.trim() : 'Web Title Pro';
+  mainWindow.setTitle(title);
+  return { ok: true };
+});
 
 const setWindowMeta = async (windowRef, { title, eyebrow } = {}) => {
   if (!windowRef || windowRef.isDestroyed()) {
@@ -108,6 +487,7 @@ const createShellWindow = async ({
     webPreferences: {
       contextIsolation: true,
       sandbox: false,
+      preload: path.resolve(__dirname, 'preload.cjs'),
     },
   });
 
@@ -237,12 +617,37 @@ const createMainWindow = async () => {
     webPreferences: {
       contextIsolation: true,
       sandbox: false,
+      preload: path.resolve(__dirname, 'preload.cjs'),
     },
   });
 
   mainWindow.on('closed', () => {
     log('window:closed');
     mainWindow = null;
+    allowMainWindowClose = false;
+  });
+
+  mainWindow.on('close', async (event) => {
+    if (allowMainWindowClose) {
+      return;
+    }
+
+    event.preventDefault();
+
+    try {
+      const shouldClose = await mainWindow.webContents.executeJavaScript(
+        'window.__webTitleHandleCloseRequest ? window.__webTitleHandleCloseRequest() : true;',
+        true,
+      );
+
+      if (shouldClose) {
+        allowMainWindowClose = true;
+        app.quit();
+      }
+    } catch {
+      allowMainWindowClose = true;
+      app.quit();
+    }
   });
 
   mainWindow.once('ready-to-show', () => {
@@ -484,6 +889,8 @@ const runStartupUpdateCheck = async () => {
 };
 
 const bootstrap = async () => {
+  await loadProjectSession();
+  await loadIntegrationSecrets();
   await createSplashWindow();
   await ensureBackend();
   await setWindowProgress(splashWindow, 'Loading interface...', 96);

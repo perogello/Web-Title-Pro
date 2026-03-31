@@ -2,6 +2,7 @@ node_modules/
 dist/
 release/
 storage/
+.tmp-test/
 *.log
 desktop-*.log
 Thumbs.db

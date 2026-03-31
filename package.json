@@ -1,6 +1,6 @@
 {
   "name": "web-title-pro",
-  "version": "0.1.6",
+  "version": "0.2.1",
   "description": "Low-latency web title control system for vMix Browser Input",
   "type": "module",
   "main": "desktop/main.cjs",
@@ -36,7 +36,8 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "unzipper": "^0.12.3",
-    "ws": "^8.20.0"
+    "ws": "^8.20.0",
+    "xlsx": "^0.18.5"
   },
   "build": {
     "appId": "com.webtitlepro.desktop",

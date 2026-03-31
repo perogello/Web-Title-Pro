@@ -53,6 +53,37 @@ const buildVmixFieldDefinitions = (entry = {}) => {
   }));
 };
 
+const buildLocalFieldMap = (template, existingMap = []) => {
+  const mapByName = new Map(
+    Array.isArray(existingMap)
+      ? existingMap
+          .filter((item) => item && item.name)
+          .map((item) => [
+            item.name,
+            {
+              ...item,
+              sourceColumnIndex: Number.isInteger(item.sourceColumnIndex)
+                ? item.sourceColumnIndex
+                : Number.parseInt(item.sourceColumnIndex ?? '', 10),
+            },
+          ])
+      : [],
+  );
+
+  return (template?.fields || []).map((field, index) => {
+    const existing = mapByName.get(field.name);
+    const parsedIndex = Number.isInteger(existing?.sourceColumnIndex)
+      ? existing.sourceColumnIndex
+      : Number.parseInt(existing?.sourceColumnIndex ?? '', 10);
+
+    return {
+      name: field.name,
+      label: field.label || field.name || `Field ${index + 1}`,
+      sourceColumnIndex: Number.isFinite(parsedIndex) ? parsedIndex : index,
+    };
+  });
+};
+
 const VMIX_ACTIONS = new Set(['TransitionIn', 'TransitionOut', 'none']);
 const LEGACY_VMIX_ACTIONS = new Map([
   ['TitleBeginAnimation', 'TransitionIn'],
@@ -163,6 +194,39 @@ const createDefaultState = () => ({
   ],
 });
 
+const buildProjectState = (incoming = {}) => {
+  const baseState = createDefaultState();
+  const outputs =
+    incoming?.outputs?.length
+      ? incoming.outputs.map((output, index) => createOutput(output, index + 1))
+      : baseState.outputs.map((output, index) => createOutput(output, index + 1));
+
+  return {
+    ...baseState,
+    ...incoming,
+    selectedOutputId: incoming?.selectedOutputId || outputs[0]?.id || null,
+    outputs,
+    integrations: {
+      ...baseState.integrations,
+      ...(incoming?.integrations || {}),
+      vmix: {
+        ...baseState.integrations.vmix,
+        ...(incoming?.integrations?.vmix || {}),
+      },
+      updates: {
+        ...baseState.integrations.updates,
+        ...(incoming?.integrations?.updates || {}),
+      },
+    },
+    program: {
+      ...baseState.program,
+      ...(incoming?.program || {}),
+    },
+    timers: incoming?.timers?.length ? incoming.timers.map((timer) => normalizeTimer(timer)) : baseState.timers,
+    entries: Array.isArray(incoming?.entries) ? incoming.entries : [],
+  };
+};
+
 export class TitleStore extends EventEmitter {
   constructor({ stateFile, templateService }) {
     super();
@@ -170,6 +234,7 @@ export class TitleStore extends EventEmitter {
     this.templateService = templateService;
     this.state = createDefaultState();
     this.persistTimer = null;
+    this.isClosing = false;
   }
 
   async init() {
@@ -178,38 +243,7 @@ export class TitleStore extends EventEmitter {
 
     try {
       const existing = await fs.readJson(this.stateFile);
-      const baseState = createDefaultState();
-      const migratedOutputs =
-        existing?.outputs?.length
-          ? existing.outputs.map((output, index) => createOutput(output, index + 1))
-          : [createOutput({
-              id: 'output-main',
-              name: 'OUTPUT 1',
-              key: 'main',
-              selectedEntryId: existing?.selectedEntryId || null,
-              program: existing?.program || baseState.program,
-            }, 1)];
-
-      this.state = {
-        ...baseState,
-        ...existing,
-        selectedOutputId: existing?.selectedOutputId || migratedOutputs[0]?.id || null,
-        outputs: migratedOutputs,
-        integrations: {
-          ...baseState.integrations,
-          ...(existing?.integrations || {}),
-          vmix: {
-            ...baseState.integrations.vmix,
-            ...(existing?.integrations?.vmix || {}),
-          },
-        },
-        program: {
-          ...baseState.program,
-          ...(existing?.program || {}),
-        },
-        timers: existing?.timers?.length ? existing.timers.map((timer) => normalizeTimer(timer)) : baseState.timers,
-        entries: existing?.entries || [],
-      };
+      this.state = buildProjectState(existing);
     } catch {
       this.state = createDefaultState();
     }
@@ -234,14 +268,48 @@ export class TitleStore extends EventEmitter {
   }
 
   schedulePersist() {
+    if (this.isClosing) {
+      return;
+    }
+
     clearTimeout(this.persistTimer);
     this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
       this.persist().catch((error) => console.error('Persist failed:', error));
     }, 120);
   }
 
   async persist() {
     await fs.writeJson(this.stateFile, this.state, { spaces: 2 });
+  }
+
+  async close() {
+    this.isClosing = true;
+
+    if (this.persistTimer) {
+      clearTimeout(this.persistTimer);
+      this.persistTimer = null;
+    }
+
+    await this.persist();
+  }
+
+  exportProjectState() {
+    return deepClone(this.state);
+  }
+
+  async loadProjectState(nextState = {}, { seedExamples = false } = {}) {
+    this.state = buildProjectState(nextState);
+    this.reconcileEntries();
+
+    if (seedExamples && !this.state.entries.length) {
+      this.seedExampleEntries();
+    }
+
+    this.ensureOutputsConsistent();
+    await this.persist();
+    this.emit('change', this.getSnapshot());
+    return this.getSnapshot();
   }
 
   getTemplateMap() {
@@ -338,6 +406,7 @@ export class TitleStore extends EventEmitter {
           shortcuts: normalizeEntryShortcuts(entry.shortcuts),
           missingTemplate: false,
           fields: this.buildEntryFields(template, entry.fields),
+          localFieldMap: buildLocalFieldMap(template, entry.localFieldMap),
         };
       })
       .sort((a, b) => new Date(a.createdAt || 0).valueOf() - new Date(b.createdAt || 0).valueOf());
@@ -734,6 +803,7 @@ export class TitleStore extends EventEmitter {
       templateId,
       name: name?.trim() || this.buildEntryName(template),
       fields: this.buildEntryFields(template, fields),
+      localFieldMap: buildLocalFieldMap(template, payload.localFieldMap),
       hidden: false,
       shortcuts: normalizeEntryShortcuts(payload.shortcuts),
       createdAt: new Date().toISOString(),
@@ -789,10 +859,16 @@ export class TitleStore extends EventEmitter {
 
       entry.templateId = payload.templateId;
       entry.fields = this.buildEntryFields(newTemplate, payload.fields || entry.fields);
+      entry.localFieldMap = buildLocalFieldMap(newTemplate, payload.localFieldMap || entry.localFieldMap);
       entry.missingTemplate = false;
     } else if (payload.fields) {
       const template = this.getTemplate(entry.templateId);
       entry.fields = this.buildEntryFields(template, { ...entry.fields, ...payload.fields });
+    }
+
+    if (Array.isArray(payload.localFieldMap) && entry.entryType !== 'vmix') {
+      const template = this.getTemplate(entry.templateId);
+      entry.localFieldMap = buildLocalFieldMap(template, payload.localFieldMap);
     }
 
     if (typeof payload.name === 'string') {

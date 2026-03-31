@@ -1,6 +1,7 @@
 import os from 'node:os';
 import { Router } from 'express';
 import multer from 'multer';
+import { fetchRemoteSourceData } from '../remote-sources/index.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -139,6 +140,53 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
 
   router.get('/state', (_request, response) => {
     response.json(store.getSnapshot());
+  });
+
+  router.get('/project/export', (_request, response) => {
+    response.json({
+      version: 1,
+      state: store.exportProjectState(),
+    });
+  });
+
+  router.post('/project/load', async (request, response) => {
+    try {
+      const snapshot = await store.loadProjectState(request.body?.state || {}, {
+        seedExamples: Boolean(request.body?.seedExamples),
+      });
+      response.json(snapshot);
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  router.post('/sources/fetch-remote', async (request, response) => {
+      const type = request.body?.type;
+      const rawUrl = request.body?.url;
+      const requestedSheetName = typeof request.body?.sheetName === 'string' ? request.body.sheetName.trim() : '';
+      const resolvedUrlHint = typeof request.body?.resolvedUrlHint === 'string' ? request.body.resolvedUrlHint.trim() : '';
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+
+      try {
+        const payload = await fetchRemoteSourceData({
+          type,
+          url: rawUrl,
+          sheetName: requestedSheetName,
+          resolvedUrlHint,
+          signal: controller.signal,
+        });
+        response.json(payload);
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        sendError(response, new Error('Remote source request timed out.'));
+        return;
+      }
+
+      sendError(response, error);
+    } finally {
+      clearTimeout(timeout);
+    }
   });
 
   router.get('/render/state', (_request, response) => {
