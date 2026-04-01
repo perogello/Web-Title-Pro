@@ -5,7 +5,7 @@
 Web Title Pro — desktop-first система управления титрами для live production.
 Приложение объединяет React-панель управления, Node.js backend, browser renderer и Windows desktop shell для работы с локальными HTML-титрами, `vMix` и data-driven графикой.
 
-### Что нового в `0.2.1`
+### Что нового в `0.2.2`
 
 - Упрощен `Yandex Disk` flow: оставлен один понятный режим `Public Link`
 - Улучшен `Data Source` и `Mapping` workflow для локальных и `vMix` титров
@@ -66,11 +66,11 @@ npm.cmd run package:win
 Результат:
 
 ```text
-release/WebTitlePro-0.2.1.exe
+release/WebTitlePro-0.2.2.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.1.exe` — versioned release asset
+- `WebTitlePro-0.2.2.exe` — versioned release asset
 - `WebTitlePro.exe` — основной стабильный файл для запуска пользователем
 
 ### Как использовать
@@ -127,7 +127,7 @@ docs/         Product and integration notes
 Web Title Pro is a desktop-first title control system for live production.
 It combines a React control panel, Node.js backend, browser renderer, and Windows desktop shell for local HTML titles, `vMix`, and data-driven graphics workflows.
 
-### What's New in `0.2.1`
+### What's New in `0.2.2`
 
 - Simplified the `Yandex Disk` flow to one clear `Public Link` mode
 - Improved the `Data Source` and `Mapping` workflow for local and `vMix` titles
@@ -188,11 +188,11 @@ npm.cmd run package:win
 Build output:
 
 ```text
-release/WebTitlePro-0.2.1.exe
+release/WebTitlePro-0.2.2.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.1.exe` is the versioned release asset
+- `WebTitlePro-0.2.2.exe` is the versioned release asset
 - `WebTitlePro.exe` is the main stable executable for end users
 
 ### Basic Workflow

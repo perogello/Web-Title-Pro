@@ -286,6 +286,35 @@ ipcMain.handle('system:open-path', async (_event, targetPath = '') => {
   }
 });
 
+ipcMain.handle('templates:open-folders', async () => {
+  const appRoot = app.getAppPath();
+  const templateFolders = [
+    path.join(appRoot, 'templates'),
+    path.join(appRoot, 'storage', 'templates'),
+  ];
+
+  const opened = [];
+
+  for (const folderPath of templateFolders) {
+    try {
+      const stats = await fsp.stat(folderPath);
+      if (!stats.isDirectory()) {
+        continue;
+      }
+      const result = await shell.openPath(folderPath);
+      if (!result) {
+        opened.push(folderPath);
+      }
+    } catch {}
+  }
+
+  if (!opened.length) {
+    return { ok: false, error: 'No template folders were found.' };
+  }
+
+  return { ok: true, paths: opened };
+});
+
 ipcMain.handle('templates:pick-folder', async () => {
   const result = await dialog.showOpenDialog(mainWindow, {
     title: 'Choose Template Folder',

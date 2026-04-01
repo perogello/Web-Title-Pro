@@ -12,6 +12,14 @@ const FONT_QUERY_SCRIPT = [
   '  if ([string]::IsNullOrWhiteSpace($normalized)) { return }',
   '  [void]$fontNames.Add($normalized)',
   '}',
+  'function Add-FontNamesFromFile($filePath) {',
+  '  try {',
+  '    if (-not (Test-Path $filePath)) { return }',
+  '    $privateFonts = New-Object System.Drawing.Text.PrivateFontCollection',
+  '    $privateFonts.AddFontFile($filePath)',
+  '    $privateFonts.Families | Select-Object -ExpandProperty Name | ForEach-Object { Add-FontName $_ }',
+  '  } catch {}',
+  '}',
   'Add-Type -AssemblyName System.Drawing',
   '$fonts = New-Object System.Drawing.Text.InstalledFontCollection',
   '$fonts.Families | Select-Object -ExpandProperty Name | ForEach-Object { Add-FontName $_ }',
@@ -21,6 +29,8 @@ const FONT_QUERY_SCRIPT = [
   '  $properties = (Get-ItemProperty $path).PSObject.Properties | Where-Object { $_.Name -notmatch \'^PS\' }',
   '  foreach ($property in $properties) { Add-FontName $property.Name }',
   '}',
+  '$userFontsDirectory = Join-Path $env:LOCALAPPDATA \'Microsoft\\Windows\\Fonts\'',
+  'if (Test-Path $userFontsDirectory) { foreach ($fontFile in (Get-ChildItem $userFontsDirectory -File -ErrorAction SilentlyContinue)) { if ($fontFile.Extension -match \'^\\.(ttf|otf|ttc|otc)$\') { Add-FontNamesFromFile $fontFile.FullName } } }',
   '@($fontNames) | Sort-Object -Unique | ConvertTo-Json -Compress',
 ].join('; ');
 

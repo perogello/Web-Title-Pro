@@ -1,26 +1,3 @@
-const FALLBACK_FONTS = [
-  'Arial',
-  'Arial Black',
-  'Bahnschrift',
-  'Calibri',
-  'Cambria',
-  'Candara',
-  'Comic Sans MS',
-  'Consolas',
-  'Constantia',
-  'Corbel',
-  'Georgia',
-  'Impact',
-  'Lucida Sans Unicode',
-  'Microsoft Sans Serif',
-  'Palatino Linotype',
-  'Segoe UI',
-  'Tahoma',
-  'Times New Roman',
-  'Trebuchet MS',
-  'Verdana',
-];
-
 const normalizeColor = (value = '') => {
   const trimmed = String(value || '').trim();
   return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed) ? trimmed : '#ffffff';
@@ -40,7 +17,8 @@ export default function KhuralStyleEditorModal({
     return null;
   }
 
-  const availableFonts = Array.isArray(systemFonts) && systemFonts.length ? systemFonts : FALLBACK_FONTS;
+  const availableFonts = Array.isArray(systemFonts) ? systemFonts : [];
+  const fontsReady = availableFonts.length > 0;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -63,7 +41,9 @@ export default function KhuralStyleEditorModal({
             <span className="output-note">
               {systemFontsLoading
                 ? 'Loading installed system fonts...'
-                : `Available fonts: ${availableFonts.length}`}
+                : fontsReady
+                  ? `Available fonts: ${availableFonts.length}`
+                  : 'System fonts are not loaded yet'}
             </span>
           </div>
           {templateFields.map((field) => {
@@ -83,8 +63,9 @@ export default function KhuralStyleEditorModal({
                     <select
                       value={style.fontFamily || ''}
                       onChange={(event) => onChange(field.name, 'fontFamily', event.target.value)}
+                      disabled={!fontsReady}
                     >
-                      <option value="">Default</option>
+                      <option value="">{fontsReady ? 'Default' : 'Loading system fonts...'}</option>
                       {fontChoices.map((fontName) => (
                         <option key={fontName} value={fontName}>
                           {fontName}

@@ -17,5 +17,6 @@ contextBridge.exposeInMainWorld('webTitleDesktop', {
   startYandexAuth: () => ipcRenderer.invoke('settings:start-yandex-auth'),
   getSystemFonts: (payload) => ipcRenderer.invoke('system:get-fonts', payload),
   openPath: (targetPath) => ipcRenderer.invoke('system:open-path', targetPath),
+  openTemplateFolders: () => ipcRenderer.invoke('templates:open-folders'),
   pickTemplateFolder: () => ipcRenderer.invoke('templates:pick-folder'),
 });

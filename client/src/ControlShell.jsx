@@ -534,7 +534,6 @@ function ControlShell() {
   const [styleEditorDraft, setStyleEditorDraft] = useState({});
   const [systemFontOptions, setSystemFontOptions] = useState([]);
   const [systemFontOptionsLoading, setSystemFontOptionsLoading] = useState(false);
-  const [systemFontOptionsLoaded, setSystemFontOptionsLoaded] = useState(false);
   const [showProjectPanel, setShowProjectPanel] = useState(false);
   const [newEntryMode, setNewEntryMode] = useState('local');
   const [newEntryTemplateId, setNewEntryTemplateId] = useState('');
@@ -645,7 +644,6 @@ function ControlShell() {
     [selectedEntry?.templateFields, selectedTemplate?.fields],
   );
   const canManageEntryAppearance = (entry) => isKhuralStyleTemplate(templateMap.get(entry?.templateId), entry);
-  const canOpenEntryFolder = (entry) => Boolean(entry?.entryType !== 'vmix' && templateMap.get(entry?.templateId)?.directory);
   const styleEditorEntry = useMemo(
     () => (snapshot?.entries || []).find((entry) => entry.id === styleEditorEntryId) || null,
     [snapshot?.entries, styleEditorEntryId],
@@ -1058,7 +1056,7 @@ function ControlShell() {
   useEffect(() => {
     let mounted = true;
 
-    if (!styleEditorEntry || systemFontOptionsLoaded || systemFontOptionsLoading) {
+    if (!styleEditorEntry) {
       return undefined;
     }
 
@@ -1066,9 +1064,10 @@ function ControlShell() {
       return undefined;
     }
 
+    setSystemFontOptions([]);
     setSystemFontOptionsLoading(true);
     desktopBridge
-      .getSystemFonts()
+      .getSystemFonts({ force: true })
       .then((payload) => {
         if (!mounted || !payload) {
           return;
@@ -1077,12 +1076,10 @@ function ControlShell() {
           ? payload.fonts.filter((item) => typeof item === 'string' && item.trim())
           : [];
         setSystemFontOptions(nextFonts);
-        setSystemFontOptionsLoaded(true);
       })
       .catch(() => {
         if (mounted) {
           setSystemFontOptions([]);
-          setSystemFontOptionsLoaded(true);
         }
       })
       .finally(() => {
@@ -1094,7 +1091,7 @@ function ControlShell() {
     return () => {
       mounted = false;
     };
-  }, [desktopBridge, styleEditorEntry, systemFontOptionsLoaded, systemFontOptionsLoading]);
+  }, [desktopBridge, styleEditorEntry?.id]);
 
   useEffect(() => {
     let mounted = true;
@@ -2311,26 +2308,18 @@ function ControlShell() {
     }
   };
 
-  const openEntryFolder = async (entry) => {
-    const template = templateMap.get(entry?.templateId);
-    const targetPath = template?.directory || '';
-
-    if (!targetPath) {
-      pushFeedback('Template folder is not available for this title');
-      return;
-    }
-
-    if (!desktopBridge?.openPath) {
+  const openTemplateFolders = async () => {
+    if (!desktopBridge?.openTemplateFolders) {
       pushFeedback('Folder access is available in the desktop app only');
       return;
     }
 
     try {
-      const result = await desktopBridge.openPath(targetPath);
+      const result = await desktopBridge.openTemplateFolders();
       if (!result?.ok) {
-        throw new Error(result?.error || 'The title folder could not be opened.');
+        throw new Error(result?.error || 'The template folders could not be opened.');
       }
-      pushFeedback('Title folder opened');
+      pushFeedback('Template folders opened');
     } catch (requestError) {
       pushFeedback(requestError.message);
     }
@@ -3613,14 +3602,13 @@ function ControlShell() {
             busyAction={busyAction}
             onToggleManage={() => setManageRundown((current) => !current)}
             onToggleShowHidden={() => setShowHiddenEntries((current) => !current)}
+            onOpenTemplateFolders={openTemplateFolders}
             onSelectEntry={selectEntry}
             onDragStartEntry={setDraggedRundownEntryId}
             onDropEntry={(targetEntryId) => void reorderEntriesToTarget(draggedRundownEntryId, targetEntryId)}
             onDragEndEntry={() => setDraggedRundownEntryId(null)}
             onToggleEntryHidden={setEntryHidden}
             onRemoveEntry={removeEntry}
-            canOpenEntryFolder={canOpenEntryFolder}
-            onOpenEntryFolder={openEntryFolder}
             canManageEntryAppearance={canManageEntryAppearance}
             onManageEntryAppearance={openStyleEditor}
             getRundownPrimaryLabel={getRundownPrimaryLabel}

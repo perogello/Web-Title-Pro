@@ -1,6 +1,6 @@
 {
   "name": "web-title-pro",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Low-latency web title control system for vMix Browser Input",
   "type": "module",
   "main": "desktop/main.cjs",

@@ -1,4 +1,4 @@
-# Web Title Pro 0.2.1
+# Web Title Pro 0.2.2
 
 ## RU
 

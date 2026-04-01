@@ -11,14 +11,13 @@ export default function TitlesPanel({
   busyAction,
   onToggleManage,
   onToggleShowHidden,
+  onOpenTemplateFolders,
   onSelectEntry,
   onDragStartEntry,
   onDropEntry,
   onDragEndEntry,
   onToggleEntryHidden,
   onRemoveEntry,
-  canOpenEntryFolder,
-  onOpenEntryFolder,
   canManageEntryAppearance,
   onManageEntryAppearance,
   getRundownPrimaryLabel,
@@ -32,6 +31,9 @@ export default function TitlesPanel({
           <h3>{visibleEntries.length} entries</h3>
         </div>
         <div className="topbar-actions">
+          <button className="ghost-button compact-button icon-button" onClick={onOpenTemplateFolders} aria-label="Open title folders">
+            <FolderIcon />
+          </button>
           <button className={`ghost-button compact-button ${manageRundown ? 'is-active-manage' : ''}`} onClick={onToggleManage}>
             Manage
           </button>
@@ -119,15 +121,6 @@ export default function TitlesPanel({
                   >
                     {entry.hidden ? <EyeIcon /> : <EyeOffIcon />}
                   </button>
-                  {canOpenEntryFolder?.(entry) && (
-                    <button
-                      className="ghost-button compact-button icon-button"
-                      onClick={() => onOpenEntryFolder(entry)}
-                      aria-label="Open title folder"
-                    >
-                      <FolderIcon />
-                    </button>
-                  )}
                   {canManageEntryAppearance?.(entry) && (
                     <button
                       className="ghost-button compact-button icon-button"
