@@ -102,6 +102,13 @@ export const TrashIcon = () => (
   </svg>
 );
 
+export const FolderIcon = () => (
+  <svg {...iconProps}>
+    <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+    <path d="M3 10h18" />
+  </svg>
+);
+
 export const GripIcon = () => (
   <svg {...iconProps}>
     <circle cx="8" cy="6" r="1.2" fill="currentColor" stroke="none" />

@@ -16,6 +16,7 @@ import {
   fetchRemoteSourcePayload,
   getRemoteImportFallbackName,
 } from './control-shell/source-service.js';
+import KhuralStyleEditorModal from './control-shell/KhuralStyleEditorModal.jsx';
 import { useMidiState, useRealtimeState, useSystemInfo, useVmixState } from './control-shell/hooks.js';
 import ProjectPanel from './control-shell/ProjectPanel.jsx';
 import PreviewTitlePanel from './control-shell/PreviewTitlePanel.jsx';
@@ -339,6 +340,44 @@ const getRundownSecondaryLabel = (entry) => {
   return '';
 };
 
+const isKhuralStyleTemplate = (template = null, entry = null) => {
+  if (entry?.entryType === 'vmix') {
+    return false;
+  }
+
+  const slug = String(template?.slug || entry?.templateId || '').toLowerCase();
+  const name = String(template?.name || '').toLowerCase();
+  const fieldNames = (template?.fields || entry?.templateFields || [])
+    .map((field) => String(field?.name || '').toLowerCase())
+    .filter(Boolean);
+
+  const hasKhuralIdentity = slug.includes('khural') || name.includes('khural');
+  const hasKhuralFieldSignature = ['handle', 'fullname', 'position'].every((fieldName) => fieldNames.includes(fieldName));
+
+  return hasKhuralIdentity || hasKhuralFieldSignature;
+};
+
+const normalizeLocalFieldStyles = (templateFields = [], styles = {}) =>
+  Object.fromEntries(
+    (Array.isArray(templateFields) ? templateFields : [])
+      .map((field) => {
+        const style = styles?.[field.name] || {};
+        const fontFamily = typeof style.fontFamily === 'string' ? style.fontFamily.trim() : '';
+        const fontSize = Number.parseInt(style.fontSize ?? '', 10);
+        const color = typeof style.color === 'string' ? style.color.trim() : '';
+
+        return [
+          field.name,
+          {
+            ...(fontFamily ? { fontFamily } : {}),
+            ...(Number.isFinite(fontSize) && fontSize > 0 ? { fontSize } : {}),
+            ...(color ? { color } : {}),
+          },
+        ];
+      })
+      .filter(([, style]) => Object.keys(style).length > 0),
+  );
+
 const buildUploadFormData = (files, name) => {
   const formData = new FormData();
 
@@ -491,6 +530,11 @@ function ControlShell() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [templateValidationReport, setTemplateValidationReport] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [styleEditorEntryId, setStyleEditorEntryId] = useState(null);
+  const [styleEditorDraft, setStyleEditorDraft] = useState({});
+  const [systemFontOptions, setSystemFontOptions] = useState([]);
+  const [systemFontOptionsLoading, setSystemFontOptionsLoading] = useState(false);
+  const [systemFontOptionsLoaded, setSystemFontOptionsLoaded] = useState(false);
   const [showProjectPanel, setShowProjectPanel] = useState(false);
   const [newEntryMode, setNewEntryMode] = useState('local');
   const [newEntryTemplateId, setNewEntryTemplateId] = useState('');
@@ -499,6 +543,7 @@ function ControlShell() {
   const [autoUpdate, setAutoUpdate] = useState(true);
   const [uploadName, setUploadName] = useState('');
   const [uploadFiles, setUploadFiles] = useState([]);
+  const [uploadDirectoryPath, setUploadDirectoryPath] = useState('');
   const [txtTemplateId, setTxtTemplateId] = useState('');
   const [txtPayload, setTxtPayload] = useState('');
   const [txtFileName, setTxtFileName] = useState('');
@@ -593,9 +638,21 @@ function ControlShell() {
   const timers = snapshot?.timers || [];
   const templateMap = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates]);
   const selectedTemplate = selectedEntry ? templateMap.get(selectedEntry.templateId) : null;
+  const selectedCreateTemplate = templateMap.get(newEntryTemplateId) || null;
+  const selectedTxtTemplate = templateMap.get(txtTemplateId) || null;
   const selectedEntryFields = useMemo(
     () => selectedEntry?.templateFields || selectedTemplate?.fields || [],
     [selectedEntry?.templateFields, selectedTemplate?.fields],
+  );
+  const canManageEntryAppearance = (entry) => isKhuralStyleTemplate(templateMap.get(entry?.templateId), entry);
+  const canOpenEntryFolder = (entry) => Boolean(entry?.entryType !== 'vmix' && templateMap.get(entry?.templateId)?.directory);
+  const styleEditorEntry = useMemo(
+    () => (snapshot?.entries || []).find((entry) => entry.id === styleEditorEntryId) || null,
+    [snapshot?.entries, styleEditorEntryId],
+  );
+  const styleEditorTemplateFields = useMemo(
+    () => styleEditorEntry?.templateFields || templateMap.get(styleEditorEntry?.templateId)?.fields || [],
+    [styleEditorEntry?.templateFields, styleEditorEntry?.templateId, templateMap],
   );
   const selectedVmixInput = useMemo(
     () =>
@@ -997,6 +1054,47 @@ function ControlShell() {
       mounted = false;
     };
   }, [desktopBridge]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    if (!styleEditorEntry || systemFontOptionsLoaded || systemFontOptionsLoading) {
+      return undefined;
+    }
+
+    if (!desktopBridge?.getSystemFonts) {
+      return undefined;
+    }
+
+    setSystemFontOptionsLoading(true);
+    desktopBridge
+      .getSystemFonts()
+      .then((payload) => {
+        if (!mounted || !payload) {
+          return;
+        }
+        const nextFonts = Array.isArray(payload.fonts)
+          ? payload.fonts.filter((item) => typeof item === 'string' && item.trim())
+          : [];
+        setSystemFontOptions(nextFonts);
+        setSystemFontOptionsLoaded(true);
+      })
+      .catch(() => {
+        if (mounted) {
+          setSystemFontOptions([]);
+          setSystemFontOptionsLoaded(true);
+        }
+      })
+      .finally(() => {
+        if (mounted) {
+          setSystemFontOptionsLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [desktopBridge, styleEditorEntry, systemFontOptionsLoaded, systemFontOptionsLoading]);
 
   useEffect(() => {
     let mounted = true;
@@ -1683,6 +1781,102 @@ function ControlShell() {
     setSourceName(file.name.replace(/\.[^.]+$/, ''));
   };
 
+  const pickTemplateFolder = async () => {
+    if (!desktopBridge?.pickTemplateFolder) {
+      pushFeedback('Folder import is available in the desktop app only');
+      return;
+    }
+
+    try {
+      const result = await desktopBridge.pickTemplateFolder();
+
+      if (result?.canceled || !result?.directoryPath) {
+        return;
+      }
+
+      setUploadDirectoryPath(result.directoryPath);
+      setUploadFiles([]);
+      if (!uploadName.trim()) {
+        const folderName = result.directoryPath.split(/[/\\]/).filter(Boolean).pop() || '';
+        setUploadName(folderName);
+      }
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
+  };
+
+  const uploadTemplateFromSelection = async () => {
+    if (!uploadFiles.length && !uploadDirectoryPath) {
+      pushFeedback('Choose a ZIP file, template files, or a folder first');
+      return;
+    }
+
+    setBusyAction('upload-template');
+
+    try {
+      let importedTemplate = null;
+
+      if (uploadDirectoryPath) {
+        importedTemplate = await api('/api/templates/import-directory', {
+          method: 'POST',
+          body: {
+            directoryPath: uploadDirectoryPath,
+            name: uploadName,
+          },
+        });
+      } else {
+        importedTemplate = await api('/api/templates/upload', {
+          method: 'POST',
+          body: buildUploadFormData(uploadFiles, uploadName),
+        });
+      }
+
+      if (importedTemplate?.id) {
+        await api('/api/entries', {
+          method: 'POST',
+          body: {
+            templateId: importedTemplate.id,
+            name: uploadName.trim() || importedTemplate.name || '',
+          },
+        });
+        setNewEntryMode('local');
+        setNewEntryTemplateId(importedTemplate.id);
+        setNewEntryName('');
+      }
+
+      setUploadFiles([]);
+      setUploadDirectoryPath('');
+      setUploadName('');
+      setShowAddModal(false);
+      setTemplateValidationReport(null);
+      pushFeedback(importedTemplate?.id ? 'Template uploaded and added to rundown' : 'Template uploaded');
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  const deleteCustomTemplate = async (templateId, nextSelectionSetter = null) => {
+    if (!templateId) {
+      return;
+    }
+
+    try {
+      await api(`/api/templates/${encodeURIComponent(templateId)}`, {
+        method: 'DELETE',
+      });
+
+      const fallbackTemplate = templates.find((template) => template.source !== 'custom') || templates[0] || null;
+      if (typeof nextSelectionSetter === 'function') {
+        nextSelectionSetter(fallbackTemplate?.id || '');
+      }
+      pushFeedback('Custom template removed');
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
+  };
+
   const importRemoteSourceDataset = async () => {
     const remoteConfig = createRemoteSourceConfig({
       type: remoteSourceType,
@@ -2042,6 +2236,103 @@ function ControlShell() {
       pushFeedback(requestError.message);
     } finally {
       setBusyAction('');
+    }
+  };
+
+  const openStyleEditor = (entry) => {
+    if (!canManageEntryAppearance(entry)) {
+      return;
+    }
+
+    setStyleEditorEntryId(entry.id);
+    setStyleEditorDraft(
+      normalizeLocalFieldStyles(entry.templateFields || templateMap.get(entry.templateId)?.fields || [], entry.fieldStyles || {}),
+    );
+  };
+
+  const closeStyleEditor = () => {
+    setStyleEditorEntryId(null);
+    setStyleEditorDraft({});
+  };
+
+  const updateStyleEditorField = (fieldName, property, value) => {
+    setStyleEditorDraft((current) => {
+      const nextField = {
+        ...(current[fieldName] || {}),
+        [property]: value,
+      };
+
+      if (property === 'fontFamily' && !String(value || '').trim()) {
+        delete nextField.fontFamily;
+      }
+
+      if (property === 'fontSize') {
+        const parsedSize = Number.parseInt(value ?? '', 10);
+        if (Number.isFinite(parsedSize) && parsedSize > 0) {
+          nextField.fontSize = parsedSize;
+        } else {
+          delete nextField.fontSize;
+        }
+      }
+
+      if (property === 'color' && !String(value || '').trim()) {
+        delete nextField.color;
+      }
+
+      const next = {
+        ...current,
+        [fieldName]: nextField,
+      };
+
+      if (!Object.keys(nextField).length) {
+        delete next[fieldName];
+      }
+
+      return next;
+    });
+  };
+
+  const saveStyleEditor = async () => {
+    if (!styleEditorEntry) {
+      return;
+    }
+
+    try {
+      await api(`/api/entries/${styleEditorEntry.id}`, {
+        method: 'PUT',
+        body: {
+          fieldStyles: normalizeLocalFieldStyles(styleEditorTemplateFields, styleEditorDraft),
+        },
+      });
+      pushFeedback('Khural text styles updated');
+      closeStyleEditor();
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
+  };
+
+  const openEntryFolder = async (entry) => {
+    const template = templateMap.get(entry?.templateId);
+    const targetPath = template?.directory || '';
+
+    if (!targetPath) {
+      pushFeedback('Template folder is not available for this title');
+      return;
+    }
+
+    if (!desktopBridge?.openPath) {
+      pushFeedback('Folder access is available in the desktop app only');
+      return;
+    }
+
+    try {
+      const result = await desktopBridge.openPath(targetPath);
+      if (!result?.ok) {
+        throw new Error(result?.error || 'The title folder could not be opened.');
+      }
+      pushFeedback('Title folder opened');
+    } catch (requestError) {
+      pushFeedback(requestError.message);
     }
   };
 
@@ -3328,6 +3619,10 @@ function ControlShell() {
             onDragEndEntry={() => setDraggedRundownEntryId(null)}
             onToggleEntryHidden={setEntryHidden}
             onRemoveEntry={removeEntry}
+            canOpenEntryFolder={canOpenEntryFolder}
+            onOpenEntryFolder={openEntryFolder}
+            canManageEntryAppearance={canManageEntryAppearance}
+            onManageEntryAppearance={openStyleEditor}
             getRundownPrimaryLabel={getRundownPrimaryLabel}
             getRundownSecondaryLabel={getRundownSecondaryLabel}
           />
@@ -3445,6 +3740,19 @@ function ControlShell() {
           onDeleteSourceRow={deleteSourceRow}
           onManualRowValueChange={(index, value) => setManualRowValues((current) => ({ ...current, [index]: value }))}
           onAddManualSourceRow={addManualSourceRow}
+        />
+      )}
+
+      {styleEditorEntry && (
+        <KhuralStyleEditorModal
+          entry={styleEditorEntry}
+          templateFields={styleEditorTemplateFields}
+          draftStyles={styleEditorDraft}
+          systemFonts={systemFontOptions}
+          systemFontsLoading={systemFontOptionsLoading}
+          onChange={updateStyleEditorField}
+          onClose={closeStyleEditor}
+          onSave={saveStyleEditor}
         />
       )}
 
@@ -3586,12 +3894,26 @@ function ControlShell() {
                   </button>
                 </div>
                 {newEntryMode === 'local' ? (
-                  <label className="input-block">
-                    <span>Template</span>
-                    <select value={newEntryTemplateId} onChange={(event) => setNewEntryTemplateId(event.target.value)}>
-                      {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
-                    </select>
-                  </label>
+                  <>
+                    <label className="input-block">
+                      <span>Template</span>
+                      <select value={newEntryTemplateId} onChange={(event) => setNewEntryTemplateId(event.target.value)}>
+                        {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+                      </select>
+                    </label>
+                    {selectedCreateTemplate?.source === 'custom' && (
+                      <div className="template-manage-row">
+                        <span className="output-note">Custom template selected</span>
+                        <button
+                          className="ghost-button compact-button danger-button"
+                          type="button"
+                          onClick={() => deleteCustomTemplate(selectedCreateTemplate.id, setNewEntryTemplateId)}
+                        >
+                          Delete Template
+                        </button>
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <>
                     {!vmixTitleInputs.length && (
@@ -3635,14 +3957,32 @@ function ControlShell() {
                   <input value={uploadName} onChange={(event) => setUploadName(event.target.value)} placeholder="Custom Lower Third" />
                 </label>
                 <label className="input-block">
-                  <span>ZIP or files</span>
-                  <input type="file" multiple onChange={(event) => setUploadFiles([...event.target.files])} />
+                  <span>ZIP file or loose files</span>
+                  <input
+                    type="file"
+                    accept=".zip,.html,.css,.js,.json,.png,.jpg,.jpeg,.webp,.svg,.woff,.woff2,.ttf,.otf,.mp4,.webm"
+                    multiple
+                    onChange={(event) => {
+                      setUploadFiles([...event.target.files]);
+                      setUploadDirectoryPath('');
+                    }}
+                  />
                 </label>
                 <label className="input-block">
                   <span>Folder upload</span>
-                  <input ref={folderInputRef} type="file" multiple onChange={(event) => setUploadFiles([...event.target.files])} />
+                  <input
+                    ref={folderInputRef}
+                    type="file"
+                    multiple
+                    onChange={(event) => {
+                      setUploadFiles([...event.target.files]);
+                      setUploadDirectoryPath('');
+                    }}
+                  />
                 </label>
-                <button className="primary-button full-width" onClick={uploadTemplate} disabled={busyAction === 'upload-template'}>Upload Template</button>
+                <button className="ghost-button full-width" onClick={pickTemplateFolder} type="button">Choose Folder</button>
+                {uploadDirectoryPath && <div className="file-chip">{uploadDirectoryPath}</div>}
+                <button className="primary-button full-width" onClick={uploadTemplateFromSelection} disabled={busyAction === 'upload-template'}>Upload Template</button>
               </div>
             </div>
           </div>
@@ -3665,6 +4005,18 @@ function ControlShell() {
                 {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
               </select>
             </label>
+            {selectedTxtTemplate?.source === 'custom' && (
+              <div className="template-manage-row">
+                <span className="output-note">Custom template selected</span>
+                <button
+                  className="ghost-button compact-button danger-button"
+                  type="button"
+                  onClick={() => deleteCustomTemplate(selectedTxtTemplate.id, setTxtTemplateId)}
+                >
+                  Delete Template
+                </button>
+              </div>
+            )}
             <label className="input-block">
               <span>TXT file</span>
               <input type="file" accept=".txt,.csv" onChange={(event) => onTxtFilePicked(event.target.files?.[0]).catch((requestError) => pushFeedback(requestError.message))} />

@@ -6,6 +6,7 @@ const { spawn } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 const electron = require('electron');
 const { createYandexAuthIntegration } = require('./integrations/yandex-auth.cjs');
+const { createSystemFontsIntegration } = require('./integrations/system-fonts.cjs');
 
 const app = electron.app;
 const BrowserWindow = electron.BrowserWindow;
@@ -46,6 +47,7 @@ let integrationSecrets = {
   },
 };
 let yandexAuthIntegration = null;
+let systemFontsIntegration = null;
 
 const logFile = path.join(os.tmpdir(), 'web-title-pro-desktop.log');
 const getProjectSessionFile = () => path.join(app.getPath('userData'), 'project-session.json');
@@ -195,6 +197,7 @@ yandexAuthIntegration = createYandexAuthIntegration({
   },
   canEncryptSecrets,
 });
+systemFontsIntegration = createSystemFontsIntegration();
 
 const touchRecentProject = async (projectPath) => {
   if (!projectPath) {
@@ -261,6 +264,43 @@ ipcMain.handle('settings:save-yandex-auth', async (_event, payload = {}) => yand
 ipcMain.handle('settings:disconnect-yandex-auth', async () => yandexAuthIntegration.disconnect());
 
 ipcMain.handle('settings:start-yandex-auth', async () => yandexAuthIntegration.connect());
+
+ipcMain.handle('system:get-fonts', async (_event, payload = {}) => systemFontsIntegration.getFonts({
+  force: Boolean(payload?.force),
+}));
+
+ipcMain.handle('system:open-path', async (_event, targetPath = '') => {
+  const normalizedPath = typeof targetPath === 'string' ? targetPath.trim() : '';
+
+  if (!normalizedPath) {
+    return { ok: false, error: 'Path is required.' };
+  }
+
+  try {
+    const stats = await fsp.stat(normalizedPath);
+    const pathToOpen = stats.isDirectory() ? normalizedPath : path.dirname(normalizedPath);
+    const result = await shell.openPath(pathToOpen);
+    return result ? { ok: false, error: result } : { ok: true, path: pathToOpen };
+  } catch (error) {
+    return { ok: false, error: error?.message || 'The selected path could not be opened.' };
+  }
+});
+
+ipcMain.handle('templates:pick-folder', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choose Template Folder',
+    properties: ['openDirectory'],
+  });
+
+  if (result.canceled || !result.filePaths?.[0]) {
+    return { canceled: true };
+  }
+
+  return {
+    canceled: false,
+    directoryPath: result.filePaths[0],
+  };
+});
 
 ipcMain.handle('project:get-startup-project', async () => {
   if (!projectSession.currentProjectPath) {
@@ -746,13 +786,29 @@ const createUpdateScript = async ({ sourcePath, targetPath }) => {
     'setlocal',
     `set "SOURCE=${escapeBatchValue(sourcePath)}"`,
     `set "TARGET=${escapeBatchValue(targetPath)}"`,
-    ':retry',
-    'move /Y "%SOURCE%" "%TARGET%" >nul 2>nul',
-    'if errorlevel 1 (',
-    '  timeout /t 1 /nobreak >nul',
-    '  goto retry',
-    ')',
-    'start "" "%TARGET%"',
+    `set "CURRENT_PID=${process.pid}"`,
+    'powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^',
+    "  \"$ErrorActionPreference = 'Stop'; ^",
+    '  $source = $env:SOURCE; ^',
+    '  $target = $env:TARGET; ^',
+    '  $pidToWait = [int]$env:CURRENT_PID; ^',
+    '  $targetDir = Split-Path -Parent $target; ^',
+    '  if ($targetDir) { New-Item -ItemType Directory -Force -Path $targetDir | Out-Null }; ^',
+    '  for ($i = 0; $i -lt 240; $i++) { ^',
+    '    if (-not (Get-Process -Id $pidToWait -ErrorAction SilentlyContinue)) { break }; ^',
+    '    Start-Sleep -Milliseconds 500; ^',
+    '  }; ^',
+    '  for ($i = 0; $i -lt 240; $i++) { ^',
+    '    try { ^',
+    '      Copy-Item -LiteralPath $source -Destination $target -Force; ^',
+    '      Remove-Item -LiteralPath $source -Force -ErrorAction SilentlyContinue; ^',
+    '      Start-Process -FilePath $target; ^',
+    '      exit 0; ^',
+    '    } catch { ^',
+    '      Start-Sleep -Milliseconds 500; ^',
+    '    } ^',
+    '  }; ^',
+    '  exit 1"',
     'exit /b 0',
     '',
   ].join('\r\n');

@@ -69,6 +69,16 @@ const loadScript = (src) =>
     scriptHost.appendChild(script);
   });
 
+const loadStyle = (href) =>
+  new Promise((resolve, reject) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = href;
+    link.onload = resolve;
+    link.onerror = reject;
+    styleHost.appendChild(link);
+  });
+
 const clearTemplateRuntime = () => {
   currentTemplateApi?.unmount?.(createContext());
   currentTemplateApi = null;
@@ -79,6 +89,7 @@ const clearTemplateRuntime = () => {
 
 const extractBodyMarkup = (htmlText) => {
   const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+  doc.querySelectorAll('link[rel="stylesheet"], script').forEach((node) => node.remove());
   return doc.body?.innerHTML || htmlText;
 };
 
@@ -100,14 +111,9 @@ const ensureTemplate = async (template) => {
 
   const htmlResponse = await fetch(template.assetUrls.html);
   const htmlText = await htmlResponse.text();
-  stage.innerHTML = extractBodyMarkup(htmlText);
 
-  for (const href of template.assetUrls.css || []) {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = href;
-    styleHost.appendChild(link);
-  }
+  await Promise.all((template.assetUrls.css || []).map((href) => loadStyle(href)));
+  stage.innerHTML = extractBodyMarkup(htmlText);
 
   for (const src of template.assetUrls.js || []) {
     await loadScript(src);
@@ -126,6 +132,17 @@ const applyFields = (fields = {}) => {
     } else {
       node.textContent = value;
     }
+  });
+};
+
+const applyFieldStyles = (fieldStyles = {}) => {
+  stage.querySelectorAll('[data-field]').forEach((node) => {
+    const key = node.getAttribute('data-field');
+    const style = fieldStyles?.[key] || {};
+
+    node.style.fontFamily = style.fontFamily || '';
+    node.style.fontSize = style.fontSize ? `${style.fontSize}px` : '';
+    node.style.color = style.color || '';
   });
 };
 
@@ -165,15 +182,21 @@ const getOutroDuration = () => {
 };
 
 const applyVisibility = (visible) => {
+  clearTimeout(hideTimer);
   currentVisible = visible;
   document.body.dataset.air = visible ? 'on' : 'off';
   stateBadge.textContent = visible ? 'ON AIR' : 'STANDBY';
 
   if (visible) {
-    clearTimeout(hideTimer);
     stage.classList.remove('is-hidden', 'is-hiding');
     stage.classList.add('is-visible');
     currentTemplateApi?.show?.(createContext());
+    return;
+  }
+
+  if (!stage.classList.contains('is-visible') && !currentVisible) {
+    stage.classList.remove('is-visible', 'is-hiding');
+    stage.classList.add('is-hidden');
     return;
   }
 
@@ -194,6 +217,7 @@ const applySnapshot = async (snapshot) => {
   const template = snapshot.templates.find((item) => item.id === program?.templateId);
   await ensureTemplate(template);
   applyFields(program?.fields);
+  applyFieldStyles(program?.fieldStyles);
   applyTimers(template, output, snapshot.timers);
   applyVisibility(program?.visible);
   currentTemplateApi?.update?.(createContext());

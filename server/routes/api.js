@@ -254,6 +254,38 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     }
   });
 
+  router.post('/templates/import-directory', async (request, response) => {
+    try {
+      const template = await templateService.importTemplateDirectory(request.body?.directoryPath || '', request.body?.name || '');
+      await store.refreshTemplates();
+      store.reconcileEntries();
+      store.touch();
+      response.status(201).json(template);
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  router.delete('/templates/:templateId', async (request, response) => {
+    try {
+      const templateId = decodeURIComponent(request.params.templateId || '');
+      const snapshot = store.getSnapshot();
+      const usageCount = (snapshot.entries || []).filter((entry) => entry.templateId === templateId).length;
+
+      if (usageCount > 0) {
+        throw new Error(`Template is still used by ${usageCount} title(s) in the rundown. Remove those titles first.`);
+      }
+
+      const result = await templateService.deleteTemplate(templateId);
+      await store.refreshTemplates();
+      store.reconcileEntries();
+      store.touch();
+      response.json(result);
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
   router.post('/entries', (request, response) => {
     try {
       const entry = store.addEntry(request.body);

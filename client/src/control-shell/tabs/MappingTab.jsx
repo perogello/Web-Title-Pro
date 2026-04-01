@@ -32,24 +32,24 @@ export default function MappingTab({
                 </div>
               </div>
               <div className="mapping-list">
-                {sourceColumnChoices.map((column) => {
-                  const mappedField = effectiveSelectedEntryFieldMap.find((field) => field.sourceColumnIndex === column.index) || null;
+                {effectiveSelectedEntryFieldMap.map((field) => {
+                  const selectedColumnIndex = Number.isInteger(field.sourceColumnIndex) ? field.sourceColumnIndex : -1;
 
                   return (
-                    <div className="mapping-row" key={`source-column-map-${column.index}`}>
+                    <div className="mapping-row" key={`source-field-map-${field.name}`}>
                       <div className="mapping-source">
-                        <strong>{column.label}</strong>
-                        <span>{`Column ${column.index + 1}`}</span>
+                        <strong>{field.label || field.name}</strong>
+                        <span>{field.name}</span>
                       </div>
                       <label className="input-block compact mapping-target">
                         <select
-                          value={mappedField?.name || ''}
-                          onChange={(event) => onSourceColumnMappingChange(column.index, event.target.value)}
+                          value={selectedColumnIndex >= 0 ? String(selectedColumnIndex) : ''}
+                          onChange={(event) => onSourceColumnMappingChange(event.target.value, field.name)}
                         >
                           <option value="">Not used</option>
-                          {selectedEntryFields.map((field) => (
-                            <option key={`target-${column.index}-${field.name}`} value={field.name}>
-                              {field.label || field.name}
+                          {sourceColumnChoices.map((column) => (
+                            <option key={`source-${field.name}-${column.index}`} value={column.index}>
+                              {column.label || `Column ${column.index + 1}`}
                             </option>
                           ))}
                         </select>

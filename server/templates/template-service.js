@@ -193,6 +193,33 @@ const writeUploadedFiles = async (files, targetDirectory) => {
   }
 };
 
+const copyTemplateDirectory = async (sourceDirectory, targetDirectory) => {
+  const exists = await fs.pathExists(sourceDirectory);
+
+  if (!exists) {
+    throw new Error('Selected template folder does not exist.');
+  }
+
+  const stats = await fs.stat(sourceDirectory);
+  if (!stats.isDirectory()) {
+    throw new Error('Selected path is not a folder.');
+  }
+
+  await fs.copy(sourceDirectory, targetDirectory, {
+    dereference: true,
+    overwrite: true,
+    errorOnExist: false,
+    filter: (sourcePath) => {
+      const relativePath = path.relative(sourceDirectory, sourcePath).replace(/\\/g, '/');
+      if (!relativePath) {
+        return true;
+      }
+
+      return !relativePath.split('/').some((segment) => segment === '..');
+    },
+  });
+};
+
 const writeZipFiles = async (zipBuffer, targetDirectory) => {
   const directory = await unzipper.Open.buffer(zipBuffer);
   const fileEntries = directory.files.filter((entry) => entry.type === 'File');
@@ -348,6 +375,23 @@ export class TemplateService {
     return this.templates.find((template) => template.id === templateId) || null;
   }
 
+  async deleteTemplate(templateId) {
+    const template = this.getTemplate(templateId);
+
+    if (!template) {
+      throw new Error('Template not found.');
+    }
+
+    if (template.source !== 'custom') {
+      throw new Error('Built-in templates cannot be removed.');
+    }
+
+    await fs.remove(template.directory);
+    await this.scanTemplates();
+
+    return { ok: true, templateId };
+  }
+
   async importTemplatePackage(files, preferredName = '') {
     if (!files?.length) {
       throw new Error('No template files were uploaded.');
@@ -391,6 +435,34 @@ export class TemplateService {
 
       if (!importedTemplate) {
         throw new Error('The uploaded template package could not be parsed.');
+      }
+
+      return importedTemplate;
+    } catch (error) {
+      await fs.remove(targetDirectory).catch(() => {});
+      throw error;
+    }
+  }
+
+  async importTemplateDirectory(directoryPath, preferredName = '') {
+    if (!directoryPath || typeof directoryPath !== 'string') {
+      throw new Error('Template folder path is required.');
+    }
+
+    const packageSlug = `${slugify(preferredName || path.basename(directoryPath) || 'uploaded-template')}-${nanoid(6)}`;
+    const targetDirectory = path.join(this.customTemplatesDir, packageSlug);
+
+    await fs.ensureDir(targetDirectory);
+
+    try {
+      await copyTemplateDirectory(directoryPath, targetDirectory);
+      await validateTemplateDirectory(targetDirectory);
+      await this.scanTemplates();
+
+      const importedTemplate = this.templates.find((template) => template.source === 'custom' && template.slug === packageSlug);
+
+      if (!importedTemplate) {
+        throw new Error('The selected template folder could not be parsed.');
       }
 
       return importedTemplate;

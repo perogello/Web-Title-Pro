@@ -1,4 +1,4 @@
-import { EyeIcon, EyeOffIcon, GripIcon, StopwatchIcon, TrashIcon } from './icons.jsx';
+import { EditIcon, EyeIcon, EyeOffIcon, FolderIcon, GripIcon, StopwatchIcon, TrashIcon } from './icons.jsx';
 
 export default function TitlesPanel({
   visibleEntries,
@@ -17,6 +17,10 @@ export default function TitlesPanel({
   onDragEndEntry,
   onToggleEntryHidden,
   onRemoveEntry,
+  canOpenEntryFolder,
+  onOpenEntryFolder,
+  canManageEntryAppearance,
+  onManageEntryAppearance,
   getRundownPrimaryLabel,
   getRundownSecondaryLabel,
 }) {
@@ -115,6 +119,24 @@ export default function TitlesPanel({
                   >
                     {entry.hidden ? <EyeIcon /> : <EyeOffIcon />}
                   </button>
+                  {canOpenEntryFolder?.(entry) && (
+                    <button
+                      className="ghost-button compact-button icon-button"
+                      onClick={() => onOpenEntryFolder(entry)}
+                      aria-label="Open title folder"
+                    >
+                      <FolderIcon />
+                    </button>
+                  )}
+                  {canManageEntryAppearance?.(entry) && (
+                    <button
+                      className="ghost-button compact-button icon-button"
+                      onClick={() => onManageEntryAppearance(entry)}
+                      aria-label="Edit title appearance"
+                    >
+                      <EditIcon />
+                    </button>
+                  )}
                   <button
                     className="ghost-button compact-button icon-button danger-button"
                     onClick={() => onRemoveEntry(entry)}

@@ -33,7 +33,36 @@ const createDefaultProgram = () => ({
   revision: 0,
   updatedAt: new Date().toISOString(),
   fields: {},
+  fieldStyles: {},
 });
+
+const normalizeFieldStyleValue = (value = {}) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  const fontFamily = typeof value.fontFamily === 'string' ? value.fontFamily.trim() : '';
+  const fontSize = Number.parseInt(value.fontSize ?? '', 10);
+  const color = typeof value.color === 'string' ? value.color.trim() : '';
+
+  return {
+    ...(fontFamily ? { fontFamily } : {}),
+    ...(Number.isFinite(fontSize) && fontSize > 0 ? { fontSize } : {}),
+    ...(color ? { color } : {}),
+  };
+};
+
+const buildLocalFieldStyles = (template, existingStyles = {}) => {
+  const safeStyles = existingStyles && typeof existingStyles === 'object' && !Array.isArray(existingStyles)
+    ? existingStyles
+    : {};
+
+  return Object.fromEntries(
+    (template?.fields || [])
+      .map((field) => [field.name, normalizeFieldStyleValue(safeStyles[field.name])])
+      .filter(([, style]) => Object.keys(style).length > 0),
+  );
+};
 
 const buildVmixFieldDefinitions = (entry = {}) => {
   const fieldMap = Array.isArray(entry.vmixFieldMap) ? entry.vmixFieldMap : [];
@@ -407,6 +436,7 @@ export class TitleStore extends EventEmitter {
           missingTemplate: false,
           fields: this.buildEntryFields(template, entry.fields),
           localFieldMap: buildLocalFieldMap(template, entry.localFieldMap),
+          fieldStyles: buildLocalFieldStyles(template, entry.fieldStyles),
         };
       })
       .sort((a, b) => new Date(a.createdAt || 0).valueOf() - new Date(b.createdAt || 0).valueOf());
@@ -421,6 +451,7 @@ export class TitleStore extends EventEmitter {
         templateId: template.id,
         name: this.buildEntryName(template),
         fields: this.buildEntryFields(template),
+        fieldStyles: buildLocalFieldStyles(template, {}),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         missingTemplate: false,
@@ -477,6 +508,7 @@ export class TitleStore extends EventEmitter {
           revision: (nextOutput.program.revision || 0) + 1,
           updatedAt: new Date().toISOString(),
           fields: deepClone(entry?.fields || {}),
+          fieldStyles: deepClone(entry?.fieldStyles || {}),
         };
       }
 
@@ -635,6 +667,7 @@ export class TitleStore extends EventEmitter {
         entryName: entry?.name || 'No title loaded',
         templateName: presentation.templateName,
         fields: deepClone(entry?.fields || {}),
+        fieldStyles: deepClone(entry?.fieldStyles || {}),
         visible: false,
         lastAction: 'LOAD',
         revision: 1,
@@ -646,6 +679,7 @@ export class TitleStore extends EventEmitter {
         entryName: entry?.name || 'No title loaded',
         templateName: presentation.templateName,
         fields: deepClone(entry?.fields || {}),
+        fieldStyles: deepClone(entry?.fieldStyles || {}),
         visible: false,
         lastAction: 'PREVIEW LOAD',
         revision: 1,
@@ -804,6 +838,7 @@ export class TitleStore extends EventEmitter {
       name: name?.trim() || this.buildEntryName(template),
       fields: this.buildEntryFields(template, fields),
       localFieldMap: buildLocalFieldMap(template, payload.localFieldMap),
+      fieldStyles: buildLocalFieldStyles(template, payload.fieldStyles),
       hidden: false,
       shortcuts: normalizeEntryShortcuts(payload.shortcuts),
       createdAt: new Date().toISOString(),
@@ -860,6 +895,7 @@ export class TitleStore extends EventEmitter {
       entry.templateId = payload.templateId;
       entry.fields = this.buildEntryFields(newTemplate, payload.fields || entry.fields);
       entry.localFieldMap = buildLocalFieldMap(newTemplate, payload.localFieldMap || entry.localFieldMap);
+      entry.fieldStyles = buildLocalFieldStyles(newTemplate, payload.fieldStyles || entry.fieldStyles);
       entry.missingTemplate = false;
     } else if (payload.fields) {
       const template = this.getTemplate(entry.templateId);
@@ -869,6 +905,11 @@ export class TitleStore extends EventEmitter {
     if (Array.isArray(payload.localFieldMap) && entry.entryType !== 'vmix') {
       const template = this.getTemplate(entry.templateId);
       entry.localFieldMap = buildLocalFieldMap(template, payload.localFieldMap);
+    }
+
+    if (payload.fieldStyles && entry.entryType !== 'vmix') {
+      const template = this.getTemplate(entry.templateId);
+      entry.fieldStyles = buildLocalFieldStyles(template, payload.fieldStyles);
     }
 
     if (typeof payload.name === 'string') {
@@ -897,6 +938,7 @@ export class TitleStore extends EventEmitter {
           entryName: entry.name,
           templateName: presentation.templateName,
           fields: deepClone(entry.fields),
+          fieldStyles: deepClone(entry.fieldStyles || {}),
           visible: false,
           lastAction: 'LOAD',
           revision: (output.program.revision || 0) + 1,
@@ -912,6 +954,7 @@ export class TitleStore extends EventEmitter {
           entryName: entry.name,
           templateName: presentation.templateName,
           fields: deepClone(entry.fields),
+          fieldStyles: deepClone(entry.fieldStyles || {}),
           revision: (output.previewProgram.revision || 0) + 1,
           updatedAt: new Date().toISOString(),
         };
@@ -950,6 +993,7 @@ export class TitleStore extends EventEmitter {
             entryName: entry?.name || 'No title loaded',
             templateName: presentation.templateName,
             fields: deepClone(entry?.fields || {}),
+            fieldStyles: deepClone(entry?.fieldStyles || {}),
             visible: false,
             lastAction: 'LOAD',
             revision: (output.program.revision || 0) + 1,
@@ -991,6 +1035,7 @@ export class TitleStore extends EventEmitter {
       entryName: entry.name,
       templateName: presentation.templateName,
       fields: deepClone(entry.fields),
+      fieldStyles: deepClone(entry.fieldStyles || {}),
       visible,
       lastAction,
       revision: (output.program.revision || 0) + 1,
@@ -1016,6 +1061,7 @@ export class TitleStore extends EventEmitter {
       entryName: entry.name,
       templateName: presentation.templateName,
       fields: deepClone(entry.fields),
+      fieldStyles: deepClone(entry.fieldStyles || {}),
       visible,
       lastAction,
       revision: (output.previewProgram.revision || 0) + 1,

@@ -5,6 +5,18 @@
 Web Title Pro — desktop-first система управления титрами для live production.
 Приложение объединяет React-панель управления, Node.js backend, browser renderer и Windows desktop shell для работы с локальными HTML-титрами, `vMix` и data-driven графикой.
 
+### Что нового в `0.2.1`
+
+- Упрощен `Yandex Disk` flow: оставлен один понятный режим `Public Link`
+- Улучшен `Data Source` и `Mapping` workflow для локальных и `vMix` титров
+- Добавлен более аккуратный импорт локальных шаблонов через `ZIP` и папку
+- Загруженный кастомный шаблон теперь можно сразу добавить в rundown
+- Добавлено удаление кастомных шаблонов без удаления built-in шаблонов
+- Для `khural` добавлен редактор текста: шрифты, размеры и цвета по полям
+- Список шрифтов теперь подтягивается из установленной системы Windows
+- Добавлена кнопка открытия папки шаблона из блока `Titles`
+- Улучшена стабильность portable updater и общая чистка модулей
+
 ### Что умеет
 
 - Локальные HTML/CSS/JS титры без перезагрузки Browser Source
@@ -15,7 +27,7 @@ Web Title Pro — desktop-first система управления титрам
 - Таймеры, shortcuts, MIDI, Bitfocus / HTTP API
 - Проекты: `New / Open / Save / Save As / Recent`
 - Автозагрузка последнего проекта
-- Portable Windows build с автообновлением
+- Portable Windows build с updater flow
 
 ### Быстрый старт из исходников
 
@@ -66,7 +78,7 @@ release/WebTitlePro.exe
 1. Открой приложение.
 2. Создай или выбери `Output`.
 3. Добавь локальный или `vMix` титр.
-4. Загрузи `Data Source` или введи данные вручную.
+4. Загрузите `Data Source` или введи данные вручную.
 5. При необходимости настрой `Mapping`.
 6. Используй `SHOW`, `SET` и `HIDE`.
 7. Подключи render URL в `vMix` или `OBS` Browser Source.
@@ -105,12 +117,27 @@ renderer/     Browser renderer
 desktop/      Electron desktop shell
 templates/    Built-in local templates
 scripts/      Build and helper scripts
+docs/         Product and integration notes
 ```
 
-### EN
+---
+
+## EN
 
 Web Title Pro is a desktop-first title control system for live production.
 It combines a React control panel, Node.js backend, browser renderer, and Windows desktop shell for local HTML titles, `vMix`, and data-driven graphics workflows.
+
+### What's New in `0.2.1`
+
+- Simplified the `Yandex Disk` flow to one clear `Public Link` mode
+- Improved the `Data Source` and `Mapping` workflow for local and `vMix` titles
+- Added cleaner local template import from `ZIP` and folders
+- Uploaded custom templates can now be added to the rundown immediately
+- Added safe removal of custom templates without touching built-in templates
+- Added a per-field text style editor for `khural` titles
+- System-installed Windows fonts are now available in the style editor
+- Added a button to open the template folder directly from `Titles`
+- Improved portable updater stability and continued module cleanup
 
 ### Main Features
 
@@ -202,3 +229,15 @@ The app does not ship with built-in credentials or tokens.
 See:
 
 - [docs/YANDEX_CREDENTIALS.md](docs/YANDEX_CREDENTIALS.md)
+
+### Project Structure
+
+```text
+client/       React control panel
+server/       Express + WebSocket backend
+renderer/     Browser renderer
+desktop/      Electron desktop shell
+templates/    Built-in local templates
+scripts/      Build and helper scripts
+docs/         Product and integration notes
+```

@@ -413,6 +413,31 @@ select {
   align-items: center;
   gap: 4px;
 }
+.khural-style-editor {
+  display: grid;
+  gap: 12px;
+  padding: 0 20px 20px;
+}
+.khural-style-card {
+  gap: 8px;
+  padding: 10px;
+}
+.khural-style-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.khural-color-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+.khural-color-picker {
+  width: 52px;
+  min-width: 52px;
+  height: 42px;
+  padding: 4px;
+  border-radius: 12px;
+}
 .icon-button {
   min-width: 34px;
   min-height: 34px;
@@ -1364,6 +1389,12 @@ select {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 .manual-row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.template-manage-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
