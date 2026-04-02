@@ -340,21 +340,15 @@ const getRundownSecondaryLabel = (entry) => {
   return '';
 };
 
-const isKhuralStyleTemplate = (template = null, entry = null) => {
+const supportsFieldStyleEditor = (template = null, entry = null) => {
   if (entry?.entryType === 'vmix') {
     return false;
   }
 
-  const slug = String(template?.slug || entry?.templateId || '').toLowerCase();
-  const name = String(template?.name || '').toLowerCase();
   const fieldNames = (template?.fields || entry?.templateFields || [])
     .map((field) => String(field?.name || '').toLowerCase())
     .filter(Boolean);
-
-  const hasKhuralIdentity = slug.includes('khural') || name.includes('khural');
-  const hasKhuralFieldSignature = ['handle', 'fullname', 'position'].every((fieldName) => fieldNames.includes(fieldName));
-
-  return hasKhuralIdentity || hasKhuralFieldSignature;
+  return Boolean(template?.fieldStyleEditor === true && fieldNames.length > 0);
 };
 
 const normalizeLocalFieldStyles = (templateFields = [], styles = {}) =>
@@ -643,7 +637,7 @@ function ControlShell() {
     () => selectedEntry?.templateFields || selectedTemplate?.fields || [],
     [selectedEntry?.templateFields, selectedTemplate?.fields],
   );
-  const canManageEntryAppearance = (entry) => isKhuralStyleTemplate(templateMap.get(entry?.templateId), entry);
+  const canManageEntryAppearance = (entry) => supportsFieldStyleEditor(templateMap.get(entry?.templateId), entry);
   const styleEditorEntry = useMemo(
     () => (snapshot?.entries || []).find((entry) => entry.id === styleEditorEntryId) || null,
     [snapshot?.entries, styleEditorEntryId],

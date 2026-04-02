@@ -1,0 +1,343 @@
+.lavka-one-lt {
+  --lavka-one-plate-width: 760px;
+  position: absolute;
+  left: 34px;
+  bottom: 58px;
+  width: calc(100% - 68px);
+  max-width: calc(100% - 68px);
+  min-height: 128px;
+  pointer-events: none;
+  isolation: isolate;
+  overflow: visible;
+}
+
+.lavka-one-lt.is-hidden {
+  opacity: 0;
+}
+
+.lavka-one-lt__glow {
+  position: absolute;
+  left: 82px;
+  bottom: -14px;
+  width: 320px;
+  height: 92px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(23, 179, 255, 0.48) 0%, rgba(20, 159, 227, 0.08) 46%, rgba(20, 159, 227, 0) 74%);
+  filter: blur(22px);
+  opacity: 0;
+  transform: scale(0.76);
+}
+
+.lavka-one-lt__logo {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  z-index: 3;
+  width: 160px;
+  height: 160px;
+  opacity: 0;
+  filter: drop-shadow(0 10px 16px rgba(0, 55, 95, 0.12));
+}
+
+.lavka-one-lt__logo-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.lavka-one-lt__logo-path {
+  fill: transparent;
+  stroke: #ffffff;
+  stroke-width: 26;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+}
+
+.lavka-one-lt__plate {
+  position: relative;
+  display: block;
+  width: min(var(--lavka-one-plate-width), calc(100% - 124px));
+  margin-left: 112px;
+  margin-top: 50px;
+  min-height: 64px;
+  overflow: hidden;
+  border-radius: 0 22px 22px 0;
+  background: linear-gradient(135deg, #14b0f2 0%, #12a8ef 34%, #0a96e3 68%, #0a87d2 100%);
+  box-shadow:
+    0 20px 44px rgba(0, 58, 104, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transform: scaleX(0.06) scaleY(0.96);
+  transform-origin: left center;
+  opacity: 0;
+}
+
+.lavka-one-lt__plate::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), transparent 34%),
+    radial-gradient(circle at 12% 16%, rgba(255, 255, 255, 0.2), transparent 24%);
+  pointer-events: none;
+}
+
+.lavka-one-lt__pattern {
+  position: absolute;
+  inset: -20% -8%;
+  opacity: 0;
+  transform: translateX(16px) scale(1.02);
+}
+
+.lavka-one-lt__pattern-shape {
+  position: absolute;
+  width: 160px;
+  height: 180px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.05));
+  transform: rotate(26deg);
+}
+
+.lavka-one-lt__pattern-shape--1 {
+  left: 14%;
+  top: -34%;
+}
+
+.lavka-one-lt__pattern-shape--2 {
+  left: 58%;
+  top: -30%;
+}
+
+.lavka-one-lt__copy {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 64px;
+  padding: 9px 18px 11px 46px;
+}
+
+.lavka-one-lt__primary {
+  color: #ffffff;
+  opacity: 0;
+  font-family: "Segoe UI", "Arial", sans-serif;
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  text-shadow: 0 2px 10px rgba(0, 61, 109, 0.16);
+  transform: translateY(11px) scale(0.987);
+}
+
+.lavka-one-lt.is-entering .lavka-one-lt__glow {
+  animation: lavka-one-glow-in 240ms ease 0ms forwards;
+}
+
+.lavka-one-lt.is-entering .lavka-one-lt__logo {
+  animation: lavka-one-logo-wrap-in 40ms linear 0ms forwards;
+}
+
+.lavka-one-lt.is-entering .lavka-one-lt__logo-path {
+  animation:
+    lavka-one-logo-draw 400ms cubic-bezier(0.22, 0.8, 0.3, 1) 10ms forwards,
+    lavka-one-logo-fill 140ms ease 300ms forwards;
+}
+
+.lavka-one-lt.is-entering .lavka-one-lt__plate {
+  animation: lavka-one-plate-reveal 380ms cubic-bezier(0.22, 0.8, 0.3, 1) 410ms forwards;
+}
+
+.lavka-one-lt.is-entering .lavka-one-lt__pattern {
+  animation: lavka-one-pattern-in 280ms ease 520ms forwards;
+}
+
+.lavka-one-lt.is-entering .lavka-one-lt__primary {
+  animation: lavka-one-text-in 220ms cubic-bezier(0.22, 0.8, 0.3, 1) 660ms forwards;
+}
+
+.lavka-one-lt.is-visible .lavka-one-lt__glow {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.lavka-one-lt.is-visible .lavka-one-lt__logo {
+  opacity: 1;
+}
+
+.lavka-one-lt.is-visible .lavka-one-lt__logo-path {
+  fill: #ffffff;
+  stroke-dashoffset: 0;
+}
+
+.lavka-one-lt.is-visible .lavka-one-lt__plate {
+  transform: scaleX(1);
+  opacity: 1;
+}
+
+.lavka-one-lt.is-visible .lavka-one-lt__pattern {
+  opacity: 0.38;
+  transform: translateX(0);
+}
+
+.lavka-one-lt.is-visible .lavka-one-lt__primary {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.lavka-one-lt.is-exiting .lavka-one-lt__primary {
+  animation: lavka-one-text-out 120ms ease 0ms forwards;
+}
+
+.lavka-one-lt.is-exiting .lavka-one-lt__pattern {
+  animation: lavka-one-pattern-out 150ms ease 40ms forwards;
+}
+
+.lavka-one-lt.is-exiting .lavka-one-lt__plate {
+  animation: lavka-one-plate-out 210ms cubic-bezier(0.4, 0, 0.2, 1) 90ms forwards;
+}
+
+.lavka-one-lt.is-exiting .lavka-one-lt__logo {
+  animation: lavka-one-logo-wrap-out 120ms ease 250ms forwards;
+}
+
+.lavka-one-lt.is-exiting .lavka-one-lt__logo-path {
+  animation: lavka-one-logo-fade-out 120ms ease 250ms forwards;
+}
+
+.lavka-one-lt.is-exiting .lavka-one-lt__glow {
+  animation: lavka-one-glow-out 180ms ease 80ms forwards;
+}
+
+@keyframes lavka-one-glow-in {
+  from { opacity: 0; transform: scale(0.76); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes lavka-one-glow-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.84); }
+}
+
+@keyframes lavka-one-logo-wrap-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.82) rotate(-8deg);
+  }
+  72% {
+    opacity: 1;
+    transform: translateY(0) scale(1.04) rotate(0deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes lavka-one-logo-wrap-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+}
+
+@keyframes lavka-one-logo-draw {
+  from {
+    stroke-dashoffset: 100;
+    fill: transparent;
+  }
+  to {
+    stroke-dashoffset: 0;
+    fill: transparent;
+  }
+}
+
+@keyframes lavka-one-logo-fill {
+  from { fill: transparent; }
+  to { fill: #ffffff; }
+}
+
+@keyframes lavka-one-logo-fade-out {
+  from {
+    opacity: 1;
+    fill: #ffffff;
+  }
+  to {
+    opacity: 0;
+    fill: #ffffff;
+  }
+}
+
+@keyframes lavka-one-plate-reveal {
+  from {
+    opacity: 0;
+    transform: scaleX(0.06) scaleY(0.96);
+  }
+  60% {
+    opacity: 1;
+  }
+  78% {
+    opacity: 1;
+    transform: scaleX(1.02) scaleY(1);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1) scaleY(1);
+  }
+}
+
+@keyframes lavka-one-plate-out {
+  from {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  to {
+    opacity: 0;
+    transform: scaleX(0.08);
+  }
+}
+
+@keyframes lavka-one-pattern-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px) scale(1.02);
+  }
+  to {
+    opacity: 0.38;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes lavka-one-pattern-out {
+  from { opacity: 0.38; }
+  to { opacity: 0; }
+}
+
+@keyframes lavka-one-text-in {
+  from {
+    opacity: 0;
+    transform: translateY(11px) scale(0.987);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes lavka-one-text-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+}

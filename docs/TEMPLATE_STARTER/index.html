@@ -1,0 +1,44 @@
+<!--
+  Web Title Pro template starter.
+
+  Main ideas:
+  - Every editable text field must have data-field="..."
+  - data-label is the human-readable name shown in the app UI
+  - data-default is the value used before the operator fills the title
+  - data-outro-ms tells the renderer how long to wait before fully hiding the title
+-->
+<link rel="stylesheet" href="./styles.css" />
+<script src="./main.js" defer></script>
+
+<div class="starter-title" data-outro-ms="450">
+  <!-- Accent / tag block -->
+  <div
+    class="starter-title__tag"
+    data-field="tag"
+    data-label="Tag"
+    data-default="LIVE"
+    data-placeholder="LIVE"
+  >
+    LIVE
+  </div>
+
+  <!-- Main content block -->
+  <div class="starter-title__panel">
+    <h1
+      data-field="fullName"
+      data-label="Full Name"
+      data-default="Ivan Petrov"
+      data-placeholder="Ivan Petrov"
+    >
+      Ivan Petrov
+    </h1>
+    <p
+      data-field="position"
+      data-label="Position"
+      data-default="Presenter"
+      data-placeholder="Presenter"
+    >
+      Presenter
+    </p>
+  </div>
+</div>

@@ -5,17 +5,12 @@
 Web Title Pro — desktop-first система управления титрами для live production.
 Приложение объединяет React-панель управления, Node.js backend, browser renderer и Windows desktop shell для работы с локальными HTML-титрами, `vMix` и data-driven графикой.
 
-### Что нового в `0.2.2`
+### Что нового в `0.2.3`
 
-- Упрощен `Yandex Disk` flow: оставлен один понятный режим `Public Link`
-- Улучшен `Data Source` и `Mapping` workflow для локальных и `vMix` титров
-- Добавлен более аккуратный импорт локальных шаблонов через `ZIP` и папку
-- Загруженный кастомный шаблон теперь можно сразу добавить в rundown
-- Добавлено удаление кастомных шаблонов без удаления built-in шаблонов
-- Для `khural` добавлен редактор текста: шрифты, размеры и цвета по полям
-- Список шрифтов теперь подтягивается из установленной системы Windows
-- Добавлена кнопка открытия папки шаблона из блока `Titles`
-- Улучшена стабильность portable updater и общая чистка модулей
+- Редактируемость титров по шрифтам и цветам теперь задается явно через `fieldStyleEditor` в `template.json`
+- Добавлены guide и starter template для разработчиков локальных HTML-титров
+- Добавлены новые built-in шаблоны `Lavka 2 rows` и `Lavka 1 row`
+- Обновлен workflow style editor для built-in локальных шаблонов
 
 ### Что умеет
 
@@ -66,11 +61,11 @@ npm.cmd run package:win
 Результат:
 
 ```text
-release/WebTitlePro-0.2.2.exe
+release/WebTitlePro-0.2.3.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.2.exe` — versioned release asset
+- `WebTitlePro-0.2.3.exe` — versioned release asset
 - `WebTitlePro.exe` — основной стабильный файл для запуска пользователем
 
 ### Как использовать
@@ -127,17 +122,12 @@ docs/         Product and integration notes
 Web Title Pro is a desktop-first title control system for live production.
 It combines a React control panel, Node.js backend, browser renderer, and Windows desktop shell for local HTML titles, `vMix`, and data-driven graphics workflows.
 
-### What's New in `0.2.2`
+### What's New in `0.2.3`
 
-- Simplified the `Yandex Disk` flow to one clear `Public Link` mode
-- Improved the `Data Source` and `Mapping` workflow for local and `vMix` titles
-- Added cleaner local template import from `ZIP` and folders
-- Uploaded custom templates can now be added to the rundown immediately
-- Added safe removal of custom templates without touching built-in templates
-- Added a per-field text style editor for `khural` titles
-- System-installed Windows fonts are now available in the style editor
-- Added a button to open the template folder directly from `Titles`
-- Improved portable updater stability and continued module cleanup
+- Title style editing is now enabled explicitly via `fieldStyleEditor` in `template.json`
+- Added a developer guide and starter template for local HTML titles
+- Added new built-in templates: `Lavka 2 rows` and `Lavka 1 row`
+- Refined the style editor workflow for built-in local templates
 
 ### Main Features
 
@@ -188,11 +178,11 @@ npm.cmd run package:win
 Build output:
 
 ```text
-release/WebTitlePro-0.2.2.exe
+release/WebTitlePro-0.2.3.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.2.exe` is the versioned release asset
+- `WebTitlePro-0.2.3.exe` is the versioned release asset
 - `WebTitlePro.exe` is the main stable executable for end users
 
 ### Basic Workflow

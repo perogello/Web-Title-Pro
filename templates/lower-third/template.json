@@ -1,5 +1,6 @@
 {
   "name": "Lower Third",
   "description": "Classic lower third with kicker, name and role.",
-  "category": "lower-third"
+  "category": "lower-third",
+  "fieldStyleEditor": true
 }

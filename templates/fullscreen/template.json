@@ -1,5 +1,6 @@
 {
   "name": "Fullscreen Overlay",
   "description": "Headline overlay with animated accent line.",
-  "category": "fullscreen"
+  "category": "fullscreen",
+  "fieldStyleEditor": true
 }

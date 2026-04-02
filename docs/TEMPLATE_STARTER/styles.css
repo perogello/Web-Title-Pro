@@ -1,0 +1,71 @@
+/*
+  Web Title Pro template starter styles.
+
+  Important:
+  - The renderer adds classes to .render-stage:
+      .is-visible  -> title is on air
+      .is-hiding   -> title is leaving the screen
+      .is-hidden   -> title is fully hidden
+  - Use these classes to build intro/outro animation.
+  - If fieldStyleEditor is enabled in template.json,
+    the app can override font-family, font-size, and color
+    on every element that has data-field="...".
+*/
+
+.starter-title {
+  position: absolute;
+  left: 56px;
+  bottom: 56px;
+  width: min(820px, calc(100% - 112px));
+  display: grid;
+  gap: 10px;
+  pointer-events: none;
+  transform: translateY(18px);
+  opacity: 0;
+  transition:
+    transform 360ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 280ms ease;
+}
+
+.render-stage.is-visible .starter-title {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.render-stage.is-hiding .starter-title {
+  transform: translateY(14px);
+  opacity: 0;
+}
+
+.starter-title__tag {
+  justify-self: start;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #f65c3a;
+  color: #303030;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.starter-title__panel {
+  padding: 22px 28px;
+  border-radius: 22px;
+  background: #222222;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+}
+
+.starter-title__panel h1 {
+  margin: 0 0 10px;
+  color: #fff6e5;
+  font-size: 46px;
+  line-height: 1;
+}
+
+.starter-title__panel p {
+  margin: 0;
+  color: #fff6e5;
+  font-size: 24px;
+  line-height: 1.2;
+  opacity: 0.9;
+}

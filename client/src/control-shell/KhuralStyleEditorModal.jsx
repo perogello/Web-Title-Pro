@@ -26,7 +26,7 @@ export default function KhuralStyleEditorModal({
         <div className="card-head">
           <div>
             <span className="panel-kicker">Manage</span>
-            <h3>Khural Text Styles</h3>
+            <h3>Title Text Styles</h3>
           </div>
           <div className="topbar-actions">
             <button className="ghost-button compact-button" onClick={onClose}>Cancel</button>
@@ -37,7 +37,7 @@ export default function KhuralStyleEditorModal({
           <div className="meta-card">
             <span className="meta-label">Title</span>
             <strong>{entry.name}</strong>
-            <span className="output-note">Change font family, font size and color for each text block.</span>
+            <span className="output-note">Change font family, font size and color for each text field.</span>
             <span className="output-note">
               {systemFontsLoading
                 ? 'Loading installed system fonts...'

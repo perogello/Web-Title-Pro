@@ -112,6 +112,7 @@ export const parseTemplateManifest = async ({ directory, slug, source, publicBas
     name: manifestOverrides.name || prettifyFieldName(slug),
     description: manifestOverrides.description || '',
     category: manifestOverrides.category || 'title',
+    fieldStyleEditor: manifestOverrides.fieldStyleEditor === true,
     htmlFile,
     fields,
     timers,
