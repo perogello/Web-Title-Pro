@@ -103,6 +103,13 @@ Settings -> Yandex
 
 - [docs/YANDEX_CREDENTIALS.md](docs/YANDEX_CREDENTIALS.md)
 
+### Разработка шаблонов
+
+Если хочешь делать свои local HTML-титры для `Web Title Pro`, смотри:
+
+- [docs/TEMPLATE_GUIDE.md](docs/TEMPLATE_GUIDE.md)
+- [docs/TEMPLATE_STARTER](docs/TEMPLATE_STARTER)
+
 ### Структура проекта
 
 ```text
@@ -219,6 +226,13 @@ The app does not ship with built-in credentials or tokens.
 See:
 
 - [docs/YANDEX_CREDENTIALS.md](docs/YANDEX_CREDENTIALS.md)
+
+### Template Development
+
+If you want to build custom local HTML titles for `Web Title Pro`, see:
+
+- [docs/TEMPLATE_GUIDE.md](docs/TEMPLATE_GUIDE.md)
+- [docs/TEMPLATE_STARTER](docs/TEMPLATE_STARTER)
 
 ### Project Structure
 

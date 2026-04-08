@@ -10,6 +10,11 @@
   - If fieldStyleEditor is enabled in template.json,
     the app can override font-family, font-size, and color
     on every element that has data-field="...".
+
+  Recommendation:
+  - Keep animation logic predictable.
+  - Let CSS handle normal intro/outro.
+  - Use JS only for the parts CSS cannot express cleanly.
 */
 
 .starter-title {
