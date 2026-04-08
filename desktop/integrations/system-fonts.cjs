@@ -5,6 +5,7 @@ const FONT_QUERY_SCRIPT = [
   '$OutputEncoding = [System.Text.Encoding]::UTF8',
   '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8',
   '$fontNames = New-Object System.Collections.Generic.HashSet[string] ([System.StringComparer]::OrdinalIgnoreCase)',
+  '$fontFiles = @{}',
   'function Add-FontName($value) {',
   '  $name = [string]$value',
   '  if ([string]::IsNullOrWhiteSpace($name)) { return }',
@@ -12,12 +13,19 @@ const FONT_QUERY_SCRIPT = [
   '  if ([string]::IsNullOrWhiteSpace($normalized)) { return }',
   '  [void]$fontNames.Add($normalized)',
   '}',
+  'function Add-FontFile($name, $filePath) {',
+  '  Add-FontName $name',
+  '  $normalized = (($name -replace \'\\s*\\(.*?\\)\\s*$\', \'\').Trim())',
+  '  if ([string]::IsNullOrWhiteSpace($normalized) -or [string]::IsNullOrWhiteSpace([string]$filePath)) { return }',
+  '  if (-not $fontFiles.ContainsKey($normalized)) { $fontFiles[$normalized] = New-Object System.Collections.Generic.List[string] }',
+  '  if (-not $fontFiles[$normalized].Contains($filePath)) { [void]$fontFiles[$normalized].Add($filePath) }',
+  '}',
   'function Add-FontNamesFromFile($filePath) {',
   '  try {',
-  '    if (-not (Test-Path $filePath)) { return }',
+    '    if (-not (Test-Path $filePath)) { return }',
   '    $privateFonts = New-Object System.Drawing.Text.PrivateFontCollection',
   '    $privateFonts.AddFontFile($filePath)',
-  '    $privateFonts.Families | Select-Object -ExpandProperty Name | ForEach-Object { Add-FontName $_ }',
+  '    $privateFonts.Families | Select-Object -ExpandProperty Name | ForEach-Object { Add-FontFile $_ $filePath }',
   '  } catch {}',
   '}',
   'Add-Type -AssemblyName System.Drawing',
@@ -29,9 +37,16 @@ const FONT_QUERY_SCRIPT = [
   '  $properties = (Get-ItemProperty $path).PSObject.Properties | Where-Object { $_.Name -notmatch \'^PS\' }',
   '  foreach ($property in $properties) { Add-FontName $property.Name }',
   '}',
-  '$userFontsDirectory = Join-Path $env:LOCALAPPDATA \'Microsoft\\Windows\\Fonts\'',
-  'if (Test-Path $userFontsDirectory) { foreach ($fontFile in (Get-ChildItem $userFontsDirectory -File -ErrorAction SilentlyContinue)) { if ($fontFile.Extension -match \'^\\.(ttf|otf|ttc|otc)$\') { Add-FontNamesFromFile $fontFile.FullName } } }',
-  '@($fontNames) | Sort-Object -Unique | ConvertTo-Json -Compress',
+  '$fontDirectories = @((Join-Path $env:WINDIR \'Fonts\'), (Join-Path $env:LOCALAPPDATA \'Microsoft\\Windows\\Fonts\'))',
+  'foreach ($fontDirectory in $fontDirectories) {',
+  '  if (-not (Test-Path $fontDirectory)) { continue }',
+  '  foreach ($fontFile in (Get-ChildItem $fontDirectory -File -ErrorAction SilentlyContinue)) {',
+  '    if ($fontFile.Extension -match \'^\\.(ttf|otf|ttc|otc)$\') { Add-FontNamesFromFile $fontFile.FullName }',
+  '  }',
+  '}',
+  '$fontFileMap = @{}',
+  'foreach ($entry in $fontFiles.GetEnumerator()) { $fontFileMap[$entry.Key] = @($entry.Value | Select-Object -Unique) }',
+  '@{ fonts = @($fontNames | Sort-Object -Unique); fontFiles = $fontFileMap } | ConvertTo-Json -Compress -Depth 6',
 ].join('; ');
 
 const DEFAULT_FONTS = [
@@ -58,6 +73,18 @@ const normalizeFontList = (value) =>
     .map((item) => String(item || '').trim())
     .filter(Boolean))]
     .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
+
+const normalizeFontFiles = (value = {}) =>
+  Object.fromEntries(
+    Object.entries(value && typeof value === 'object' ? value : {})
+      .map(([fontName, filePaths]) => [
+        String(fontName || '').trim(),
+        [...new Set((Array.isArray(filePaths) ? filePaths : [])
+          .map((item) => String(item || '').trim())
+          .filter(Boolean))],
+      ])
+      .filter(([fontName, filePaths]) => fontName && filePaths.length),
+  );
 
 const runPowerShell = (command, timeoutMs = 12000) =>
   new Promise((resolve, reject) => {
@@ -117,19 +144,23 @@ const runPowerShell = (command, timeoutMs = 12000) =>
 
 const createSystemFontsIntegration = () => {
   let cachedFonts = null;
+  let cachedFontFiles = null;
   let cachedAt = 0;
   let inflightPromise = null;
 
   const queryFonts = async () => {
     const raw = await runPowerShell(FONT_QUERY_SCRIPT);
-    const parsed = JSON.parse(raw || '[]');
-    return normalizeFontList(Array.isArray(parsed) ? parsed : [parsed]);
+    const parsed = JSON.parse(raw || '{}');
+    return {
+      fonts: normalizeFontList(Array.isArray(parsed?.fonts) ? parsed.fonts : []),
+      fontFiles: normalizeFontFiles(parsed?.fontFiles || {}),
+    };
   };
 
   const getFonts = async ({ force = false } = {}) => {
     const now = Date.now();
     if (!force && cachedFonts && now - cachedAt < 10 * 60 * 1000) {
-      return { fonts: cachedFonts, fallback: false };
+      return { fonts: cachedFonts, fontFiles: cachedFontFiles || {}, fallback: false };
     }
 
     if (!force && inflightPromise) {
@@ -137,14 +168,16 @@ const createSystemFontsIntegration = () => {
     }
 
     inflightPromise = queryFonts()
-      .then((fonts) => {
+      .then(({ fonts, fontFiles }) => {
         const nextFonts = fonts.length ? fonts : DEFAULT_FONTS;
         cachedFonts = nextFonts;
+        cachedFontFiles = fontFiles;
         cachedAt = Date.now();
-        return { fonts: nextFonts, fallback: fonts.length === 0 };
+        return { fonts: nextFonts, fontFiles, fallback: fonts.length === 0 };
       })
       .catch(() => ({
         fonts: cachedFonts?.length ? cachedFonts : DEFAULT_FONTS,
+        fontFiles: cachedFontFiles || {},
         fallback: true,
       }))
       .finally(() => {

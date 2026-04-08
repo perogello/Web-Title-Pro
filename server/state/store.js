@@ -42,11 +42,13 @@ const normalizeFieldStyleValue = (value = {}) => {
   }
 
   const fontFamily = typeof value.fontFamily === 'string' ? value.fontFamily.trim() : '';
+  const fontSourcePath = typeof value.fontSourcePath === 'string' ? value.fontSourcePath.trim() : '';
   const fontSize = Number.parseInt(value.fontSize ?? '', 10);
   const color = typeof value.color === 'string' ? value.color.trim() : '';
 
   return {
     ...(fontFamily ? { fontFamily } : {}),
+    ...(fontSourcePath ? { fontSourcePath } : {}),
     ...(Number.isFinite(fontSize) && fontSize > 0 ? { fontSize } : {}),
     ...(color ? { color } : {}),
   };

@@ -1,4 +1,6 @@
 import os from 'node:os';
+import path from 'node:path';
+import fs from 'node:fs/promises';
 import { Router } from 'express';
 import multer from 'multer';
 import { fetchRemoteSourceData } from '../remote-sources/index.js';
@@ -20,6 +22,26 @@ const sendError = (response, error) => {
 
 export const createApiRouter = ({ store, templateService, midiService, vmixService, updateService }) => {
   const router = Router();
+  const allowedFontRoots = [
+    path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts'),
+    process.env.LOCALAPPDATA
+      ? path.join(process.env.LOCALAPPDATA, 'Microsoft', 'Windows', 'Fonts')
+      : path.join(os.homedir(), 'AppData', 'Local', 'Microsoft', 'Windows', 'Fonts'),
+  ].map((value) => path.resolve(value));
+  const isAllowedFontPath = (targetPath = '') => {
+    const resolvedPath = path.resolve(String(targetPath || '').trim());
+    if (!resolvedPath || !/\.(ttf|otf|ttc|otc)$/i.test(resolvedPath)) {
+      return null;
+    }
+
+    const normalizedPath = resolvedPath.toLowerCase();
+    const matchingRoot = allowedFontRoots.find((root) => {
+      const normalizedRoot = root.toLowerCase();
+      return normalizedPath === normalizedRoot || normalizedPath.startsWith(`${normalizedRoot}${path.sep}`);
+    });
+
+    return matchingRoot ? resolvedPath : null;
+  };
   const getEntryForAction = (entryId, outputId) => {
     if (entryId) {
       return store.getEntry(entryId);
@@ -68,6 +90,28 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
 
   router.get('/system/info', (_request, response) => {
     response.json(getSystemInfo());
+  });
+
+  router.get('/system-font-file', async (request, response) => {
+    try {
+      const requestedPath = typeof request.query.path === 'string' ? request.query.path : '';
+      const safePath = isAllowedFontPath(requestedPath);
+
+      if (!safePath) {
+        response.status(400).json({ error: 'Font file path is not allowed.' });
+        return;
+      }
+
+      const stats = await fs.stat(safePath);
+      if (!stats.isFile()) {
+        response.status(404).json({ error: 'Font file was not found.' });
+        return;
+      }
+
+      response.sendFile(safePath);
+    } catch (error) {
+      sendError(response, error);
+    }
   });
 
   router.get('/app/meta', (_request, response) => {

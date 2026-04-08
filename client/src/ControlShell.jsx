@@ -357,6 +357,7 @@ const normalizeLocalFieldStyles = (templateFields = [], styles = {}) =>
       .map((field) => {
         const style = styles?.[field.name] || {};
         const fontFamily = typeof style.fontFamily === 'string' ? style.fontFamily.trim() : '';
+        const fontSourcePath = typeof style.fontSourcePath === 'string' ? style.fontSourcePath.trim() : '';
         const fontSize = Number.parseInt(style.fontSize ?? '', 10);
         const color = typeof style.color === 'string' ? style.color.trim() : '';
 
@@ -364,6 +365,7 @@ const normalizeLocalFieldStyles = (templateFields = [], styles = {}) =>
           field.name,
           {
             ...(fontFamily ? { fontFamily } : {}),
+            ...(fontSourcePath ? { fontSourcePath } : {}),
             ...(Number.isFinite(fontSize) && fontSize > 0 ? { fontSize } : {}),
             ...(color ? { color } : {}),
           },
@@ -384,6 +386,45 @@ const buildUploadFormData = (files, name) => {
   });
 
   return formData;
+};
+
+const FONT_STYLE_HINTS = ['thin', 'extralight', 'light', 'regular', 'medium', 'semibold', 'bold', 'extrabold', 'black', 'italic'];
+
+const pickPreferredFontFile = (fontName, filePaths = []) => {
+  const normalizedFontName = String(fontName || '').toLowerCase();
+  const desiredHints = FONT_STYLE_HINTS.filter((hint) => normalizedFontName.includes(hint));
+  const candidates = (Array.isArray(filePaths) ? filePaths : [])
+    .map((filePath) => String(filePath || '').trim())
+    .filter(Boolean);
+
+  if (!candidates.length) {
+    return '';
+  }
+
+  const scoreFile = (filePath) => {
+    const normalizedPath = filePath.toLowerCase();
+    let score = 0;
+
+    if (desiredHints.length) {
+      desiredHints.forEach((hint) => {
+        if (normalizedPath.includes(hint)) {
+          score += 6;
+        }
+      });
+    } else {
+      if (normalizedPath.includes('regular')) score += 6;
+      if (normalizedPath.includes('variablefont_wght') && !normalizedPath.includes('italic')) score += 5;
+      if (!/(italic|bold|black|light|thin|medium|semibold|extrabold)/.test(normalizedPath)) score += 4;
+    }
+
+    if (!normalizedPath.includes('italic')) score += 2;
+    if (!normalizedPath.includes('bold')) score += 1;
+    if (normalizedPath.endsWith('.ttf')) score += 1;
+
+    return score;
+  };
+
+  return [...candidates].sort((left, right) => scoreFile(right) - scoreFile(left))[0] || candidates[0];
 };
 
 const buildVmixEntryConfig = (input) => {
@@ -527,6 +568,7 @@ function ControlShell() {
   const [styleEditorEntryId, setStyleEditorEntryId] = useState(null);
   const [styleEditorDraft, setStyleEditorDraft] = useState({});
   const [systemFontOptions, setSystemFontOptions] = useState([]);
+  const [systemFontAssetMap, setSystemFontAssetMap] = useState({});
   const [systemFontOptionsLoading, setSystemFontOptionsLoading] = useState(false);
   const [showProjectPanel, setShowProjectPanel] = useState(false);
   const [newEntryMode, setNewEntryMode] = useState('local');
@@ -1059,6 +1101,7 @@ function ControlShell() {
     }
 
     setSystemFontOptions([]);
+    setSystemFontAssetMap({});
     setSystemFontOptionsLoading(true);
     desktopBridge
       .getSystemFonts({ force: true })
@@ -1069,11 +1112,21 @@ function ControlShell() {
         const nextFonts = Array.isArray(payload.fonts)
           ? payload.fonts.filter((item) => typeof item === 'string' && item.trim())
           : [];
+        const nextFontAssetMap = Object.fromEntries(
+          Object.entries(payload.fontFiles && typeof payload.fontFiles === 'object' ? payload.fontFiles : {})
+            .map(([fontName, filePaths]) => [
+              String(fontName || '').trim(),
+              pickPreferredFontFile(fontName, filePaths),
+            ])
+            .filter(([fontName, filePath]) => fontName && filePath),
+        );
         setSystemFontOptions(nextFonts);
+        setSystemFontAssetMap(nextFontAssetMap);
       })
       .catch(() => {
         if (mounted) {
           setSystemFontOptions([]);
+          setSystemFontAssetMap({});
         }
       })
       .finally(() => {
@@ -1086,6 +1139,33 @@ function ControlShell() {
       mounted = false;
     };
   }, [desktopBridge, styleEditorEntry?.id]);
+
+  useEffect(() => {
+    if (!styleEditorEntry || !Object.keys(systemFontAssetMap).length) {
+      return;
+    }
+
+    setStyleEditorDraft((current) => {
+      let changed = false;
+      const next = { ...current };
+
+      Object.entries(current).forEach(([fieldName, style]) => {
+        const fontFamily = typeof style?.fontFamily === 'string' ? style.fontFamily.trim() : '';
+        const fontSourcePath = typeof style?.fontSourcePath === 'string' ? style.fontSourcePath.trim() : '';
+        const mappedFontPath = fontFamily ? systemFontAssetMap[fontFamily] || '' : '';
+
+        if (fontFamily && mappedFontPath && fontSourcePath !== mappedFontPath) {
+          next[fieldName] = {
+            ...style,
+            fontSourcePath: mappedFontPath,
+          };
+          changed = true;
+        }
+      });
+
+      return changed ? next : current;
+    });
+  }, [styleEditorEntry?.id, systemFontAssetMap]);
 
   useEffect(() => {
     let mounted = true;
@@ -2255,6 +2335,16 @@ function ControlShell() {
 
       if (property === 'fontFamily' && !String(value || '').trim()) {
         delete nextField.fontFamily;
+        delete nextField.fontSourcePath;
+      }
+
+      if (property === 'fontFamily' && String(value || '').trim()) {
+        const nextFontSourcePath = systemFontAssetMap[String(value).trim()] || '';
+        if (nextFontSourcePath) {
+          nextField.fontSourcePath = nextFontSourcePath;
+        } else {
+          delete nextField.fontSourcePath;
+        }
       }
 
       if (property === 'fontSize') {

@@ -1,6 +1,7 @@
 const stage = document.getElementById('render-stage');
 const styleHost = document.getElementById('template-style-host');
 const scriptHost = document.getElementById('template-script-host');
+const systemFontStyleHost = document.createElement('style');
 const connectionBadge = document.getElementById('renderer-connection');
 const stateBadge = document.getElementById('renderer-state');
 const templateBadge = document.getElementById('renderer-template');
@@ -18,6 +19,9 @@ let currentTemplateApi = null;
 let currentSnapshot = null;
 let currentVisible = false;
 let hideTimer = null;
+const loadedSystemFonts = new Map();
+
+document.head.appendChild(systemFontStyleHost);
 
 const setConnection = (label) => {
   connectionBadge.textContent = label;
@@ -140,10 +144,55 @@ const applyFieldStyles = (fieldStyles = {}) => {
     const key = node.getAttribute('data-field');
     const style = fieldStyles?.[key] || {};
 
-    node.style.fontFamily = style.fontFamily || '';
+    node.style.fontFamily = ensureSystemFontFace(style, key);
     node.style.fontSize = style.fontSize ? `${style.fontSize}px` : '';
     node.style.color = style.color || '';
   });
+};
+
+const hashFontKey = (value = '') => {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 31 + value.charCodeAt(index)) >>> 0;
+  }
+  return hash.toString(36);
+};
+
+const getFontFormat = (fontSourcePath = '') => {
+  const lowerPath = String(fontSourcePath || '').toLowerCase();
+  if (lowerPath.endsWith('.otf') || lowerPath.endsWith('.otc')) {
+    return 'opentype';
+  }
+  return 'truetype';
+};
+
+const ensureSystemFontFace = (style = {}, fieldKey = '') => {
+  const fontFamily = typeof style.fontFamily === 'string' ? style.fontFamily.trim() : '';
+  const fontSourcePath = typeof style.fontSourcePath === 'string' ? style.fontSourcePath.trim() : '';
+
+  if (!fontFamily) {
+    return '';
+  }
+
+  if (!fontSourcePath) {
+    return fontFamily;
+  }
+
+  const normalizedPath = fontSourcePath.toLowerCase().replaceAll('/', '\\');
+  if (normalizedPath.includes('\\windows\\fonts\\')) {
+    return `"${fontFamily}"`;
+  }
+
+  const fontKey = `${fontFamily}::${fontSourcePath}`;
+  let alias = loadedSystemFonts.get(fontKey);
+  if (!alias) {
+    alias = `WTPFont_${fieldKey || 'field'}_${hashFontKey(fontKey)}`;
+    const fontUrl = `/api/system-font-file?path=${encodeURIComponent(fontSourcePath)}`;
+    systemFontStyleHost.textContent += `\n@font-face { font-family: "${alias}"; src: url("${fontUrl}") format("${getFontFormat(fontSourcePath)}"); font-display: swap; }\n`;
+    loadedSystemFonts.set(fontKey, alias);
+  }
+
+  return `"${alias}", "${fontFamily}"`;
 };
 
 const resolveTimerForSlot = (template, output, timers, slotId) => {

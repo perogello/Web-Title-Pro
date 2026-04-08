@@ -5,7 +5,7 @@
 Web Title Pro — desktop-first система управления титрами для live production.
 Приложение объединяет React-панель управления, Node.js backend, browser renderer и Windows desktop shell для работы с локальными HTML-титрами, `vMix` и data-driven графикой.
 
-### Что нового в `0.2.4`
+### Что нового в `0.2.5`
 
 - Редактируемость титров по шрифтам и цветам теперь задается явно через `fieldStyleEditor` в `template.json`
 - Добавлены guide и starter template для разработчиков локальных HTML-титров
@@ -61,11 +61,11 @@ npm.cmd run package:win
 Результат:
 
 ```text
-release/WebTitlePro-0.2.4.exe
+release/WebTitlePro-0.2.5.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.4.exe` — versioned release asset
+- `WebTitlePro-0.2.5.exe` — versioned release asset
 - `WebTitlePro.exe` — основной стабильный файл для запуска пользователем
 
 ### Как использовать
@@ -122,7 +122,7 @@ docs/         Product and integration notes
 Web Title Pro is a desktop-first title control system for live production.
 It combines a React control panel, Node.js backend, browser renderer, and Windows desktop shell for local HTML titles, `vMix`, and data-driven graphics workflows.
 
-### What's New in `0.2.4`
+### What's New in `0.2.5`
 
 - Title style editing is now enabled explicitly via `fieldStyleEditor` in `template.json`
 - Added a developer guide and starter template for local HTML titles
@@ -178,11 +178,11 @@ npm.cmd run package:win
 Build output:
 
 ```text
-release/WebTitlePro-0.2.4.exe
+release/WebTitlePro-0.2.5.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.4.exe` is the versioned release asset
+- `WebTitlePro-0.2.5.exe` is the versioned release asset
 - `WebTitlePro.exe` is the main stable executable for end users
 
 ### Basic Workflow
