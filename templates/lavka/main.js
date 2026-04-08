@@ -44,10 +44,9 @@ const measureTextWidth = (element) => {
   const style = window.getComputedStyle(element);
   const fontSize = style.fontSize || '16px';
   const fontFamily = style.fontFamily || 'sans-serif';
-  const fontWeight = style.fontWeight || '400';
   const fontStyle = style.fontStyle || 'normal';
   const fontVariant = style.fontVariant || 'normal';
-  const font = `${fontStyle} ${fontVariant} ${fontWeight} ${fontSize} ${fontFamily}`;
+  const font = `${fontStyle} ${fontVariant} 400 ${fontSize} ${fontFamily}`;
   measureContext.font = font;
   return Math.ceil(measureContext.measureText(element.textContent || '').width);
 };

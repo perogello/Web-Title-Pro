@@ -1,86 +1,86 @@
-# Web Title Pro
+﻿# Web Title Pro
 
 ## RU
 
-Web Title Pro — desktop-first система управления титрами для live production.
-Приложение объединяет React-панель управления, Node.js backend, browser renderer и Windows desktop shell для работы с локальными HTML-титрами, `vMix` и data-driven графикой.
+Web Title Pro вЂ” desktop-first СЃРёСЃС‚РµРјР° СѓРїСЂР°РІР»РµРЅРёСЏ С‚РёС‚СЂР°РјРё РґР»СЏ live production.
+РџСЂРёР»РѕР¶РµРЅРёРµ РѕР±СЉРµРґРёРЅСЏРµС‚ React-РїР°РЅРµР»СЊ СѓРїСЂР°РІР»РµРЅРёСЏ, Node.js backend, browser renderer Рё Windows desktop shell РґР»СЏ СЂР°Р±РѕС‚С‹ СЃ Р»РѕРєР°Р»СЊРЅС‹РјРё HTML-С‚РёС‚СЂР°РјРё, `vMix` Рё data-driven РіСЂР°С„РёРєРѕР№.
 
-### Что нового в `0.2.5`
+### Р§С‚Рѕ РЅРѕРІРѕРіРѕ РІ `0.2.6`
 
-- Редактируемость титров по шрифтам и цветам теперь задается явно через `fieldStyleEditor` в `template.json`
-- Добавлены guide и starter template для разработчиков локальных HTML-титров
-- Добавлены новые built-in шаблоны `Lavka 2 rows` и `Lavka 1 row`
-- Обновлен workflow style editor для built-in локальных шаблонов
+- Р РµРґР°РєС‚РёСЂСѓРµРјРѕСЃС‚СЊ С‚РёС‚СЂРѕРІ РїРѕ С€СЂРёС„С‚Р°Рј Рё С†РІРµС‚Р°Рј С‚РµРїРµСЂСЊ Р·Р°РґР°РµС‚СЃСЏ СЏРІРЅРѕ С‡РµСЂРµР· `fieldStyleEditor` РІ `template.json`
+- Р”РѕР±Р°РІР»РµРЅС‹ guide Рё starter template РґР»СЏ СЂР°Р·СЂР°Р±РѕС‚С‡РёРєРѕРІ Р»РѕРєР°Р»СЊРЅС‹С… HTML-С‚РёС‚СЂРѕРІ
+- Р”РѕР±Р°РІР»РµРЅС‹ РЅРѕРІС‹Рµ built-in С€Р°Р±Р»РѕРЅС‹ `Lavka 2 rows` Рё `Lavka 1 row`
+- РћР±РЅРѕРІР»РµРЅ workflow style editor РґР»СЏ built-in Р»РѕРєР°Р»СЊРЅС‹С… С€Р°Р±Р»РѕРЅРѕРІ
 
-### Что умеет
+### Р§С‚Рѕ СѓРјРµРµС‚
 
-- Локальные HTML/CSS/JS титры без перезагрузки Browser Source
-- `vMix` titles и text fields
-- Несколько независимых outputs
-- `Data Source` таблицы с ручным вводом, `TXT / CSV`, `CSV URL`, `Google Sheets`, `Yandex Disk`
-- Mapping данных в титры
-- Таймеры, shortcuts, MIDI, Bitfocus / HTTP API
-- Проекты: `New / Open / Save / Save As / Recent`
-- Автозагрузка последнего проекта
-- Portable Windows build с updater flow
+- Р›РѕРєР°Р»СЊРЅС‹Рµ HTML/CSS/JS С‚РёС‚СЂС‹ Р±РµР· РїРµСЂРµР·Р°РіСЂСѓР·РєРё Browser Source
+- `vMix` titles Рё text fields
+- РќРµСЃРєРѕР»СЊРєРѕ РЅРµР·Р°РІРёСЃРёРјС‹С… outputs
+- `Data Source` С‚Р°Р±Р»РёС†С‹ СЃ СЂСѓС‡РЅС‹Рј РІРІРѕРґРѕРј, `TXT / CSV`, `CSV URL`, `Google Sheets`, `Yandex Disk`
+- Mapping РґР°РЅРЅС‹С… РІ С‚РёС‚СЂС‹
+- РўР°Р№РјРµСЂС‹, shortcuts, MIDI, Bitfocus / HTTP API
+- РџСЂРѕРµРєС‚С‹: `New / Open / Save / Save As / Recent`
+- РђРІС‚РѕР·Р°РіСЂСѓР·РєР° РїРѕСЃР»РµРґРЅРµРіРѕ РїСЂРѕРµРєС‚Р°
+- Portable Windows build СЃ updater flow
 
-### Быстрый старт из исходников
+### Р‘С‹СЃС‚СЂС‹Р№ СЃС‚Р°СЂС‚ РёР· РёСЃС…РѕРґРЅРёРєРѕРІ
 
 ```bash
 npm install
 npm run dev
 ```
 
-Если PowerShell блокирует `npm.ps1`:
+Р•СЃР»Рё PowerShell Р±Р»РѕРєРёСЂСѓРµС‚ `npm.ps1`:
 
 ```bash
 npm.cmd install
 npm.cmd run dev
 ```
 
-Локальные адреса:
+Р›РѕРєР°Р»СЊРЅС‹Рµ Р°РґСЂРµСЃР°:
 
 - Control UI: `http://localhost:5173`
 - Backend: `http://localhost:4000`
 - Renderer: `http://localhost:4000/render.html`
 
-### Desktop режим
+### Desktop СЂРµР¶РёРј
 
-Запуск desktop-версии:
+Р—Р°РїСѓСЃРє desktop-РІРµСЂСЃРёРё:
 
 ```bash
 npm.cmd run desktop
 ```
 
-Сборка portable `.exe`:
+РЎР±РѕСЂРєР° portable `.exe`:
 
 ```bash
 npm.cmd run package:win
 ```
 
-Результат:
+Р РµР·СѓР»СЊС‚Р°С‚:
 
 ```text
-release/WebTitlePro-0.2.5.exe
+release/WebTitlePro-0.2.6.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.5.exe` — versioned release asset
-- `WebTitlePro.exe` — основной стабильный файл для запуска пользователем
+- `WebTitlePro-0.2.6.exe` вЂ” versioned release asset
+- `WebTitlePro.exe` вЂ” РѕСЃРЅРѕРІРЅРѕР№ СЃС‚Р°Р±РёР»СЊРЅС‹Р№ С„Р°Р№Р» РґР»СЏ Р·Р°РїСѓСЃРєР° РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј
 
-### Как использовать
+### РљР°Рє РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ
 
-1. Открой приложение.
-2. Создай или выбери `Output`.
-3. Добавь локальный или `vMix` титр.
-4. Загрузите `Data Source` или введи данные вручную.
-5. При необходимости настрой `Mapping`.
-6. Используй `SHOW`, `SET` и `HIDE`.
-7. Подключи render URL в `vMix` или `OBS` Browser Source.
+1. РћС‚РєСЂРѕР№ РїСЂРёР»РѕР¶РµРЅРёРµ.
+2. РЎРѕР·РґР°Р№ РёР»Рё РІС‹Р±РµСЂРё `Output`.
+3. Р”РѕР±Р°РІСЊ Р»РѕРєР°Р»СЊРЅС‹Р№ РёР»Рё `vMix` С‚РёС‚СЂ.
+4. Р—Р°РіСЂСѓР·РёС‚Рµ `Data Source` РёР»Рё РІРІРµРґРё РґР°РЅРЅС‹Рµ РІСЂСѓС‡РЅСѓСЋ.
+5. РџСЂРё РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё РЅР°СЃС‚СЂРѕР№ `Mapping`.
+6. РСЃРїРѕР»СЊР·СѓР№ `SHOW`, `SET` Рё `HIDE`.
+7. РџРѕРґРєР»СЋС‡Рё render URL РІ `vMix` РёР»Рё `OBS` Browser Source.
 
 ### Data Source
 
-Поддерживаются:
+РџРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ:
 
 - Text
 - TXT / CSV File
@@ -88,22 +88,22 @@ release/WebTitlePro.exe
 - Google Sheets
 - Yandex Disk public link
 
-Для `Google Sheets` и `Yandex Disk` доступны `Refresh` и `Auto-refresh`.
+Р”Р»СЏ `Google Sheets` Рё `Yandex Disk` РґРѕСЃС‚СѓРїРЅС‹ `Refresh` Рё `Auto-refresh`.
 
 ### Yandex
 
-Интеграция с Yandex настраивается локально в:
+РРЅС‚РµРіСЂР°С†РёСЏ СЃ Yandex РЅР°СЃС‚СЂР°РёРІР°РµС‚СЃСЏ Р»РѕРєР°Р»СЊРЅРѕ РІ:
 
 ```text
 Settings -> Yandex
 ```
 
-Приложение не поставляется с готовыми credentials или токенами.
-Подробная инструкция:
+РџСЂРёР»РѕР¶РµРЅРёРµ РЅРµ РїРѕСЃС‚Р°РІР»СЏРµС‚СЃСЏ СЃ РіРѕС‚РѕРІС‹РјРё credentials РёР»Рё С‚РѕРєРµРЅР°РјРё.
+РџРѕРґСЂРѕР±РЅР°СЏ РёРЅСЃС‚СЂСѓРєС†РёСЏ:
 
 - [docs/YANDEX_CREDENTIALS.md](docs/YANDEX_CREDENTIALS.md)
 
-### Структура проекта
+### РЎС‚СЂСѓРєС‚СѓСЂР° РїСЂРѕРµРєС‚Р°
 
 ```text
 client/       React control panel
@@ -122,7 +122,7 @@ docs/         Product and integration notes
 Web Title Pro is a desktop-first title control system for live production.
 It combines a React control panel, Node.js backend, browser renderer, and Windows desktop shell for local HTML titles, `vMix`, and data-driven graphics workflows.
 
-### What's New in `0.2.5`
+### What's New in `0.2.6`
 
 - Title style editing is now enabled explicitly via `fieldStyleEditor` in `template.json`
 - Added a developer guide and starter template for local HTML titles
@@ -178,11 +178,11 @@ npm.cmd run package:win
 Build output:
 
 ```text
-release/WebTitlePro-0.2.5.exe
+release/WebTitlePro-0.2.6.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.5.exe` is the versioned release asset
+- `WebTitlePro-0.2.6.exe` is the versioned release asset
 - `WebTitlePro.exe` is the main stable executable for end users
 
 ### Basic Workflow
@@ -231,3 +231,4 @@ templates/    Built-in local templates
 scripts/      Build and helper scripts
 docs/         Product and integration notes
 ```
+

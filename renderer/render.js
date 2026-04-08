@@ -1,7 +1,6 @@
 const stage = document.getElementById('render-stage');
 const styleHost = document.getElementById('template-style-host');
 const scriptHost = document.getElementById('template-script-host');
-const systemFontStyleHost = document.createElement('style');
 const connectionBadge = document.getElementById('renderer-connection');
 const stateBadge = document.getElementById('renderer-state');
 const templateBadge = document.getElementById('renderer-template');
@@ -20,8 +19,6 @@ let currentSnapshot = null;
 let currentVisible = false;
 let hideTimer = null;
 const loadedSystemFonts = new Map();
-
-document.head.appendChild(systemFontStyleHost);
 
 const setConnection = (label) => {
   connectionBadge.textContent = label;
@@ -145,6 +142,7 @@ const applyFieldStyles = (fieldStyles = {}) => {
     const style = fieldStyles?.[key] || {};
 
     node.style.fontFamily = ensureSystemFontFace(style, key);
+    node.style.fontWeight = '';
     node.style.fontSize = style.fontSize ? `${style.fontSize}px` : '';
     node.style.color = style.color || '';
   });
@@ -178,21 +176,32 @@ const ensureSystemFontFace = (style = {}, fieldKey = '') => {
     return fontFamily;
   }
 
-  const normalizedPath = fontSourcePath.toLowerCase().replaceAll('/', '\\');
-  if (normalizedPath.includes('\\windows\\fonts\\')) {
-    return `"${fontFamily}"`;
-  }
-
   const fontKey = `${fontFamily}::${fontSourcePath}`;
-  let alias = loadedSystemFonts.get(fontKey);
-  if (!alias) {
-    alias = `WTPFont_${fieldKey || 'field'}_${hashFontKey(fontKey)}`;
+  let fontEntry = loadedSystemFonts.get(fontKey);
+  if (!fontEntry) {
+    const alias = `WTPFont_${fieldKey || 'field'}_${hashFontKey(fontKey)}`;
     const fontUrl = `/api/system-font-file?path=${encodeURIComponent(fontSourcePath)}`;
-    systemFontStyleHost.textContent += `\n@font-face { font-family: "${alias}"; src: url("${fontUrl}") format("${getFontFormat(fontSourcePath)}"); font-display: swap; }\n`;
-    loadedSystemFonts.set(fontKey, alias);
+    const format = getFontFormat(fontSourcePath);
+    const fontFace = new FontFace(alias, `url("${fontUrl}") format("${format}")`, {
+      style: 'normal',
+      weight: '100 900',
+      display: 'swap',
+    });
+
+    fontEntry = {
+      alias,
+      loadPromise: fontFace
+        .load()
+        .then((loadedFace) => {
+          document.fonts.add(loadedFace);
+          return loadedFace;
+        })
+        .catch(() => null),
+    };
+    loadedSystemFonts.set(fontKey, fontEntry);
   }
 
-  return `"${alias}", "${fontFamily}"`;
+  return `"${fontEntry.alias}"`;
 };
 
 const resolveTimerForSlot = (template, output, timers, slotId) => {
