@@ -61,6 +61,14 @@ export const startServer = async (options = {}) => {
     if (action === 'hide') {
       store.hideProgram();
     }
+
+    if (action === 'next-title') {
+      store.selectAdjacentEntry('next');
+    }
+
+    if (action === 'previous-title') {
+      store.selectAdjacentEntry('previous');
+    }
   });
 
   reportProgress('Preparing update service...', 56);

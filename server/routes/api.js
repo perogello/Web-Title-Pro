@@ -463,6 +463,10 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
       } else if (action === 'hide') {
         syncEntry = store.getEntry(store.getProgram(request.body.outputId).entryId);
         store.hideProgram(request.body.outputId);
+      } else if (action === 'next-title') {
+        store.selectAdjacentEntry('next', request.body.outputId);
+      } else if (action === 'previous-title') {
+        store.selectAdjacentEntry('previous', request.body.outputId);
       } else {
         throw new Error('Unsupported command.');
       }
@@ -507,6 +511,14 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
   router.post('/midi/learn/stop', (_request, response) => {
     try {
       response.json(midiService.stopLearn());
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  router.put('/shortcuts/navigation', (request, response) => {
+    try {
+      response.json(store.updateNavigationShortcuts(request.body || {}));
     } catch (error) {
       sendError(response, error);
     }

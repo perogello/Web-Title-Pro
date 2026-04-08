@@ -33,6 +33,8 @@ export default function MidiSettingsTab({
           <button className="ghost-button compact-button" onClick={() => onStartMidiLearn('show')}>Learn SHOW</button>
           <button className="ghost-button compact-button" onClick={() => onStartMidiLearn('live')}>Learn LIVE</button>
           <button className="ghost-button compact-button" onClick={() => onStartMidiLearn('hide')}>Learn HIDE</button>
+          <button className="ghost-button compact-button" onClick={() => onStartMidiLearn('previous-title')}>Learn PREV</button>
+          <button className="ghost-button compact-button" onClick={() => onStartMidiLearn('next-title')}>Learn NEXT</button>
           <button className="ghost-button compact-button" onClick={onStopMidiLearn} disabled={!midiState?.learningAction}>Cancel Learn</button>
         </div>
       </div>

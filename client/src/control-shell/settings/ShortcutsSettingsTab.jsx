@@ -1,5 +1,6 @@
 export default function ShortcutsSettingsTab({
   learningShortcut,
+  navigationShortcuts,
   entries,
   getRundownPrimaryLabel,
   onStartLearning,
@@ -10,7 +11,7 @@ export default function ShortcutsSettingsTab({
     <div className="integration-grid">
       <div className="meta-card">
         <span className="meta-label">Shortcuts</span>
-        <strong>Per-title shortcuts for keyboard and mouse</strong>
+        <strong>Global and per-title shortcuts for keyboard and mouse</strong>
         <span className="output-note">
           Defaults are empty. Click Learn, then press a keyboard key or mouse button. Shortcuts are saved in the project state and restored on the next launch.
         </span>
@@ -18,13 +19,43 @@ export default function ShortcutsSettingsTab({
       {learningShortcut && (
         <div className="meta-card">
           <span className="meta-label">Learning</span>
-          <strong>{learningShortcut.entry.name} / {String(learningShortcut.action).toUpperCase()}</strong>
+          <strong>{learningShortcut.label || `${learningShortcut.entry?.name || 'Global'} / ${String(learningShortcut.action).toUpperCase()}`}</strong>
           <span className="output-note">Press the desired key or mouse button now.</span>
           <div className="output-url-actions">
             <button className="ghost-button compact-button" onClick={onCancelLearning}>Cancel Learn</button>
           </div>
         </div>
       )}
+      <div className="shortcut-entry-card">
+        <div className="card-head">
+          <div>
+            <h3>Navigation</h3>
+          </div>
+        </div>
+        <div className="shortcut-action-grid">
+          {[
+            { id: 'previousTitle', label: 'PREVIOUS TITLE' },
+            { id: 'nextTitle', label: 'NEXT TITLE' },
+          ].map((action) => {
+            const value = navigationShortcuts?.[action.id] || '';
+
+            return (
+              <div className="shortcut-action-row" key={`global-${action.id}`}>
+                <strong>{action.label}</strong>
+                <code>{value || 'Not assigned'}</code>
+                <div className="topbar-actions">
+                  <button className="ghost-button compact-button" onClick={() => onStartLearning(null, action.id)}>
+                    Learn
+                  </button>
+                  <button className="ghost-button compact-button" onClick={() => onClearShortcut(null, action.id)} disabled={!value}>
+                    Clear
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
       <div className="shortcut-list">
         {entries.map((entry) => (
           <div className="shortcut-entry-card" key={`shortcut-${entry.id}`}>

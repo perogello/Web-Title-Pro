@@ -618,6 +618,17 @@ const closeUpdateWindow = () => {
 };
 
 const requestQuitForUpdate = async () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try {
+      await mainWindow.webContents.executeJavaScript(
+        'window.__webTitleAuthorizeAppClose ? window.__webTitleAuthorizeAppClose() : true;',
+        true,
+      );
+    } catch (error) {
+      log(`updates:authorize-close-error ${error.stack || error.message}`);
+    }
+  }
+
   allowMainWindowClose = true;
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.removeAllListeners('close');

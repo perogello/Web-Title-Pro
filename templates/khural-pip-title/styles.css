@@ -1,0 +1,183 @@
+.khural-pip-title {
+  --khural-pip-accent: #f65c3a;
+  --khural-pip-copy: #fff6e5;
+  --khural-pip-shadow: rgba(0, 0, 0, 0.34);
+  position: absolute;
+  left: 34px;
+  bottom: 30px;
+  width: fit-content;
+  max-width: min(760px, calc(100% - 88px));
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.khural-pip-title__copy,
+.khural-pip-title__copy h1,
+.khural-pip-title__copy p,
+.khural-pip-title__tag {
+  opacity: 0;
+  will-change: transform, opacity, filter;
+  backface-visibility: hidden;
+}
+
+.khural-pip-title__copy {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: min(360px, calc(100vw - 88px));
+}
+
+.khural-pip-title__copy h1 {
+  margin: 0;
+  width: max-content;
+  max-width: 100%;
+  color: var(--khural-pip-copy);
+  font-size: clamp(34px, 3.2vw, 54px);
+  font-weight: 700;
+  line-height: 0.94;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  text-shadow:
+    0 2px 10px var(--khural-pip-shadow),
+    0 0 26px rgba(0, 0, 0, 0.18);
+  transform: translateX(-14px);
+}
+
+.khural-pip-title__copy p {
+  margin: 0;
+  width: max-content;
+  max-width: 100%;
+  color: var(--khural-pip-copy);
+  font-size: clamp(17px, 1.78vw, 28px);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+  text-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.34),
+    0 0 20px rgba(0, 0, 0, 0.16);
+  transform: translateX(-10px);
+}
+
+.khural-pip-title__tag {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  max-width: min(320px, 100%);
+  padding: 7px 14px 8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--khural-pip-accent), #e24d2d);
+  color: #303030;
+  font-size: clamp(14px, 1.15vw, 18px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  margin-bottom: 4px;
+  transform: translateX(-6px) translateY(4px) scale(0.97);
+  transform-origin: left center;
+}
+
+.render-stage.is-visible .khural-pip-title__copy {
+  animation: khural-pip-shell-in 240ms ease forwards;
+}
+
+.render-stage.is-visible .khural-pip-title__copy h1 {
+  animation: khural-pip-copy-in 260ms cubic-bezier(0.22, 0.88, 0.3, 1) 60ms forwards;
+}
+
+.render-stage.is-visible .khural-pip-title__copy p {
+  animation: khural-pip-copy-in 240ms cubic-bezier(0.22, 0.88, 0.3, 1) 120ms forwards;
+}
+
+.render-stage.is-visible .khural-pip-title__tag {
+  animation: khural-pip-tag-in 220ms cubic-bezier(0.18, 0.92, 0.26, 1) 170ms forwards;
+}
+
+.render-stage.is-hiding .khural-pip-title__tag {
+  animation: khural-pip-tag-out 150ms ease forwards;
+}
+
+.render-stage.is-hiding .khural-pip-title__copy h1,
+.render-stage.is-hiding .khural-pip-title__copy p {
+  animation: khural-pip-copy-out 180ms ease forwards;
+}
+
+.render-stage.is-hiding .khural-pip-title__copy {
+  animation: khural-pip-shell-out 220ms ease forwards;
+}
+
+@keyframes khural-pip-shell-in {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes khural-pip-shell-out {
+  from {
+    opacity: 1;
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    filter: blur(3px);
+  }
+}
+
+@keyframes khural-pip-copy-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes khural-pip-copy-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+
+@keyframes khural-pip-tag-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-6px) translateY(6px) scale(0.97);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(0) translateY(-1px) scale(1.015);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
+}
+
+@keyframes khural-pip-tag-out {
+  from {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-4px) translateY(5px) scale(0.98);
+  }
+}

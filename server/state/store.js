@@ -132,6 +132,11 @@ const normalizeEntryShortcuts = (shortcuts = {}) => ({
   hide: typeof shortcuts.hide === 'string' ? shortcuts.hide : '',
 });
 
+const normalizeNavigationShortcuts = (shortcuts = {}) => ({
+  nextTitle: typeof shortcuts.nextTitle === 'string' ? shortcuts.nextTitle : '',
+  previousTitle: typeof shortcuts.previousTitle === 'string' ? shortcuts.previousTitle : '',
+});
+
 const slugifyOutputKey = (value = '') =>
   value
     .toLowerCase()
@@ -204,6 +209,7 @@ const createDefaultState = () => ({
       status: 'idle',
       notes: 'Automatic update checks use the built-in GitHub repository.',
     },
+    shortcuts: normalizeNavigationShortcuts(),
   },
   program: createDefaultProgram(),
   entries: [],
@@ -247,6 +253,10 @@ const buildProjectState = (incoming = {}) => {
       updates: {
         ...baseState.integrations.updates,
         ...(incoming?.integrations?.updates || {}),
+      },
+      shortcuts: {
+        ...baseState.integrations.shortcuts,
+        ...normalizeNavigationShortcuts(incoming?.integrations?.shortcuts || {}),
       },
     },
     program: {
@@ -587,6 +597,19 @@ export class TitleStore extends EventEmitter {
     };
     this.touch();
     return this.getUpdateConfig();
+  }
+
+  getNavigationShortcuts() {
+    return deepClone(this.state.integrations.shortcuts || normalizeNavigationShortcuts());
+  }
+
+  updateNavigationShortcuts(patch = {}) {
+    this.state.integrations.shortcuts = {
+      ...normalizeNavigationShortcuts(this.state.integrations.shortcuts || {}),
+      ...normalizeNavigationShortcuts(patch),
+    };
+    this.touch();
+    return this.getNavigationShortcuts();
   }
 
   getTimers(now = Date.now()) {
@@ -1155,6 +1178,38 @@ export class TitleStore extends EventEmitter {
     this.state.selectedOutputId = output.id;
     this.ensureOutputsConsistent();
     this.touch();
+  }
+
+  selectAdjacentEntry(direction = 'next', outputRef = this.state.selectedOutputId) {
+    const output = this.getOutputByRef(outputRef);
+
+    if (!output) {
+      throw new Error('Output not found.');
+    }
+
+    const visibleEntries = this.state.entries.filter((entry) => !entry.hidden);
+
+    if (!visibleEntries.length) {
+      throw new Error('No visible titles are available.');
+    }
+
+    const currentIndex = visibleEntries.findIndex((entry) => entry.id === output.selectedEntryId);
+    const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
+    const delta = direction === 'previous' ? -1 : 1;
+    const nextIndex = (safeCurrentIndex + delta + visibleEntries.length) % visibleEntries.length;
+    const nextEntry = visibleEntries[nextIndex];
+
+    output.selectedEntryId = nextEntry.id;
+    this.state.selectedOutputId = output.id;
+    this.ensureOutputsConsistent();
+
+    if (!output.program.visible) {
+      this.applyProgramFromEntry(output.id, nextEntry.id, { visible: false, lastAction: 'LOAD' });
+      return nextEntry;
+    }
+
+    this.touch();
+    return nextEntry;
   }
 
   createEntriesFromText({ templateId, text, outputId } = {}) {

@@ -16,6 +16,25 @@ export default function OutputSettingsTab({
 
   return (
     <div className="integration-grid">
+      <div className="output-settings-card">
+        <div className="card-head output-settings-head">
+          <div>
+            <span className="panel-kicker">Control</span>
+            <h3>Control UI URL</h3>
+          </div>
+        </div>
+        <div className="output-url-list">
+          <div className="output-url-row">
+            <div className="output-url-copy">
+              <strong>Browser URL</strong>
+              <code>{outputInfo.controlUrl}</code>
+            </div>
+            <div className="output-url-actions">
+              <button className="ghost-button compact-button" onClick={() => onCopyBaseUrl(outputInfo.controlUrl)}>Copy URL</button>
+            </div>
+          </div>
+        </div>
+      </div>
       <div className="output-settings-grid">
         {outputRenderTargets.map((output) => (
           <div className="output-settings-card" key={output.id}>

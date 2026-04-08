@@ -5,6 +5,8 @@ const defaultBindings = [
   { device: 'any', type: 'noteon', note: 60, action: 'show' },
   { device: 'any', type: 'noteon', note: 61, action: 'live' },
   { device: 'any', type: 'noteon', note: 62, action: 'hide' },
+  { device: 'any', type: 'noteon', note: 63, action: 'previous-title' },
+  { device: 'any', type: 'noteon', note: 64, action: 'next-title' },
 ];
 
 const parseMidiMessage = (data = []) => {
@@ -145,7 +147,7 @@ export class MidiService extends EventEmitter {
   }
 
   startLearn(action) {
-    if (!['show', 'live', 'hide'].includes(action)) {
+    if (!['show', 'live', 'hide', 'next-title', 'previous-title'].includes(action)) {
       throw new Error('Unsupported MIDI learn action.');
     }
 

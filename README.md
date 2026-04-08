@@ -5,7 +5,7 @@
 Web Title Pro вЂ” desktop-first СЃРёСЃС‚РµРјР° СѓРїСЂР°РІР»РµРЅРёСЏ С‚РёС‚СЂР°РјРё РґР»СЏ live production.
 РџСЂРёР»РѕР¶РµРЅРёРµ РѕР±СЉРµРґРёРЅСЏРµС‚ React-РїР°РЅРµР»СЊ СѓРїСЂР°РІР»РµРЅРёСЏ, Node.js backend, browser renderer Рё Windows desktop shell РґР»СЏ СЂР°Р±РѕС‚С‹ СЃ Р»РѕРєР°Р»СЊРЅС‹РјРё HTML-С‚РёС‚СЂР°РјРё, `vMix` Рё data-driven РіСЂР°С„РёРєРѕР№.
 
-### Р§С‚Рѕ РЅРѕРІРѕРіРѕ РІ `0.2.6`
+### Р§С‚Рѕ РЅРѕРІРѕРіРѕ РІ `0.2.7`
 
 - Р РµРґР°РєС‚РёСЂСѓРµРјРѕСЃС‚СЊ С‚РёС‚СЂРѕРІ РїРѕ С€СЂРёС„С‚Р°Рј Рё С†РІРµС‚Р°Рј С‚РµРїРµСЂСЊ Р·Р°РґР°РµС‚СЃСЏ СЏРІРЅРѕ С‡РµСЂРµР· `fieldStyleEditor` РІ `template.json`
 - Р”РѕР±Р°РІР»РµРЅС‹ guide Рё starter template РґР»СЏ СЂР°Р·СЂР°Р±РѕС‚С‡РёРєРѕРІ Р»РѕРєР°Р»СЊРЅС‹С… HTML-С‚РёС‚СЂРѕРІ
@@ -61,11 +61,11 @@ npm.cmd run package:win
 Р РµР·СѓР»СЊС‚Р°С‚:
 
 ```text
-release/WebTitlePro-0.2.6.exe
+release/WebTitlePro-0.2.7.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.6.exe` вЂ” versioned release asset
+- `WebTitlePro-0.2.7.exe` вЂ” versioned release asset
 - `WebTitlePro.exe` вЂ” РѕСЃРЅРѕРІРЅРѕР№ СЃС‚Р°Р±РёР»СЊРЅС‹Р№ С„Р°Р№Р» РґР»СЏ Р·Р°РїСѓСЃРєР° РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј
 
 ### РљР°Рє РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ
@@ -122,13 +122,14 @@ docs/         Product and integration notes
 Web Title Pro is a desktop-first title control system for live production.
 It combines a React control panel, Node.js backend, browser renderer, and Windows desktop shell for local HTML titles, `vMix`, and data-driven graphics workflows.
 
-### What's New in `0.2.6`
+### What's New in `0.2.7`
 
-- Title style editing is now enabled explicitly via `fieldStyleEditor` in `template.json`
-- Added a developer guide and starter template for local HTML titles
-- Added new built-in templates: `Lavka 2 rows` and `Lavka 1 row`
-- Refined the style editor workflow for built-in local templates
-
+- Fixed the updater flow so the app now handles project save prompts and closes correctly for update installation
+- Added an `Update Now` button to the `Updates` section
+- Restored the `Control UI URL` in `Settings -> Output`
+- Added global `Next Title` and `Previous Title` commands for keyboard, MIDI, and Bitfocus
+- Improved the multi-operator workflow by making the selected `Output` local to each client
+- Added new built-in templates: `Khural PIP Title` and `Khural PIP Title 2`
 ### Main Features
 
 - Local HTML/CSS/JS titles without reloading the Browser Source
@@ -178,11 +179,11 @@ npm.cmd run package:win
 Build output:
 
 ```text
-release/WebTitlePro-0.2.6.exe
+release/WebTitlePro-0.2.7.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.6.exe` is the versioned release asset
+- `WebTitlePro-0.2.7.exe` is the versioned release asset
 - `WebTitlePro.exe` is the main stable executable for end users
 
 ### Basic Workflow
@@ -231,4 +232,8 @@ templates/    Built-in local templates
 scripts/      Build and helper scripts
 docs/         Product and integration notes
 ```
+
+
+
+
 

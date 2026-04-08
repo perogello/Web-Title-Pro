@@ -4,7 +4,7 @@ export default function BitfocusSettingsTab({ bitfocusActions, onCopyUrl, onCopy
       <div className="meta-card">
         <span className="meta-label">Companion</span>
         <strong>Bitfocus works through the HTTP API</strong>
-        <span className="output-note">Use standard HTTP POST requests from Companion to these endpoints. LIVE has a separate alias so it is not confused with update.</span>
+        <span className="output-note">Use standard HTTP POST requests from Companion to these endpoints. LIVE has a separate alias so it is not confused with update, and title navigation is available too.</span>
       </div>
       {bitfocusActions.map((action) => (
         <div className="output-url-row" key={action.id}>

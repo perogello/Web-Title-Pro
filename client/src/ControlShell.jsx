@@ -584,7 +584,7 @@ function ControlShell() {
   const [txtFileName, setTxtFileName] = useState('');
   const [busyAction, setBusyAction] = useState('');
   const [feedback, setFeedback] = useState('');
-  const [pendingOutputId, setPendingOutputId] = useState(null);
+  const [localSelectedOutputId, setLocalSelectedOutputId] = useState(null);
   const [sourceLibrary, setSourceLibrary] = useState(() => loadSourceLibrary());
   const [selectedSourceId, setSelectedSourceId] = useState('');
   const [sourcePayload, setSourcePayload] = useState('');
@@ -663,7 +663,7 @@ function ControlShell() {
     [snapshot, sourceLibrary, selectedSourceId],
   );
   const updateState = appMeta?.updates || snapshot?.integrations?.updates || null;
-  const effectiveSelectedOutputId = pendingOutputId || snapshot?.selectedOutputId || null;
+  const effectiveSelectedOutputId = localSelectedOutputId || snapshot?.selectedOutputId || outputs[0]?.id || null;
   const selectedOutput =
     outputs.find((output) => output.id === effectiveSelectedOutputId) || snapshot?.selectedOutput || null;
   const selectedEntry =
@@ -804,6 +804,11 @@ function ControlShell() {
       return null;
     }
 
+    const controlUrl =
+      systemInfo.recommendedRenderUrl?.replace(/\/render(?:\.html)?(?:\?.*)?$/i, '') ||
+      systemInfo.networkUrls?.[0]?.replace(/\/render(?:\.html)?(?:\?.*)?$/i, '') ||
+      systemInfo.localUrls?.[0]?.replace(/\/render(?:\.html)?(?:\?.*)?$/i, '') ||
+      BACKEND_ORIGIN;
     const primaryRenderUrl =
       systemInfo.recommendedRenderUrl ||
       systemInfo.networkUrls?.[0] ||
@@ -815,6 +820,7 @@ function ControlShell() {
     );
 
     return {
+      controlUrl,
       primaryRenderUrl,
       primaryPreviewUrl,
       fallbackUrls,
@@ -838,22 +844,34 @@ function ControlShell() {
         id: 'show',
         label: 'SHOW',
         url: `${BACKEND_ORIGIN}/api/commands/show`,
-        payload: { entryId: snapshot?.selectedEntryId || undefined, outputId: snapshot?.selectedOutputId || undefined },
+        payload: { entryId: selectedOutput?.selectedEntryId || undefined, outputId: selectedOutput?.id || undefined },
       },
       {
         id: 'live',
         label: 'LIVE',
         url: `${BACKEND_ORIGIN}/api/commands/live`,
-        payload: { entryId: snapshot?.selectedEntryId || undefined, outputId: snapshot?.selectedOutputId || undefined },
+        payload: { entryId: selectedOutput?.selectedEntryId || undefined, outputId: selectedOutput?.id || undefined },
       },
       {
         id: 'hide',
         label: 'HIDE',
         url: `${BACKEND_ORIGIN}/api/commands/hide`,
-        payload: { outputId: snapshot?.selectedOutputId || undefined },
+        payload: { outputId: selectedOutput?.id || undefined },
+      },
+      {
+        id: 'previous-title',
+        label: 'PREVIOUS TITLE',
+        url: `${BACKEND_ORIGIN}/api/commands/previous-title`,
+        payload: { outputId: selectedOutput?.id || undefined },
+      },
+      {
+        id: 'next-title',
+        label: 'NEXT TITLE',
+        url: `${BACKEND_ORIGIN}/api/commands/next-title`,
+        payload: { outputId: selectedOutput?.id || undefined },
       },
     ],
-    [snapshot?.selectedEntryId, snapshot?.selectedOutputId],
+    [selectedOutput?.id, selectedOutput?.selectedEntryId],
   );
   const outputRenderTargets = useMemo(() => {
     if (!outputInfo) {
@@ -883,6 +901,7 @@ function ControlShell() {
     return `${BACKEND_ORIGIN}/render.html?preview=1&embed=1&output=${encodeURIComponent(selectedOutput.key)}`;
   }, [selectedOutput?.key]);
   const expandedRenderUrl = expandedRender === 'preview' ? embeddedPreviewUrl : embeddedRenderUrl;
+  const navigationShortcuts = snapshot?.integrations?.shortcuts || { nextTitle: '', previousTitle: '' };
   const activeSourceBinding = selectedOutput ? activeSourceRows[selectedOutput.id] || null : null;
   const activeTimerBinding = selectedOutput ? activeTimerRows[selectedOutput.id] || null : null;
   const reminderRow = useMemo(() => {
@@ -1002,10 +1021,27 @@ function ControlShell() {
   }, [draftFields, draftName]);
 
   useEffect(() => {
-    if (pendingOutputId && snapshot?.selectedOutputId === pendingOutputId) {
-      setPendingOutputId(null);
+    if (!outputs.length) {
+      if (localSelectedOutputId !== null) {
+        setLocalSelectedOutputId(null);
+      }
+      return;
     }
-  }, [pendingOutputId, snapshot?.selectedOutputId]);
+
+    const localOutputExists = localSelectedOutputId && outputs.some((output) => output.id === localSelectedOutputId);
+    if (localOutputExists) {
+      return;
+    }
+
+    const preferredOutputId =
+      (snapshot?.selectedOutputId && outputs.some((output) => output.id === snapshot.selectedOutputId)
+        ? snapshot.selectedOutputId
+        : outputs[0]?.id) || null;
+
+    if (preferredOutputId && preferredOutputId !== localSelectedOutputId) {
+      setLocalSelectedOutputId(preferredOutputId);
+    }
+  }, [localSelectedOutputId, outputs, snapshot?.selectedOutputId]);
 
   useEffect(() => {
     if (!templates.length) return;
@@ -1636,16 +1672,8 @@ function ControlShell() {
 
   const selectOutput = async (outputId) => {
     setBusyAction(`output-${outputId}`);
-    setPendingOutputId(outputId);
-
-    try {
-      await api(`/api/outputs/${outputId}/select`, { method: 'POST' });
-    } catch (requestError) {
-      setPendingOutputId(null);
-      pushFeedback(requestError.message);
-    } finally {
-      setBusyAction('');
-    }
+    setLocalSelectedOutputId(outputId);
+    setBusyAction('');
   };
 
   const createOutput = async () => {
@@ -3182,6 +3210,17 @@ function ControlShell() {
   }, [confirmProceedWithUnsavedProject, desktopBridge]);
 
   useEffect(() => {
+    window.__webTitleAuthorizeAppClose = () => {
+      appCloseAuthorizedRef.current = true;
+      return true;
+    };
+
+    return () => {
+      delete window.__webTitleAuthorizeAppClose;
+    };
+  }, []);
+
+  useEffect(() => {
     window.__webTitleConfirmUpdateInstall = async () =>
       confirmProceedWithUnsavedProject('Do you want to save the current project before updating Web Title Pro?');
 
@@ -3389,6 +3428,20 @@ function ControlShell() {
     }
   };
 
+  const saveNavigationShortcut = async (action, value) => {
+    try {
+      await api('/api/shortcuts/navigation', {
+        method: 'PUT',
+        body: {
+          [action]: value,
+        },
+      });
+      pushFeedback(value ? `Shortcut saved for ${action === 'nextTitle' ? 'next title' : 'previous title'}` : `Shortcut cleared for ${action === 'nextTitle' ? 'next title' : 'previous title'}`);
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
+  };
+
   const triggerShortcutAction = async (entry, action) => {
     if (!entry?.id) {
       return;
@@ -3415,6 +3468,21 @@ function ControlShell() {
       }
 
       pushFeedback(`Shortcut ${action.toUpperCase()} -> ${entry.name}`);
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
+  };
+
+  const triggerNavigationShortcut = async (action) => {
+    try {
+      const apiAction = action === 'previousTitle' ? 'previous-title' : 'next-title';
+      await api(`/api/commands/${apiAction}`, {
+        method: 'POST',
+        body: {
+          outputId: selectedOutput?.id,
+        },
+      });
+      pushFeedback(action === 'previousTitle' ? 'Previous title selected' : 'Next title selected');
     } catch (requestError) {
       pushFeedback(requestError.message);
     }
@@ -3527,8 +3595,18 @@ function ControlShell() {
       if (learningShortcut) {
         event.preventDefault();
         event.stopPropagation();
-        void saveEntryShortcut(learningShortcut.entry, learningShortcut.action, shortcutValue);
+        if (learningShortcut.scope === 'navigation') {
+          void saveNavigationShortcut(learningShortcut.action, shortcutValue);
+        } else {
+          void saveEntryShortcut(learningShortcut.entry, learningShortcut.action, shortcutValue);
+        }
         setLearningShortcut(null);
+        return;
+      }
+
+      if (navigationShortcuts?.nextTitle === shortcutValue || navigationShortcuts?.previousTitle === shortcutValue) {
+        event.preventDefault();
+        void triggerNavigationShortcut(navigationShortcuts?.nextTitle === shortcutValue ? 'nextTitle' : 'previousTitle');
         return;
       }
 
@@ -3557,7 +3635,7 @@ function ControlShell() {
       window.removeEventListener('keydown', onShortcutInput, true);
       window.removeEventListener('mousedown', onShortcutInput, true);
     };
-  }, [learningShortcut, selectedOutput?.id, snapshot?.entries]);
+  }, [learningShortcut, navigationShortcuts?.nextTitle, navigationShortcuts?.previousTitle, selectedOutput?.id, snapshot?.entries]);
 
   if (!snapshot || !program) {
     return <div className="loading-shell">Loading control surface...</div>;
@@ -3673,6 +3751,7 @@ function ControlShell() {
           selectedOutput={selectedOutput}
           outputs={outputs}
           learningShortcut={learningShortcut}
+          navigationShortcuts={navigationShortcuts}
           entries={snapshot?.entries || []}
           getRundownPrimaryLabel={getRundownPrimaryLabel}
           bitfocusActions={bitfocusActions}
@@ -3689,8 +3768,12 @@ function ControlShell() {
           onCopyRenderUrl={(output) => copyText(output.renderUrl).then(() => pushFeedback(`Render URL ${output.name} copied`))}
           onCopyPreviewUrl={(output) => copyText(output.previewUrl).then(() => pushFeedback(`Preview URL ${output.name} copied`))}
           onCopyBaseUrl={(url) => copyText(url).then(() => pushFeedback('Base URL copied'))}
-          onStartLearningShortcut={(entry, action) => setLearningShortcut({ entry, action })}
-          onClearShortcut={(entry, action) => saveEntryShortcut(entry, action, '')}
+          onStartLearningShortcut={(entry, action) => setLearningShortcut(
+            entry
+              ? { scope: 'entry', entry, action, label: `${entry.name} / ${String(action).toUpperCase()}` }
+              : { scope: 'navigation', entry: null, action, label: action === 'nextTitle' ? 'Navigation / NEXT TITLE' : 'Navigation / PREVIOUS TITLE' },
+          )}
+          onClearShortcut={(entry, action) => (entry ? saveEntryShortcut(entry, action, '') : saveNavigationShortcut(action, ''))}
           onCancelLearningShortcut={() => setLearningShortcut(null)}
           onCopyBitfocusUrl={(action) => copyText(action.url).then(() => pushFeedback(`URL ${action.label} copied`))}
           onCopyBitfocusPayload={(action) => copyText(JSON.stringify(action.payload)).then(() => pushFeedback(`Payload ${action.label} copied`))}

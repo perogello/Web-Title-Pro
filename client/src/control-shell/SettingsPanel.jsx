@@ -17,6 +17,7 @@ export default function SettingsPanel({
   selectedOutput,
   outputs,
   learningShortcut,
+  navigationShortcuts,
   entries,
   getRundownPrimaryLabel,
   bitfocusActions,
@@ -91,6 +92,7 @@ export default function SettingsPanel({
       {settingsTab === 'shortcuts' && (
         <ShortcutsSettingsTab
           learningShortcut={learningShortcut}
+          navigationShortcuts={navigationShortcuts}
           entries={entries}
           getRundownPrimaryLabel={getRundownPrimaryLabel}
           onStartLearning={onStartLearningShortcut}
