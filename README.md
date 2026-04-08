@@ -1,86 +1,86 @@
-﻿# Web Title Pro
+# Web Title Pro
 
 ## RU
 
-Web Title Pro вЂ” desktop-first СЃРёСЃС‚РµРјР° СѓРїСЂР°РІР»РµРЅРёСЏ С‚РёС‚СЂР°РјРё РґР»СЏ live production.
-РџСЂРёР»РѕР¶РµРЅРёРµ РѕР±СЉРµРґРёРЅСЏРµС‚ React-РїР°РЅРµР»СЊ СѓРїСЂР°РІР»РµРЅРёСЏ, Node.js backend, browser renderer Рё Windows desktop shell РґР»СЏ СЂР°Р±РѕС‚С‹ СЃ Р»РѕРєР°Р»СЊРЅС‹РјРё HTML-С‚РёС‚СЂР°РјРё, `vMix` Рё data-driven РіСЂР°С„РёРєРѕР№.
+Web Title Pro — desktop-first система управления титрами для live production.
+Приложение объединяет React-панель управления, Node.js backend, browser renderer и Windows desktop shell для работы с локальными HTML-титрами, `vMix` и data-driven графикой.
 
-### Р§С‚Рѕ РЅРѕРІРѕРіРѕ РІ `0.2.7`
+### Что нового в `0.2.8`
 
-- Р РµРґР°РєС‚РёСЂСѓРµРјРѕСЃС‚СЊ С‚РёС‚СЂРѕРІ РїРѕ С€СЂРёС„С‚Р°Рј Рё С†РІРµС‚Р°Рј С‚РµРїРµСЂСЊ Р·Р°РґР°РµС‚СЃСЏ СЏРІРЅРѕ С‡РµСЂРµР· `fieldStyleEditor` РІ `template.json`
-- Р”РѕР±Р°РІР»РµРЅС‹ guide Рё starter template РґР»СЏ СЂР°Р·СЂР°Р±РѕС‚С‡РёРєРѕРІ Р»РѕРєР°Р»СЊРЅС‹С… HTML-С‚РёС‚СЂРѕРІ
-- Р”РѕР±Р°РІР»РµРЅС‹ РЅРѕРІС‹Рµ built-in С€Р°Р±Р»РѕРЅС‹ `Lavka 2 rows` Рё `Lavka 1 row`
-- РћР±РЅРѕРІР»РµРЅ workflow style editor РґР»СЏ built-in Р»РѕРєР°Р»СЊРЅС‹С… С€Р°Р±Р»РѕРЅРѕРІ
+- Обновлены глобальные shortcuts и выбор output
+- Улучшены `Settings` и `Data Source`
+- Исправлен краш вкладки `Data Source`
+- Улучшено поведение render-окон
+- Перепроверено подключение `Google Sheets`
 
-### Р§С‚Рѕ СѓРјРµРµС‚
+### Что умеет
 
-- Р›РѕРєР°Р»СЊРЅС‹Рµ HTML/CSS/JS С‚РёС‚СЂС‹ Р±РµР· РїРµСЂРµР·Р°РіСЂСѓР·РєРё Browser Source
-- `vMix` titles Рё text fields
-- РќРµСЃРєРѕР»СЊРєРѕ РЅРµР·Р°РІРёСЃРёРјС‹С… outputs
-- `Data Source` С‚Р°Р±Р»РёС†С‹ СЃ СЂСѓС‡РЅС‹Рј РІРІРѕРґРѕРј, `TXT / CSV`, `CSV URL`, `Google Sheets`, `Yandex Disk`
-- Mapping РґР°РЅРЅС‹С… РІ С‚РёС‚СЂС‹
-- РўР°Р№РјРµСЂС‹, shortcuts, MIDI, Bitfocus / HTTP API
-- РџСЂРѕРµРєС‚С‹: `New / Open / Save / Save As / Recent`
-- РђРІС‚РѕР·Р°РіСЂСѓР·РєР° РїРѕСЃР»РµРґРЅРµРіРѕ РїСЂРѕРµРєС‚Р°
-- Portable Windows build СЃ updater flow
+- Локальные HTML/CSS/JS титры без перезагрузки Browser Source
+- `vMix` titles и text fields
+- Несколько независимых outputs
+- `Data Source` таблицы из text, `TXT / CSV`, `CSV URL`, `Google Sheets`, `Yandex Disk`
+- Mapping данных в титры
+- Таймеры, shortcuts, MIDI, Bitfocus / HTTP API
+- Проекты: `New / Open / Save / Save As / Recent`
+- Portable Windows build с updater flow
 
-### Р‘С‹СЃС‚СЂС‹Р№ СЃС‚Р°СЂС‚ РёР· РёСЃС…РѕРґРЅРёРєРѕРІ
+### Быстрый старт из исходников
 
 ```bash
 npm install
 npm run dev
 ```
 
-Р•СЃР»Рё PowerShell Р±Р»РѕРєРёСЂСѓРµС‚ `npm.ps1`:
+Если PowerShell блокирует `npm.ps1`:
 
 ```bash
 npm.cmd install
 npm.cmd run dev
 ```
 
-Р›РѕРєР°Р»СЊРЅС‹Рµ Р°РґСЂРµСЃР°:
+Локальные адреса:
 
 - Control UI: `http://localhost:5173`
 - Backend: `http://localhost:4000`
 - Renderer: `http://localhost:4000/render.html`
 
-### Desktop СЂРµР¶РёРј
+### Desktop режим
 
-Р—Р°РїСѓСЃРє desktop-РІРµСЂСЃРёРё:
+Запуск desktop-версии:
 
 ```bash
 npm.cmd run desktop
 ```
 
-РЎР±РѕСЂРєР° portable `.exe`:
+Сборка portable `.exe`:
 
 ```bash
 npm.cmd run package:win
 ```
 
-Р РµР·СѓР»СЊС‚Р°С‚:
+Результат:
 
 ```text
-release/WebTitlePro-0.2.7.exe
+release/WebTitlePro-0.2.8.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.7.exe` вЂ” versioned release asset
-- `WebTitlePro.exe` вЂ” РѕСЃРЅРѕРІРЅРѕР№ СЃС‚Р°Р±РёР»СЊРЅС‹Р№ С„Р°Р№Р» РґР»СЏ Р·Р°РїСѓСЃРєР° РїРѕР»СЊР·РѕРІР°С‚РµР»РµРј
+- `WebTitlePro-0.2.8.exe` — versioned release asset
+- `WebTitlePro.exe` — основной стабильный файл для запуска
 
-### РљР°Рє РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ
+### Как использовать
 
-1. РћС‚РєСЂРѕР№ РїСЂРёР»РѕР¶РµРЅРёРµ.
-2. РЎРѕР·РґР°Р№ РёР»Рё РІС‹Р±РµСЂРё `Output`.
-3. Р”РѕР±Р°РІСЊ Р»РѕРєР°Р»СЊРЅС‹Р№ РёР»Рё `vMix` С‚РёС‚СЂ.
-4. Р—Р°РіСЂСѓР·РёС‚Рµ `Data Source` РёР»Рё РІРІРµРґРё РґР°РЅРЅС‹Рµ РІСЂСѓС‡РЅСѓСЋ.
-5. РџСЂРё РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё РЅР°СЃС‚СЂРѕР№ `Mapping`.
-6. РСЃРїРѕР»СЊР·СѓР№ `SHOW`, `SET` Рё `HIDE`.
-7. РџРѕРґРєР»СЋС‡Рё render URL РІ `vMix` РёР»Рё `OBS` Browser Source.
+1. Открой приложение.
+2. Создай или выбери `Output`.
+3. Добавь локальный или `vMix` титр.
+4. Загрузи `Data Source` или введи данные вручную.
+5. При необходимости настрой `Mapping`.
+6. Используй `SHOW`, `SET` и `HIDE`.
+7. Подключи render URL в `vMix` или `OBS` Browser Source.
 
 ### Data Source
 
-РџРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ:
+Поддерживаются:
 
 - Text
 - TXT / CSV File
@@ -88,22 +88,22 @@ release/WebTitlePro.exe
 - Google Sheets
 - Yandex Disk public link
 
-Р”Р»СЏ `Google Sheets` Рё `Yandex Disk` РґРѕСЃС‚СѓРїРЅС‹ `Refresh` Рё `Auto-refresh`.
+Для `Google Sheets` и `Yandex Disk` доступны `Refresh` и `Auto-refresh`.
 
 ### Yandex
 
-РРЅС‚РµРіСЂР°С†РёСЏ СЃ Yandex РЅР°СЃС‚СЂР°РёРІР°РµС‚СЃСЏ Р»РѕРєР°Р»СЊРЅРѕ РІ:
+Интеграция с Yandex настраивается локально в:
 
 ```text
 Settings -> Yandex
 ```
 
-РџСЂРёР»РѕР¶РµРЅРёРµ РЅРµ РїРѕСЃС‚Р°РІР»СЏРµС‚СЃСЏ СЃ РіРѕС‚РѕРІС‹РјРё credentials РёР»Рё С‚РѕРєРµРЅР°РјРё.
-РџРѕРґСЂРѕР±РЅР°СЏ РёРЅСЃС‚СЂСѓРєС†РёСЏ:
+Приложение не поставляется с готовыми credentials или токенами.
+Подробная инструкция:
 
 - [docs/YANDEX_CREDENTIALS.md](docs/YANDEX_CREDENTIALS.md)
 
-### РЎС‚СЂСѓРєС‚СѓСЂР° РїСЂРѕРµРєС‚Р°
+### Структура проекта
 
 ```text
 client/       React control panel
@@ -124,20 +124,21 @@ It combines a React control panel, Node.js backend, browser renderer, and Window
 
 ### What's New in `0.2.8`
 
-- Added cleaner global shortcut workflows and output selection bindings
-- Refined `Settings` / `Data Source` UX and fixed the `Data Source` tab crash
-- Improved renderer behavior in expanded windows and cleaned up the release build
-- Rechecked Google Sheets transport and overall app stability
+- Updated global shortcuts and output selection workflow
+- Improved `Settings` and `Data Source`
+- Fixed the `Data Source` tab crash
+- Improved render window behavior
+- Rechecked the `Google Sheets` integration
+
 ### Main Features
 
 - Local HTML/CSS/JS titles without reloading the Browser Source
 - `vMix` titles and text fields
 - Multiple independent outputs
-- `Data Source` tables from manual text, `TXT / CSV`, `CSV URL`, `Google Sheets`, and `Yandex Disk`
-- Mapping from source data into titles
+- `Data Source` tables from text, `TXT / CSV`, `CSV URL`, `Google Sheets`, and `Yandex Disk`
+- Data mapping into titles
 - Timers, shortcuts, MIDI, Bitfocus / HTTP API
 - Project workflow: `New / Open / Save / Save As / Recent`
-- Auto-load last project on startup
 - Portable Windows build with updater flow
 
 ### Quick Start From Source
@@ -230,8 +231,3 @@ templates/    Built-in local templates
 scripts/      Build and helper scripts
 docs/         Product and integration notes
 ```
-
-
-
-
-
