@@ -17,9 +17,7 @@ export default function SettingsPanel({
   selectedOutput,
   outputs,
   learningShortcut,
-  navigationShortcuts,
-  entries,
-  getRundownPrimaryLabel,
+  shortcutBindings,
   bitfocusActions,
   midiState,
   appMeta,
@@ -42,6 +40,7 @@ export default function SettingsPanel({
   onRefreshMidiState,
   onStartMidiLearn,
   onStopMidiLearn,
+  onClearMidiBinding,
   onCheckForUpdates,
   onInstallUpdate,
   onRefreshAppMeta,
@@ -57,15 +56,15 @@ export default function SettingsPanel({
           <h3>Output Settings & Integrations</h3>
         </div>
       </div>
-      <div className="settings-tab-strip">
-        <button className={`tab-button ${settingsTab === 'output' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('output')}>Output</button>
-        <button className={`tab-button ${settingsTab === 'shortcuts' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('shortcuts')}>Shortcuts</button>
-        <button className={`tab-button ${settingsTab === 'bitfocus' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('bitfocus')}>Bitfocus</button>
-        <button className={`tab-button ${settingsTab === 'midi' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('midi')}>MIDI</button>
-        <button className={`tab-button ${settingsTab === 'yandex' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('yandex')}>Yandex</button>
-        <button className={`tab-button ${settingsTab === 'updates' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('updates')}>Updates</button>
-        <button className={`tab-button ${settingsTab === 'test' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('test')}>Test</button>
-        <button className={`tab-button ${settingsTab === 'about' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('about')}>About</button>
+      <div className="mode-toggle settings-tab-toggle" role="tablist" aria-label="Settings sections">
+        <button type="button" className={`mode-toggle-button ${settingsTab === 'output' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('output')}>Output</button>
+        <button type="button" className={`mode-toggle-button ${settingsTab === 'shortcuts' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('shortcuts')}>Shortcuts</button>
+        <button type="button" className={`mode-toggle-button ${settingsTab === 'bitfocus' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('bitfocus')}>Bitfocus</button>
+        <button type="button" className={`mode-toggle-button ${settingsTab === 'midi' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('midi')}>MIDI</button>
+        <button type="button" className={`mode-toggle-button ${settingsTab === 'yandex' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('yandex')}>Yandex</button>
+        <button type="button" className={`mode-toggle-button ${settingsTab === 'updates' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('updates')}>Updates</button>
+        <button type="button" className={`mode-toggle-button ${settingsTab === 'test' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('test')}>Test</button>
+        <button type="button" className={`mode-toggle-button ${settingsTab === 'about' ? 'is-active' : ''}`} onClick={() => onSetSettingsTab('about')}>About</button>
       </div>
       {settingsTab === 'about' && (
         <AboutSettingsTab
@@ -92,9 +91,8 @@ export default function SettingsPanel({
       {settingsTab === 'shortcuts' && (
         <ShortcutsSettingsTab
           learningShortcut={learningShortcut}
-          navigationShortcuts={navigationShortcuts}
-          entries={entries}
-          getRundownPrimaryLabel={getRundownPrimaryLabel}
+          shortcutBindings={shortcutBindings}
+          outputs={outputs}
           onStartLearning={onStartLearningShortcut}
           onClearShortcut={onClearShortcut}
           onCancelLearning={onCancelLearningShortcut}
@@ -113,6 +111,7 @@ export default function SettingsPanel({
           onRefreshMidiState={onRefreshMidiState}
           onStartMidiLearn={onStartMidiLearn}
           onStopMidiLearn={onStopMidiLearn}
+          onClearMidiBinding={onClearMidiBinding}
         />
       )}
       {settingsTab === 'yandex' && (

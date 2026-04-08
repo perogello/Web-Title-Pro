@@ -516,6 +516,14 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     }
   });
 
+  router.delete('/midi/bindings/:action', (request, response) => {
+    try {
+      response.json(midiService.clearBinding(request.params.action));
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
   router.put('/shortcuts/navigation', (request, response) => {
     try {
       response.json(store.updateNavigationShortcuts(request.body || {}));

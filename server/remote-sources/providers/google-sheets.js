@@ -7,7 +7,14 @@ const normalizeGoogleSheetsUrl = (rawUrl) => {
   }
 
   const gid = parsed.searchParams.get('gid') || parsed.hash.match(/gid=(\d+)/i)?.[1] || '0';
-  return `https://docs.google.com/spreadsheets/d/${match[1]}/export?format=csv&gid=${encodeURIComponent(gid)}`;
+  const resourceKey = parsed.searchParams.get('resourcekey') || '';
+  const exportUrl = new URL(`https://docs.google.com/spreadsheets/d/${match[1]}/export`);
+  exportUrl.searchParams.set('format', 'csv');
+  exportUrl.searchParams.set('gid', gid);
+  if (resourceKey) {
+    exportUrl.searchParams.set('resourcekey', resourceKey);
+  }
+  return exportUrl.toString();
 };
 
 export const googleSheetsRemoteSourceProvider = {

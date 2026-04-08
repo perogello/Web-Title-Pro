@@ -53,7 +53,7 @@ export default function KhuralStyleEditorModal({
               : availableFonts;
             return (
               <div key={field.name} className="output-settings-card khural-style-card">
-                <div className="integration-head">
+                <div className="khural-style-field-head">
                   <span className="meta-label">{field.name}</span>
                   <strong>{field.label || field.name}</strong>
                 </div>

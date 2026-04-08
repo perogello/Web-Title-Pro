@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react';
+
 export default function OutputSettingsTab({
   outputInfo,
   outputRenderTargets,
@@ -13,6 +15,31 @@ export default function OutputSettingsTab({
   if (!outputInfo) {
     return <div className="empty-state">Waiting for backend system info.</div>;
   }
+
+  const [copiedKey, setCopiedKey] = useState('');
+  const copiedTimeoutRef = useRef(null);
+
+  useEffect(() => () => {
+    if (copiedTimeoutRef.current) {
+      clearTimeout(copiedTimeoutRef.current);
+    }
+  }, []);
+
+  const flashCopied = (key) => {
+    setCopiedKey(key);
+    if (copiedTimeoutRef.current) {
+      clearTimeout(copiedTimeoutRef.current);
+    }
+    copiedTimeoutRef.current = setTimeout(() => {
+      setCopiedKey('');
+      copiedTimeoutRef.current = null;
+    }, 1800);
+  };
+
+  const handleCopy = (key, callback) => {
+    callback();
+    flashCopied(key);
+  };
 
   return (
     <div className="integration-grid">
@@ -30,7 +57,9 @@ export default function OutputSettingsTab({
               <code>{outputInfo.controlUrl}</code>
             </div>
             <div className="output-url-actions">
-              <button className="ghost-button compact-button" onClick={() => onCopyBaseUrl(outputInfo.controlUrl)}>Copy URL</button>
+              <button className="ghost-button compact-button" onClick={() => handleCopy('base', () => onCopyBaseUrl(outputInfo.controlUrl))}>
+                {copiedKey === 'base' ? 'URL Copied' : 'Copy URL'}
+              </button>
             </div>
           </div>
         </div>
@@ -40,7 +69,6 @@ export default function OutputSettingsTab({
           <div className="output-settings-card" key={output.id}>
             <div className="card-head output-settings-head">
               <div>
-                <span className="panel-kicker">Output</span>
                 <h3>{output.name}</h3>
               </div>
               <div className="topbar-actions">
@@ -74,7 +102,9 @@ export default function OutputSettingsTab({
                   <code>{output.renderUrl}</code>
                 </div>
                 <div className="output-url-actions">
-                  <button className="ghost-button compact-button" onClick={() => onCopyRenderUrl(output)}>Copy Render</button>
+                  <button className="ghost-button compact-button" onClick={() => handleCopy(`render-${output.id}`, () => onCopyRenderUrl(output))}>
+                    {copiedKey === `render-${output.id}` ? 'URL Copied' : 'Copy Render'}
+                  </button>
                 </div>
               </div>
               <div className="output-url-row">
@@ -83,7 +113,9 @@ export default function OutputSettingsTab({
                   <code>{output.previewUrl}</code>
                 </div>
                 <div className="output-url-actions">
-                  <button className="ghost-button compact-button" onClick={() => onCopyPreviewUrl(output)}>Copy Preview</button>
+                  <button className="ghost-button compact-button" onClick={() => handleCopy(`preview-${output.id}`, () => onCopyPreviewUrl(output))}>
+                    {copiedKey === `preview-${output.id}` ? 'URL Copied' : 'Copy Preview'}
+                  </button>
                 </div>
               </div>
             </div>

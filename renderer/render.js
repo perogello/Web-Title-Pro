@@ -8,7 +8,7 @@ const wsUrl = `${window.location.origin.replace(/^http/, 'ws')}/ws`;
 const searchParams = new URLSearchParams(window.location.search);
 const usePreviewState = searchParams.get('preview') === '1';
 const isEmbedded = searchParams.get('embed') === '1';
-const isPreview = usePreviewState || isEmbedded;
+const isPreview = usePreviewState;
 const requestedOutput = searchParams.get('output') || 'main';
 const PREVIEW_BASE_WIDTH = 1920;
 const PREVIEW_BASE_HEIGHT = 1080;

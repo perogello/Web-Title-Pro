@@ -162,6 +162,19 @@ export class MidiService extends EventEmitter {
     return this.getState();
   }
 
+  clearBinding(action) {
+    if (!['show', 'live', 'hide', 'next-title', 'previous-title'].includes(action)) {
+      throw new Error('Unsupported MIDI binding action.');
+    }
+
+    this.bindings = this.bindings.filter((binding) => binding.action !== action);
+    if (this.learningAction === action) {
+      this.learningAction = null;
+    }
+    this.emit('state', this.getState());
+    return this.getState();
+  }
+
   getState() {
     return {
       enabled: this.enabled,

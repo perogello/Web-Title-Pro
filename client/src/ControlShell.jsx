@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   createRemoteSourceConfig,
   loadSourceLibrary,
@@ -318,7 +318,7 @@ const getEntryDataPreview = (entry) => {
   const values = Object.values(entry?.fields || {})
     .map((value) => String(value ?? '').trim())
     .filter(Boolean);
-  return values.slice(0, 2).join(' · ');
+  return values.slice(0, 2).join(' В· ');
 };
 
 const getRundownPrimaryLabel = (entry) =>
@@ -637,6 +637,8 @@ function ControlShell() {
   const [learningShortcut, setLearningShortcut] = useState(null);
   const [showSourceSyncMenu, setShowSourceSyncMenu] = useState(false);
   const [draggedRundownEntryId, setDraggedRundownEntryId] = useState(null);
+  const [manageSources, setManageSources] = useState(false);
+  const [draggedSourceId, setDraggedSourceId] = useState(null);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderDelaySec, setReminderDelaySec] = useState(15);
   const [pendingReminder, setPendingReminder] = useState(null);
@@ -756,7 +758,7 @@ function ControlShell() {
         label: baseLabel,
         binding:
           selectedEntry?.entryType === 'vmix'
-            ? (targetLabel ? `${targetLabel}${vmixFieldName && vmixFieldName !== targetLabel ? ` · ${vmixFieldName}` : ''}` : null)
+            ? (targetLabel ? `${targetLabel}${vmixFieldName && vmixFieldName !== targetLabel ? ` В· ${vmixFieldName}` : ''}` : null)
             : (targetLabel || null),
       };
     });
@@ -901,7 +903,14 @@ function ControlShell() {
     return `${BACKEND_ORIGIN}/render.html?preview=1&embed=1&output=${encodeURIComponent(selectedOutput.key)}`;
   }, [selectedOutput?.key]);
   const expandedRenderUrl = expandedRender === 'preview' ? embeddedPreviewUrl : embeddedRenderUrl;
-  const navigationShortcuts = snapshot?.integrations?.shortcuts || { nextTitle: '', previousTitle: '' };
+  const shortcutBindings = snapshot?.integrations?.shortcuts || {
+    show: '',
+    live: '',
+    hide: '',
+    nextTitle: '',
+    previousTitle: '',
+    outputSelectById: {},
+  };
   const activeSourceBinding = selectedOutput ? activeSourceRows[selectedOutput.id] || null : null;
   const activeTimerBinding = selectedOutput ? activeTimerRows[selectedOutput.id] || null : null;
   const reminderRow = useMemo(() => {
@@ -1790,7 +1799,7 @@ function ControlShell() {
 
   const uploadTemplate = async () => {
     if (!uploadFiles.length) {
-      pushFeedback('Выберите ZIP, папку или HTML/CSS/JS файлы');
+      pushFeedback('Р’С‹Р±РµСЂРёС‚Рµ ZIP, РїР°РїРєСѓ РёР»Рё HTML/CSS/JS С„Р°Р№Р»С‹');
       return;
     }
 
@@ -1806,7 +1815,7 @@ function ControlShell() {
       setUploadName('');
       setShowAddModal(false);
       setTemplateValidationReport(null);
-      pushFeedback('Шаблон загружен');
+      pushFeedback('РЁР°Р±Р»РѕРЅ Р·Р°РіСЂСѓР¶РµРЅ');
     } catch (requestError) {
       pushFeedback(requestError.message);
     } finally {
@@ -1818,7 +1827,7 @@ function ControlShell() {
     const text = txtPayload.trim();
 
     if (!text) {
-      pushFeedback('Вставьте TXT-данные или выберите TXT файл');
+      pushFeedback('Р’СЃС‚Р°РІСЊС‚Рµ TXT-РґР°РЅРЅС‹Рµ РёР»Рё РІС‹Р±РµСЂРёС‚Рµ TXT С„Р°Р№Р»');
       return;
     }
 
@@ -1833,7 +1842,7 @@ function ControlShell() {
       setTxtPayload('');
       setTxtFileName('');
       setShowImportModal(false);
-      pushFeedback('TXT добавлен в rundown');
+      pushFeedback('TXT РґРѕР±Р°РІР»РµРЅ РІ rundown');
     } catch (requestError) {
       pushFeedback(requestError.message);
     } finally {
@@ -1851,7 +1860,7 @@ function ControlShell() {
     const rawText = sourcePayload.trim();
 
     if (!rawText) {
-      pushFeedback('Загрузите TXT/CSV файл или вставьте строки источника');
+      pushFeedback('Р—Р°РіСЂСѓР·РёС‚Рµ TXT/CSV С„Р°Р№Р» РёР»Рё РІСЃС‚Р°РІСЊС‚Рµ СЃС‚СЂРѕРєРё РёСЃС‚РѕС‡РЅРёРєР°');
       return;
     }
 
@@ -1867,7 +1876,7 @@ function ControlShell() {
       setSourcePayload('');
       setSourceName('');
       setSourceFileName('');
-      pushFeedback('Источник добавлен в таблицу');
+      pushFeedback('РСЃС‚РѕС‡РЅРёРє РґРѕР±Р°РІР»РµРЅ РІ С‚Р°Р±Р»РёС†Сѓ');
     } catch (requestError) {
       pushFeedback(requestError.message);
     }
@@ -1878,6 +1887,38 @@ function ControlShell() {
     setSourcePayload(await file.text());
     setSourceFileName(file.name);
     setSourceName(file.name.replace(/\.[^.]+$/, ''));
+  };
+
+  const replaceSelectedSourceFromFile = async (file) => {
+    if (!file || !selectedSource) return;
+
+    try {
+      const nextDataset = parseSourceText({
+        text: await file.text(),
+        name: selectedSource.name || file.name.replace(/\.[^.]+$/, ''),
+        templateFields: selectedEntryFields,
+      });
+
+      setSourceLibrary((current) =>
+        current.map((source) =>
+          source.id === selectedSource.id
+            ? {
+                ...nextDataset,
+                id: source.id,
+                name: source.name,
+                remote: null,
+                linkedTimerId: source.linkedTimerId || null,
+                linkedTimerByOutput: source.linkedTimerByOutput || {},
+                createdAt: source.createdAt || nextDataset.createdAt,
+              }
+            : source,
+        ),
+      );
+      setSourceFileName(file.name);
+      pushFeedback(`${selectedSource.name} replaced from file`);
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
   };
 
   const pickTemplateFolder = async () => {
@@ -2477,7 +2518,7 @@ function ControlShell() {
 
   const applySourceRow = async (row) => {
     if (!selectedOutput?.id) {
-      pushFeedback('Сначала выберите output');
+      pushFeedback('РЎРЅР°С‡Р°Р»Р° РІС‹Р±РµСЂРёС‚Рµ output');
       return;
     }
 
@@ -2576,7 +2617,7 @@ function ControlShell() {
       }
 
       scheduleTimerReminder(selectedSource?.id || '', row);
-      pushFeedback(`Строка ${row.index} применена к ${targetOutputIds.length} output(s)`);
+      pushFeedback(`РЎС‚СЂРѕРєР° ${row.index} РїСЂРёРјРµРЅРµРЅР° Рє ${targetOutputIds.length} output(s)`);
     } catch (requestError) {
       pushFeedback(requestError.message);
     }
@@ -2710,27 +2751,68 @@ function ControlShell() {
     }
   };
 
-  const deleteSelectedSource = () => {
-    if (!selectedSource) return;
-    setSourceLibrary((current) => current.filter((item) => item.id !== selectedSource.id));
+  const deleteSourceById = (sourceId) => {
+    const sourceToDelete = sourceLibrary.find((item) => item.id === sourceId);
+    if (!sourceToDelete) {
+      return;
+    }
+
+    setSourceLibrary((current) => current.filter((item) => item.id !== sourceId));
     setEditingSourceRows((current) =>
-      Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(`${selectedSource.id}:`))),
+      Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(`${sourceId}:`))),
     );
     setSourceRowDrafts((current) =>
-      Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(`${selectedSource.id}:`))),
+      Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(`${sourceId}:`))),
     );
     setActiveSourceRows((current) => {
       const next = { ...current };
 
       for (const [outputId, binding] of Object.entries(next)) {
-        if (binding?.sourceId === selectedSource.id) {
+        if (binding?.sourceId === sourceId) {
           delete next[outputId];
         }
       }
 
       return next;
     });
-    pushFeedback('Источник удален');
+    pushFeedback(`${sourceToDelete.name} deleted`);
+  };
+
+  const deleteSelectedSource = () => {
+    if (!selectedSource) return;
+    deleteSourceById(selectedSource.id);
+  };
+
+  const renameSource = (sourceId, nextName) => {
+    const trimmed = String(nextName || '').trim();
+    if (!trimmed) {
+      return;
+    }
+
+    setSourceLibrary((current) =>
+      current.map((source) => (source.id === sourceId ? { ...source, name: trimmed } : source)),
+    );
+  };
+
+  const reorderSourcesToTarget = (draggedId, targetId) => {
+    if (!draggedId || !targetId || draggedId === targetId) {
+      return;
+    }
+
+    setSourceLibrary((current) => {
+      const draggedIndex = current.findIndex((source) => source.id === draggedId);
+      const targetIndex = current.findIndex((source) => source.id === targetId);
+
+      if (draggedIndex === -1 || targetIndex === -1) {
+        return current;
+      }
+
+      const next = [...current];
+      const [moved] = next.splice(draggedIndex, 1);
+      next.splice(targetIndex, 0, moved);
+      return next;
+    });
+    setDraggedSourceId(null);
   };
 
   const updateSourceColumnLabel = (sourceId, columnId, nextLabel) => {
@@ -3147,6 +3229,18 @@ function ControlShell() {
     }
   };
 
+  const clearMidiBinding = async (action) => {
+    try {
+      const nextState = await api(`/api/midi/bindings/${encodeURIComponent(action)}`, {
+        method: 'DELETE',
+      });
+      setMidiState(nextState);
+      pushFeedback(`MIDI binding cleared for ${action.toUpperCase()}`);
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
+  };
+
   const buildProjectDocument = async () => {
     const exported = await api('/api/project/export');
 
@@ -3407,67 +3501,52 @@ function ControlShell() {
     }
   };
 
-  const saveEntryShortcut = async (entry, action, value) => {
-    if (!entry?.id) {
-      return;
-    }
-
+  const saveGlobalShortcut = async (action, value) => {
     try {
-      await api(`/api/entries/${entry.id}`, {
-        method: 'PUT',
-        body: {
-          shortcuts: {
-            ...(entry.shortcuts || {}),
+      const body = action.startsWith('selectOutput:')
+        ? {
+            outputSelectById: {
+              ...(shortcutBindings?.outputSelectById || {}),
+              [action.slice('selectOutput:'.length)]: value,
+            },
+          }
+        : {
             [action]: value,
-          },
-        },
-      });
-      pushFeedback(value ? `Shortcut saved for ${entry.name}` : `Shortcut cleared for ${entry.name}`);
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    }
-  };
+          };
 
-  const saveNavigationShortcut = async (action, value) => {
-    try {
       await api('/api/shortcuts/navigation', {
         method: 'PUT',
-        body: {
-          [action]: value,
-        },
+        body,
       });
-      pushFeedback(value ? `Shortcut saved for ${action === 'nextTitle' ? 'next title' : 'previous title'}` : `Shortcut cleared for ${action === 'nextTitle' ? 'next title' : 'previous title'}`);
+      pushFeedback(value ? `Shortcut saved for ${action}` : `Shortcut cleared for ${action}`);
     } catch (requestError) {
       pushFeedback(requestError.message);
     }
   };
 
-  const triggerShortcutAction = async (entry, action) => {
-    if (!entry?.id) {
-      return;
-    }
-
-    if (action === 'live' && entry.entryType === 'vmix') {
-      return;
-    }
-
+  const triggerGlobalShortcut = async (action) => {
     try {
       if (action === 'hide') {
         await api('/api/program/hide', {
           method: 'POST',
           body: { outputId: selectedOutput?.id },
         });
-      } else {
-        await api(`/api/program/${action === 'live' ? 'update' : action}`, {
+      } else if (action === 'show' || action === 'live') {
+        if (!selectedEntry?.id) {
+          return;
+        }
+        await api(`/api/program/${action === 'live' ? 'live' : 'show'}`, {
           method: 'POST',
           body: {
-            entryId: entry.id,
+            entryId: selectedEntry.id,
             outputId: selectedOutput?.id,
           },
         });
+      } else {
+        return;
       }
 
-      pushFeedback(`Shortcut ${action.toUpperCase()} -> ${entry.name}`);
+      pushFeedback(`Shortcut ${action.toUpperCase()}`);
     } catch (requestError) {
       pushFeedback(requestError.message);
     }
@@ -3518,12 +3597,12 @@ function ControlShell() {
     const values = manualRowColumns.map((_column, index) => (manualRowValues[index] || '').trim());
 
     if (!values.some(Boolean)) {
-      pushFeedback('Заполните хотя бы одно поле строки');
+      pushFeedback('Р—Р°РїРѕР»РЅРёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРЅРѕ РїРѕР»Рµ СЃС‚СЂРѕРєРё');
       return;
     }
 
     if (!manualRowColumns.length) {
-      pushFeedback('Сначала выберите титр или источник данных');
+      pushFeedback('РЎРЅР°С‡Р°Р»Р° РІС‹Р±РµСЂРёС‚Рµ С‚РёС‚СЂ РёР»Рё РёСЃС‚РѕС‡РЅРёРє РґР°РЅРЅС‹С…');
       return;
     }
 
@@ -3566,7 +3645,7 @@ function ControlShell() {
         return acc;
       }, {}),
     );
-    pushFeedback('Строка добавлена в Source Table');
+    pushFeedback('РЎС‚СЂРѕРєР° РґРѕР±Р°РІР»РµРЅР° РІ Source Table');
   };
 
   useEffect(() => {
@@ -3595,38 +3674,41 @@ function ControlShell() {
       if (learningShortcut) {
         event.preventDefault();
         event.stopPropagation();
-        if (learningShortcut.scope === 'navigation') {
-          void saveNavigationShortcut(learningShortcut.action, shortcutValue);
-        } else {
-          void saveEntryShortcut(learningShortcut.entry, learningShortcut.action, shortcutValue);
-        }
+        void saveGlobalShortcut(learningShortcut.action, shortcutValue);
         setLearningShortcut(null);
         return;
       }
 
-      if (navigationShortcuts?.nextTitle === shortcutValue || navigationShortcuts?.previousTitle === shortcutValue) {
+      if (
+        shortcutBindings?.show === shortcutValue ||
+        shortcutBindings?.live === shortcutValue ||
+        shortcutBindings?.hide === shortcutValue
+      ) {
         event.preventDefault();
-        void triggerNavigationShortcut(navigationShortcuts?.nextTitle === shortcutValue ? 'nextTitle' : 'previousTitle');
+        const action =
+          shortcutBindings?.show === shortcutValue
+            ? 'show'
+            : shortcutBindings?.live === shortcutValue
+              ? 'live'
+              : 'hide';
+        void triggerGlobalShortcut(action);
         return;
       }
 
-      const matched = (snapshot?.entries || [])
-        .filter((entry) => !entry.hidden)
-        .find((entry) => entry.shortcuts?.show === shortcutValue || entry.shortcuts?.live === shortcutValue || entry.shortcuts?.hide === shortcutValue);
-
-      if (!matched) {
+      if (shortcutBindings?.nextTitle === shortcutValue || shortcutBindings?.previousTitle === shortcutValue) {
+        event.preventDefault();
+        void triggerNavigationShortcut(shortcutBindings?.nextTitle === shortcutValue ? 'nextTitle' : 'previousTitle');
         return;
       }
 
-      const action =
-        matched.shortcuts?.show === shortcutValue
-          ? 'show'
-          : matched.shortcuts?.live === shortcutValue
-            ? 'live'
-            : 'hide';
+      const outputShortcutEntry = Object.entries(shortcutBindings?.outputSelectById || {})
+        .find(([, value]) => value === shortcutValue);
 
-      event.preventDefault();
-      void triggerShortcutAction(matched, action);
+      if (outputShortcutEntry) {
+        event.preventDefault();
+        setLocalSelectedOutputId(outputShortcutEntry[0]);
+        pushFeedback(`Output switched to ${outputs.find((output) => output.id === outputShortcutEntry[0])?.name || 'selected output'}`);
+      }
     };
 
     window.addEventListener('keydown', onShortcutInput, true);
@@ -3635,7 +3717,18 @@ function ControlShell() {
       window.removeEventListener('keydown', onShortcutInput, true);
       window.removeEventListener('mousedown', onShortcutInput, true);
     };
-  }, [learningShortcut, navigationShortcuts?.nextTitle, navigationShortcuts?.previousTitle, selectedOutput?.id, snapshot?.entries]);
+  }, [
+    learningShortcut,
+    selectedOutput?.id,
+    selectedEntry?.id,
+    shortcutBindings?.show,
+    shortcutBindings?.live,
+    shortcutBindings?.hide,
+    shortcutBindings?.nextTitle,
+    shortcutBindings?.previousTitle,
+    outputs,
+    JSON.stringify(shortcutBindings?.outputSelectById || {}),
+  ]);
 
   if (!snapshot || !program) {
     return <div className="loading-shell">Loading control surface...</div>;
@@ -3656,12 +3749,12 @@ function ControlShell() {
       />
 
       <section className="tabs-card">
-        <div className="tab-strip">
-          <button className={`tab-button ${activeTab === 'rundown' ? 'is-active' : ''}`} onClick={() => setActiveTab('rundown')}>Live</button>
-          <button className={`tab-button ${activeTab === 'sources' ? 'is-active' : ''}`} onClick={() => setActiveTab('sources')}>Data Source</button>
-          <button className={`tab-button ${activeTab === 'mapping' ? 'is-active' : ''}`} onClick={() => setActiveTab('mapping')}>Mapping</button>
-          <button className={`tab-button ${activeTab === 'timers' ? 'is-active' : ''}`} onClick={() => setActiveTab('timers')}>Timers</button>
-          <button className={`tab-button ${activeTab === 'settings' ? 'is-active' : ''}`} onClick={() => setActiveTab('settings')}>Output & Settings</button>
+        <div className="mode-toggle app-tab-toggle" role="tablist" aria-label="Primary workspace tabs">
+          <button type="button" className={`mode-toggle-button ${activeTab === 'rundown' ? 'is-active' : ''}`} onClick={() => setActiveTab('rundown')}>Live</button>
+          <button type="button" className={`mode-toggle-button ${activeTab === 'sources' ? 'is-active' : ''}`} onClick={() => setActiveTab('sources')}>Data Source</button>
+          <button type="button" className={`mode-toggle-button ${activeTab === 'mapping' ? 'is-active' : ''}`} onClick={() => setActiveTab('mapping')}>Mapping</button>
+          <button type="button" className={`mode-toggle-button ${activeTab === 'timers' ? 'is-active' : ''}`} onClick={() => setActiveTab('timers')}>Timers</button>
+          <button type="button" className={`mode-toggle-button ${activeTab === 'settings' ? 'is-active' : ''}`} onClick={() => setActiveTab('settings')}>Output & Settings</button>
         </div>
         <div className="tab-toolbar">
           <span className={`connection-pill is-${connection}`}>{connection.toUpperCase()}</span>
@@ -3751,9 +3844,7 @@ function ControlShell() {
           selectedOutput={selectedOutput}
           outputs={outputs}
           learningShortcut={learningShortcut}
-          navigationShortcuts={navigationShortcuts}
-          entries={snapshot?.entries || []}
-          getRundownPrimaryLabel={getRundownPrimaryLabel}
+          shortcutBindings={shortcutBindings}
           bitfocusActions={bitfocusActions}
           midiState={midiState}
           appMeta={appMeta}
@@ -3768,18 +3859,22 @@ function ControlShell() {
           onCopyRenderUrl={(output) => copyText(output.renderUrl).then(() => pushFeedback(`Render URL ${output.name} copied`))}
           onCopyPreviewUrl={(output) => copyText(output.previewUrl).then(() => pushFeedback(`Preview URL ${output.name} copied`))}
           onCopyBaseUrl={(url) => copyText(url).then(() => pushFeedback('Base URL copied'))}
-          onStartLearningShortcut={(entry, action) => setLearningShortcut(
-            entry
-              ? { scope: 'entry', entry, action, label: `${entry.name} / ${String(action).toUpperCase()}` }
-              : { scope: 'navigation', entry: null, action, label: action === 'nextTitle' ? 'Navigation / NEXT TITLE' : 'Navigation / PREVIOUS TITLE' },
-          )}
-          onClearShortcut={(entry, action) => (entry ? saveEntryShortcut(entry, action, '') : saveNavigationShortcut(action, ''))}
+          onStartLearningShortcut={(_entry, action) => setLearningShortcut({
+            scope: 'navigation',
+            entry: null,
+            action,
+            label: action.startsWith('selectOutput:')
+              ? `Output / ${outputs.find((output) => output.id === action.slice('selectOutput:'.length))?.name || 'Select Output'}`
+              : `Command / ${String(action).toUpperCase()}`,
+          })}
+          onClearShortcut={(_entry, action) => saveGlobalShortcut(action, '')}
           onCancelLearningShortcut={() => setLearningShortcut(null)}
           onCopyBitfocusUrl={(action) => copyText(action.url).then(() => pushFeedback(`URL ${action.label} copied`))}
           onCopyBitfocusPayload={(action) => copyText(JSON.stringify(action.payload)).then(() => pushFeedback(`Payload ${action.label} copied`))}
           onRefreshMidiState={refreshMidiState}
           onStartMidiLearn={startMidiLearn}
           onStopMidiLearn={stopMidiLearn}
+          onClearMidiBinding={clearMidiBinding}
           onCheckForUpdates={checkForUpdates}
           onInstallUpdate={installAvailableUpdate}
           onRefreshAppMeta={refreshAppMeta}
@@ -3923,9 +4018,18 @@ function ControlShell() {
           onImportRemoteSourceDataset={importRemoteSourceDataset}
           onConnectYandex={startYandexConnect}
           onSelectSource={setSelectedSourceId}
+          manageSources={manageSources}
+          draggedSourceId={draggedSourceId}
+          onToggleManageSources={() => setManageSources((current) => !current)}
+          onDragStartSource={setDraggedSourceId}
+          onDropSource={(targetSourceId) => reorderSourcesToTarget(draggedSourceId, targetSourceId)}
+          onDragEndSource={() => setDraggedSourceId(null)}
+          onRenameSource={renameSource}
+          onDeleteSource={deleteSourceById}
           onDeleteSelectedSource={deleteSelectedSource}
           onRefreshSelectedSource={() => refreshRemoteSource(selectedSource?.id)}
           onUpdateSelectedSourceRemote={updateSelectedSourceRemote}
+          onReplaceSelectedSourceFile={replaceSelectedSourceFromFile}
           onUpdateSourceColumnLabel={updateSourceColumnLabel}
           getSourceRowEditKey={getSourceRowEditKey}
           onApplySourceRow={applySourceRow}
@@ -3958,9 +4062,9 @@ function ControlShell() {
             <div className="card-head">
               <div>
                 <span className="panel-kicker">Timer Reminder</span>
-                <h3>Запустить таймер?</h3>
+                <h3>Р—Р°РїСѓСЃС‚РёС‚СЊ С‚Р°Р№РјРµСЂ?</h3>
               </div>
-              <button className="ghost-button" onClick={() => setPendingReminder(null)}>Нет</button>
+              <button className="ghost-button" onClick={() => setPendingReminder(null)}>РќРµС‚</button>
             </div>
             <div className="manual-row-card">
               <span className="output-note">{pendingReminder.sourceName}</span>
@@ -4007,7 +4111,7 @@ function ControlShell() {
               </div>
               <div className="timer-command-row">
                 <button className="primary-button" onClick={startReminderTimer}>Start</button>
-                <button className="ghost-button" onClick={() => setPendingReminder(null)}>Нет</button>
+                <button className="ghost-button" onClick={() => setPendingReminder(null)}>РќРµС‚</button>
               </div>
             </div>
           </div>
@@ -4047,6 +4151,27 @@ function ControlShell() {
               </div>
               <button className="ghost-button" onClick={() => setExpandedRender(null)}>Close</button>
             </div>
+            <div className="render-modal-actions">
+              {expandedRender === 'preview' ? (
+                <>
+                  <button className="ghost-button compact-button" onClick={() => runPreviewAction('show', selectedEntry?.id)} disabled={!selectedEntry || selectedEntry?.entryType === 'vmix'}>
+                    Preview Show
+                  </button>
+                  <button className="ghost-button compact-button" onClick={() => runPreviewAction('hide')} disabled={selectedEntry?.entryType === 'vmix'}>
+                    Preview Hide
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="ghost-button compact-button" onClick={() => runProgramAction('show', selectedEntry?.id)} disabled={!selectedEntry || busyAction === 'show'}>
+                    Show
+                  </button>
+                  <button className="ghost-button compact-button" onClick={() => runProgramAction('hide')} disabled={busyAction === 'hide'}>
+                    Hide
+                  </button>
+                </>
+              )}
+            </div>
             <div className="render-modal-frame-wrap">
               <iframe
                 key={`expanded-${expandedRender}-${selectedOutput?.id || 'default'}`}
@@ -4065,7 +4190,7 @@ function ControlShell() {
             <div className="card-head">
               <div>
                 <span className="panel-kicker">Add Title</span>
-                <h3>Создать титр в rundown или загрузить новый шаблон</h3>
+                <h3>РЎРѕР·РґР°С‚СЊ С‚РёС‚СЂ РІ rundown РёР»Рё Р·Р°РіСЂСѓР·РёС‚СЊ РЅРѕРІС‹Р№ С€Р°Р±Р»РѕРЅ</h3>
               </div>
               <button className="ghost-button" onClick={() => setShowAddModal(false)}>Close</button>
             </div>
@@ -4119,7 +4244,7 @@ function ControlShell() {
                       <select value={newVmixInputKey} onChange={(event) => setNewVmixInputKey(event.target.value)}>
                         {vmixTitleInputs.map((input) => (
                           <option key={input.key || input.number} value={input.key || input.number}>
-                            {input.number ? `${input.number} · ` : ''}{input.title || input.shortTitle || 'Untitled input'}
+                            {input.number ? `${input.number} В· ` : ''}{input.title || input.shortTitle || 'Untitled input'}
                           </option>
                         ))}
                       </select>
@@ -4190,7 +4315,7 @@ function ControlShell() {
             <div className="card-head">
               <div>
                 <span className="panel-kicker">TXT Import</span>
-                <h3>Добавление строк титров в rundown</h3>
+                <h3>Р”РѕР±Р°РІР»РµРЅРёРµ СЃС‚СЂРѕРє С‚РёС‚СЂРѕРІ РІ rundown</h3>
               </div>
               <button className="ghost-button" onClick={() => setShowImportModal(false)}>Close</button>
             </div>
@@ -4216,7 +4341,7 @@ function ControlShell() {
               <span>TXT file</span>
               <input type="file" accept=".txt,.csv" onChange={(event) => onTxtFilePicked(event.target.files?.[0]).catch((requestError) => pushFeedback(requestError.message))} />
             </label>
-            {txtFileName && <div className="file-chip">Файл: {txtFileName}</div>}
+            {txtFileName && <div className="file-chip">Р¤Р°Р№Р»: {txtFileName}</div>}
             <label className="input-block">
               <span>TXT Payload</span>
               <textarea value={txtPayload} onChange={(event) => setTxtPayload(event.target.value)} placeholder="John Carter|Lead Anchor|Studio A&#10;Maya Chen|Field Reporter|Berlin" />
@@ -4231,6 +4356,7 @@ function ControlShell() {
 }
 
 export default ControlShell;
+
 
 
 

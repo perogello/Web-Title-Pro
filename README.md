@@ -122,14 +122,12 @@ docs/         Product and integration notes
 Web Title Pro is a desktop-first title control system for live production.
 It combines a React control panel, Node.js backend, browser renderer, and Windows desktop shell for local HTML titles, `vMix`, and data-driven graphics workflows.
 
-### What's New in `0.2.7`
+### What's New in `0.2.8`
 
-- Fixed the updater flow so the app now handles project save prompts and closes correctly for update installation
-- Added an `Update Now` button to the `Updates` section
-- Restored the `Control UI URL` in `Settings -> Output`
-- Added global `Next Title` and `Previous Title` commands for keyboard, MIDI, and Bitfocus
-- Improved the multi-operator workflow by making the selected `Output` local to each client
-- Added new built-in templates: `Khural PIP Title` and `Khural PIP Title 2`
+- Added cleaner global shortcut workflows and output selection bindings
+- Refined `Settings` / `Data Source` UX and fixed the `Data Source` tab crash
+- Improved renderer behavior in expanded windows and cleaned up the release build
+- Rechecked Google Sheets transport and overall app stability
 ### Main Features
 
 - Local HTML/CSS/JS titles without reloading the Browser Source
@@ -179,11 +177,11 @@ npm.cmd run package:win
 Build output:
 
 ```text
-release/WebTitlePro-0.2.7.exe
+release/WebTitlePro-0.2.8.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.7.exe` is the versioned release asset
+- `WebTitlePro-0.2.8.exe` is the versioned release asset
 - `WebTitlePro.exe` is the main stable executable for end users
 
 ### Basic Workflow

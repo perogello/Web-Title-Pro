@@ -1,6 +1,6 @@
 {
   "name": "web-title-pro",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "Low-latency web title control system for vMix Browser Input",
   "type": "module",
   "main": "desktop/main.cjs",
@@ -15,7 +15,7 @@
     "package:win": "npm run build && electron-builder --win portable && node scripts/finalize-portable.cjs"
   },
   "keywords": [],
-  "author": "",
+  "author": "perogello",
   "license": "MIT",
   "devDependencies": {
     "@vitejs/plugin-react": "^6.0.1",

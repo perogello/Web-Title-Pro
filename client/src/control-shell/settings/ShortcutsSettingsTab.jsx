@@ -1,53 +1,51 @@
 export default function ShortcutsSettingsTab({
   learningShortcut,
-  navigationShortcuts,
-  entries,
-  getRundownPrimaryLabel,
+  shortcutBindings,
+  outputs,
   onStartLearning,
   onClearShortcut,
   onCancelLearning,
 }) {
+  const globalBindings = [
+    { id: 'show', label: 'SHOW' },
+    { id: 'live', label: 'LIVE' },
+    { id: 'hide', label: 'HIDE' },
+    { id: 'previousTitle', label: 'PREVIOUS TITLE' },
+    { id: 'nextTitle', label: 'NEXT TITLE' },
+  ];
+
   return (
     <div className="integration-grid">
-      <div className="meta-card">
-        <span className="meta-label">Shortcuts</span>
-        <strong>Global and per-title shortcuts for keyboard and mouse</strong>
-        <span className="output-note">
-          Defaults are empty. Click Learn, then press a keyboard key or mouse button. Shortcuts are saved in the project state and restored on the next launch.
-        </span>
-      </div>
       {learningShortcut && (
         <div className="meta-card">
           <span className="meta-label">Learning</span>
-          <strong>{learningShortcut.label || `${learningShortcut.entry?.name || 'Global'} / ${String(learningShortcut.action).toUpperCase()}`}</strong>
+          <strong>{learningShortcut.label || `Global / ${String(learningShortcut.action).toUpperCase()}`}</strong>
           <span className="output-note">Press the desired key or mouse button now.</span>
           <div className="output-url-actions">
             <button className="ghost-button compact-button" onClick={onCancelLearning}>Cancel Learn</button>
           </div>
         </div>
       )}
+
       <div className="shortcut-entry-card">
         <div className="card-head">
           <div>
-            <h3>Navigation</h3>
+            <h3>Commands</h3>
           </div>
         </div>
         <div className="shortcut-action-grid">
-          {[
-            { id: 'previousTitle', label: 'PREVIOUS TITLE' },
-            { id: 'nextTitle', label: 'NEXT TITLE' },
-          ].map((action) => {
-            const value = navigationShortcuts?.[action.id] || '';
+          {globalBindings.map((binding) => {
+            const value = shortcutBindings?.[binding.id] || '';
 
             return (
-              <div className="shortcut-action-row" key={`global-${action.id}`}>
-                <strong>{action.label}</strong>
+              <div className="shortcut-action-row" key={binding.id}>
+                <strong>{binding.label}</strong>
                 <code>{value || 'Not assigned'}</code>
                 <div className="topbar-actions">
-                  <button className="ghost-button compact-button" onClick={() => onStartLearning(null, action.id)}>
+                  <button className="ghost-button compact-button" onClick={() => onStartLearning(null, binding.id)}>
                     Learn
                   </button>
-                  <button className="ghost-button compact-button" onClick={() => onClearShortcut(null, action.id)} disabled={!value}>
+                  <button className="ghost-button compact-button" onClick={() => onClearShortcut(null, binding.id)} disabled={!value}>
                     Clear
                   </button>
                 </div>
@@ -56,38 +54,32 @@ export default function ShortcutsSettingsTab({
           })}
         </div>
       </div>
-      <div className="shortcut-list">
-        {entries.map((entry) => (
-          <div className="shortcut-entry-card" key={`shortcut-${entry.id}`}>
-            <div className="card-head">
-              <div>
-                <h3>{getRundownPrimaryLabel(entry)}</h3>
-              </div>
-              {entry.hidden && <span className="flag flag-standby">HIDDEN</span>}
-            </div>
-            <div className="shortcut-action-grid">
-              {['show', 'live', 'hide'].map((action) => {
-                const disabled = action === 'live' && entry.entryType === 'vmix';
-                const value = entry.shortcuts?.[action] || '';
 
-                return (
-                  <div className={`shortcut-action-row ${disabled ? 'is-disabled' : ''}`} key={`${entry.id}-${action}`}>
-                    <strong>{action.toUpperCase()}</strong>
-                    <code>{disabled ? 'Not used for vMix title' : value || 'Not assigned'}</code>
-                    <div className="topbar-actions">
-                      <button className="ghost-button compact-button" onClick={() => onStartLearning(entry, action)} disabled={disabled}>
-                        Learn
-                      </button>
-                      <button className="ghost-button compact-button" onClick={() => onClearShortcut(entry, action)} disabled={disabled || !value}>
-                        Clear
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+      <div className="shortcut-entry-card">
+        <div className="card-head">
+          <div>
+            <h3>Outputs</h3>
           </div>
-        ))}
+        </div>
+        <div className="shortcut-action-grid">
+          {outputs.map((output) => {
+            const value = shortcutBindings?.outputSelectById?.[output.id] || '';
+            return (
+              <div className="shortcut-action-row" key={`output-${output.id}`}>
+                <strong>{output.name}</strong>
+                <code>{value || 'Not assigned'}</code>
+                <div className="topbar-actions">
+                  <button className="ghost-button compact-button" onClick={() => onStartLearning(null, `selectOutput:${output.id}`)}>
+                    Learn
+                  </button>
+                  <button className="ghost-button compact-button" onClick={() => onClearShortcut(null, `selectOutput:${output.id}`)} disabled={!value}>
+                    Clear
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

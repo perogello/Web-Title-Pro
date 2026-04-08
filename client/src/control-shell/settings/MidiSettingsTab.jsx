@@ -3,7 +3,26 @@ export default function MidiSettingsTab({
   onRefreshMidiState,
   onStartMidiLearn,
   onStopMidiLearn,
+  onClearMidiBinding,
 }) {
+  const bindingLabels = [
+    { id: 'show', label: 'SHOW' },
+    { id: 'live', label: 'LIVE' },
+    { id: 'hide', label: 'HIDE' },
+    { id: 'previous-title', label: 'PREVIOUS TITLE' },
+    { id: 'next-title', label: 'NEXT TITLE' },
+  ];
+
+  const getBindingValue = (action) => {
+    const binding = (midiState?.bindings || []).find((item) => item.action === action);
+    if (!binding) {
+      return 'Not assigned';
+    }
+    const deviceLabel = binding.device === 'any' ? 'Any device' : binding.device;
+    const triggerLabel = `${binding.type}${binding.note !== undefined ? ` note ${binding.note}` : ''}${binding.controller !== undefined ? ` cc ${binding.controller}` : ''}`;
+    return `${deviceLabel} / ${triggerLabel}`;
+  };
+
   return (
     <div className="integration-grid">
       <div className="card-head integration-head">
@@ -21,21 +40,46 @@ export default function MidiSettingsTab({
         <strong>{midiState?.inputs?.length || 0} input device(s)</strong>
         <span className="output-note">{midiState?.error || 'The service listens for MIDI inputs automatically when the app starts.'}</span>
       </div>
-      <div className="meta-card">
-        <span className="meta-label">Learn</span>
-        <strong>{midiState?.learningAction ? `Waiting for ${String(midiState.learningAction).toUpperCase()} trigger` : 'Ready to learn a binding'}</strong>
-        <span className="output-note">
-          {midiState?.lastMessage
-            ? `Last signal: ${midiState.lastMessage.device} / ${midiState.lastMessage.type}${midiState.lastMessage.note !== undefined ? ` note ${midiState.lastMessage.note}` : ''}${midiState.lastMessage.controller !== undefined ? ` cc ${midiState.lastMessage.controller}` : ''}`
-            : 'Press Learn, then the desired button on your MIDI device.'}
-        </span>
-        <div className="output-url-actions">
-          <button className="ghost-button compact-button" onClick={() => onStartMidiLearn('show')}>Learn SHOW</button>
-          <button className="ghost-button compact-button" onClick={() => onStartMidiLearn('live')}>Learn LIVE</button>
-          <button className="ghost-button compact-button" onClick={() => onStartMidiLearn('hide')}>Learn HIDE</button>
-          <button className="ghost-button compact-button" onClick={() => onStartMidiLearn('previous-title')}>Learn PREV</button>
-          <button className="ghost-button compact-button" onClick={() => onStartMidiLearn('next-title')}>Learn NEXT</button>
-          <button className="ghost-button compact-button" onClick={onStopMidiLearn} disabled={!midiState?.learningAction}>Cancel Learn</button>
+      {midiState?.learningAction && (
+        <div className="meta-card">
+          <span className="meta-label">Learning</span>
+          <strong>{`Waiting for ${String(midiState.learningAction).toUpperCase()} trigger`}</strong>
+          <span className="output-note">
+            {midiState?.lastMessage
+              ? `Last signal: ${midiState.lastMessage.device} / ${midiState.lastMessage.type}${midiState.lastMessage.note !== undefined ? ` note ${midiState.lastMessage.note}` : ''}${midiState.lastMessage.controller !== undefined ? ` cc ${midiState.lastMessage.controller}` : ''}`
+              : 'Press the desired button on your MIDI device now.'}
+          </span>
+          <div className="output-url-actions">
+            <button className="ghost-button compact-button" onClick={onStopMidiLearn}>Cancel Learn</button>
+          </div>
+        </div>
+      )}
+      <div className="shortcut-entry-card">
+        <div className="card-head">
+          <div>
+            <h3>Bindings</h3>
+          </div>
+        </div>
+        <div className="shortcut-action-grid">
+          {bindingLabels.map((binding) => {
+            const value = getBindingValue(binding.id);
+            const hasBinding = value !== 'Not assigned';
+
+            return (
+              <div className="shortcut-action-row" key={binding.id}>
+                <strong>{binding.label}</strong>
+                <code>{value}</code>
+                <div className="topbar-actions">
+                  <button className="ghost-button compact-button" onClick={() => onStartMidiLearn(binding.id)}>
+                    Learn
+                  </button>
+                  <button className="ghost-button compact-button" onClick={() => onClearMidiBinding(binding.id)} disabled={!hasBinding}>
+                    Clear
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
       <div className="midi-device-list">
@@ -46,17 +90,6 @@ export default function MidiSettingsTab({
           </div>
         ))}
         {!midiState?.inputs?.length && <div className="empty-state">No MIDI devices detected.</div>}
-      </div>
-      <div className="midi-binding-list">
-        {(midiState?.bindings || []).map((binding, index) => (
-          <div className="output-url-row" key={`${binding.device}-${binding.note}-${index}`}>
-            <div className="output-url-copy">
-              <strong>{String(binding.action || '').toUpperCase()}</strong>
-              <span className="output-note">{binding.device === 'any' ? 'Any device' : binding.device}</span>
-              <code>{binding.type}{binding.note !== undefined ? ` note ${binding.note}` : ''}{binding.controller !== undefined ? ` cc ${binding.controller}` : ''}</code>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );

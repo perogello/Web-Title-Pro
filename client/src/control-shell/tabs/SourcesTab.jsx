@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { EditIcon, SaveIcon } from '../icons.jsx';
+import { EditIcon, GripIcon, SaveIcon, TrashIcon } from '../icons.jsx';
 import {
   REMOTE_SOURCE_TYPE_OPTIONS,
   REMOTE_SOURCE_TYPES,
@@ -39,9 +39,18 @@ export default function SourcesTab({
   onImportRemoteSourceDataset,
   onConnectYandex,
   onSelectSource,
+  manageSources,
+  draggedSourceId,
+  onToggleManageSources,
+  onDragStartSource,
+  onDropSource,
+  onDragEndSource,
+  onRenameSource,
+  onDeleteSource,
   onDeleteSelectedSource,
   onRefreshSelectedSource,
   onUpdateSelectedSourceRemote,
+  onReplaceSelectedSourceFile,
   onUpdateSourceColumnLabel,
   getSourceRowEditKey,
   onApplySourceRow,
@@ -82,6 +91,45 @@ export default function SourcesTab({
     <section className="card source-table-card standalone-tab">
       <div className="source-layout">
         <aside className="source-sidebar">
+          <div className="source-list">
+            <div className="source-list-head">
+              <strong>Sources</strong>
+              <button className={`ghost-button compact-button ${manageSources ? 'is-active-manage' : ''}`} onClick={onToggleManageSources}>
+                Manage
+              </button>
+            </div>
+            {sourceLibrary.map((item) => (
+              manageSources ? (
+                <div
+                  key={item.id}
+                  className={`source-list-item source-manage-item ${item.id === selectedSourceId ? 'is-selected' : ''} ${draggedSourceId === item.id ? 'is-dragging' : ''}`}
+                  draggable
+                  onDragStart={() => onDragStartSource(item.id)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => onDropSource(item.id)}
+                  onDragEnd={onDragEndSource}
+                >
+                  <span className="source-manage-handle" title="Move source"><GripIcon /></span>
+                  <button className="source-manage-main" onClick={() => onSelectSource(item.id)}>
+                    <strong>{item.name}</strong>
+                    <span>{item.remote?.url ? `Remote - ${item.rows.length} rows` : `${item.rows.length} rows`}</span>
+                  </button>
+                  <div className="source-manage-actions">
+                    <button className="ghost-button compact-button icon-button danger-button" onClick={() => onDeleteSource(item.id)} title="Delete source" aria-label="Delete source">
+                      <TrashIcon />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button key={item.id} className={`source-list-item ${item.id === selectedSourceId ? 'is-selected' : ''}`} onClick={() => onSelectSource(item.id)}>
+                  <strong>{item.name}</strong>
+                  <span>{item.remote?.url ? `Remote - ${item.rows.length} rows` : `${item.rows.length} rows`}</span>
+                </button>
+              )
+            ))}
+            {!sourceLibrary.length && <div className="empty-state">Import a TXT/CSV source and it will appear here.</div>}
+          </div>
+
           <div className="source-import-card">
             <div className="source-import-head">
               <strong>Add Source</strong>
@@ -195,16 +243,6 @@ export default function SourcesTab({
               </button>
             )}
           </div>
-
-          <div className="source-list">
-            {sourceLibrary.map((item) => (
-              <button key={item.id} className={`source-list-item ${item.id === selectedSourceId ? 'is-selected' : ''}`} onClick={() => onSelectSource(item.id)}>
-                <strong>{item.name}</strong>
-                <span>{item.remote?.url ? `Remote - ${item.rows.length} rows` : `${item.rows.length} rows`}</span>
-              </button>
-            ))}
-            {!sourceLibrary.length && <div className="empty-state">Import a TXT/CSV source and it will appear here.</div>}
-          </div>
         </aside>
         <section className="source-table-card inner-source-card">
           <div className="card-head">
@@ -212,15 +250,32 @@ export default function SourcesTab({
               <span className="panel-kicker">Current Source</span>
               <h3>{selectedSource?.name || 'No source selected'}</h3>
             </div>
-            <div className="topbar-actions">
+            <div className="topbar-actions source-current-actions">
               {selectedSource?.remote?.url && (
                 <button className="ghost-button" onClick={onRefreshSelectedSource} disabled={selectedSourceRefreshing}>
                   {selectedSourceRefreshing ? 'Refreshing...' : 'Refresh'}
                 </button>
               )}
-              <button className="ghost-button" onClick={onDeleteSelectedSource} disabled={!selectedSource || selectedSourceRefreshing}>Delete Source</button>
+              <button className="ghost-button compact-button icon-button danger-button" onClick={onDeleteSelectedSource} disabled={!selectedSource || selectedSourceRefreshing} title="Delete source" aria-label="Delete source">
+                <TrashIcon />
+              </button>
             </div>
           </div>
+          {selectedSource && (
+            <div className="source-remote-settings">
+              <div className="source-name-row">
+                <label className="input-block">
+                  <span>Source Name</span>
+                  <input
+                    value={selectedSource.name || ''}
+                    onChange={(event) => onRenameSource(selectedSource.id, event.target.value)}
+                    placeholder="Source name"
+                    disabled={selectedSourceRefreshing}
+                  />
+                </label>
+              </div>
+            </div>
+          )}
           {selectedSource?.remote?.url && (
             <div className="source-remote-settings">
               <label className="input-block">
@@ -298,6 +353,16 @@ export default function SourcesTab({
               </div>
             </div>
           )}
+          {selectedSource && !selectedSource.remote?.url && (
+            <div className="source-remote-settings">
+              <div className="source-replace-card">
+                <label className="input-block">
+                  <span>Replace with TXT / CSV file</span>
+                  <input type="file" accept=".txt,.csv" onChange={(event) => onReplaceSelectedSourceFile(event.target.files?.[0])} />
+                </label>
+              </div>
+            </div>
+          )}
           {selectedSource ? (
             <div className="source-table-wrapper">
               <table className="source-table">
@@ -315,7 +380,7 @@ export default function SourcesTab({
                         />
                       </th>
                     ))}
-                    <th>Actions</th>
+                    <th className="source-column-actions-head" />
                   </tr>
                 </thead>
                 <tbody>

@@ -132,9 +132,21 @@ const normalizeEntryShortcuts = (shortcuts = {}) => ({
   hide: typeof shortcuts.hide === 'string' ? shortcuts.hide : '',
 });
 
-const normalizeNavigationShortcuts = (shortcuts = {}) => ({
+const normalizeGlobalShortcuts = (shortcuts = {}) => ({
+  show: typeof shortcuts.show === 'string' ? shortcuts.show : '',
+  live: typeof shortcuts.live === 'string' ? shortcuts.live : '',
+  hide: typeof shortcuts.hide === 'string' ? shortcuts.hide : '',
   nextTitle: typeof shortcuts.nextTitle === 'string' ? shortcuts.nextTitle : '',
   previousTitle: typeof shortcuts.previousTitle === 'string' ? shortcuts.previousTitle : '',
+  outputSelectById:
+    shortcuts && typeof shortcuts.outputSelectById === 'object' && shortcuts.outputSelectById
+      ? Object.fromEntries(
+          Object.entries(shortcuts.outputSelectById).map(([outputId, value]) => [
+            outputId,
+            typeof value === 'string' ? value : '',
+          ]),
+        )
+      : {},
 });
 
 const slugifyOutputKey = (value = '') =>
@@ -209,7 +221,7 @@ const createDefaultState = () => ({
       status: 'idle',
       notes: 'Automatic update checks use the built-in GitHub repository.',
     },
-    shortcuts: normalizeNavigationShortcuts(),
+    shortcuts: normalizeGlobalShortcuts(),
   },
   program: createDefaultProgram(),
   entries: [],
@@ -256,7 +268,7 @@ const buildProjectState = (incoming = {}) => {
       },
       shortcuts: {
         ...baseState.integrations.shortcuts,
-        ...normalizeNavigationShortcuts(incoming?.integrations?.shortcuts || {}),
+        ...normalizeGlobalShortcuts(incoming?.integrations?.shortcuts || {}),
       },
     },
     program: {
@@ -600,13 +612,23 @@ export class TitleStore extends EventEmitter {
   }
 
   getNavigationShortcuts() {
-    return deepClone(this.state.integrations.shortcuts || normalizeNavigationShortcuts());
+    return deepClone(this.state.integrations.shortcuts || normalizeGlobalShortcuts());
   }
 
   updateNavigationShortcuts(patch = {}) {
+    const current = normalizeGlobalShortcuts(this.state.integrations.shortcuts || {});
+    const normalizedPatch = normalizeGlobalShortcuts({
+      ...current,
+      ...patch,
+      outputSelectById: {
+        ...(current.outputSelectById || {}),
+        ...((patch && typeof patch.outputSelectById === 'object' && patch.outputSelectById) || {}),
+      },
+    });
+
     this.state.integrations.shortcuts = {
-      ...normalizeNavigationShortcuts(this.state.integrations.shortcuts || {}),
-      ...normalizeNavigationShortcuts(patch),
+      ...current,
+      ...normalizedPatch,
     };
     this.touch();
     return this.getNavigationShortcuts();
