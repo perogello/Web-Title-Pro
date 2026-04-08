@@ -4,6 +4,7 @@ export default function UpdatesSettingsTab({
   formatStatusTime,
   onCheckForUpdates,
   onRefreshAppMeta,
+  onInstallUpdate,
 }) {
   return (
     <div className="integration-grid">
@@ -18,6 +19,9 @@ export default function UpdatesSettingsTab({
         <span className="output-note">Update channel: {updateState?.channel || 'prerelease'}.</span>
         <div className="output-url-actions">
           <button className="ghost-button compact-button" onClick={onCheckForUpdates}>Check Updates</button>
+          {updateState?.available && (
+            <button className="primary-button compact-button" onClick={onInstallUpdate}>Update Now</button>
+          )}
           <button className="ghost-button compact-button" onClick={onRefreshAppMeta}>Refresh Status</button>
         </div>
       </div>
@@ -29,6 +33,9 @@ export default function UpdatesSettingsTab({
         <code>Latest: {updateState?.latestVersion || 'not available'}</code>
         <code>Last Check: {updateState?.lastCheckAt ? formatStatusTime(updateState.lastCheckAt) : 'never'}</code>
         <code>Asset: {updateState?.assetName || 'not available'}</code>
+        {updateState?.available && (
+          <span className="output-note">A release update is available and can be installed directly from the app.</span>
+        )}
       </div>
       <div className="meta-card">
         <span className="meta-label">Packaging</span>

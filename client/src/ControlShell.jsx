@@ -2999,6 +2999,36 @@ function ControlShell() {
     }
   };
 
+  const installAvailableUpdate = async () => {
+    if (!desktopBridge?.installAvailableUpdate) {
+      pushFeedback('Desktop updater is not available in this mode');
+      return;
+    }
+
+    try {
+      const result = await desktopBridge.installAvailableUpdate(updateState || null);
+
+      if (!result?.ok && result?.reason === 'no-update') {
+        pushFeedback('No update is currently available');
+        if (result?.updateState) {
+          setAppMeta((current) => ({
+            ...(current || { name: 'Web Title Pro', version: result.updateState.currentVersion }),
+            version: result.updateState.currentVersion,
+            updates: result.updateState,
+          }));
+        }
+        return;
+      }
+
+      if (!result?.ok && result?.reason === 'cancelled') {
+        pushFeedback('Update cancelled');
+        return;
+      }
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
+  };
+
   const buildProjectDocument = async () => {
     const exported = await api('/api/project/export');
 
@@ -3060,6 +3090,15 @@ function ControlShell() {
       delete window.__webTitleHandleCloseRequest;
     };
   }, [confirmProceedWithUnsavedProject, desktopBridge]);
+
+  useEffect(() => {
+    window.__webTitleConfirmUpdateInstall = async () =>
+      confirmProceedWithUnsavedProject('Do you want to save the current project before updating Web Title Pro?');
+
+    return () => {
+      delete window.__webTitleConfirmUpdateInstall;
+    };
+  }, [confirmProceedWithUnsavedProject]);
 
   const applyProjectDocument = async (projectDocument, nextProjectStatus = null) => {
     await api('/api/project/load', {
@@ -3568,11 +3607,12 @@ function ControlShell() {
           onRefreshMidiState={refreshMidiState}
           onStartMidiLearn={startMidiLearn}
           onStopMidiLearn={stopMidiLearn}
-            onCheckForUpdates={checkForUpdates}
-            onRefreshAppMeta={refreshAppMeta}
-            onSaveYandexAuthSettings={saveYandexAuthSettings}
-            onReloadYandexAuthSettings={reloadYandexAuthSettings}
-            onConnectYandex={startYandexConnect}
+          onCheckForUpdates={checkForUpdates}
+          onInstallUpdate={installAvailableUpdate}
+          onRefreshAppMeta={refreshAppMeta}
+          onSaveYandexAuthSettings={saveYandexAuthSettings}
+          onReloadYandexAuthSettings={reloadYandexAuthSettings}
+          onConnectYandex={startYandexConnect}
           onDisconnectYandex={disconnectYandex}
         />
       )}

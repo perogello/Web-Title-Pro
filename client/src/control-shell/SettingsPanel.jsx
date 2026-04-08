@@ -42,6 +42,7 @@ export default function SettingsPanel({
   onStartMidiLearn,
   onStopMidiLearn,
   onCheckForUpdates,
+  onInstallUpdate,
   onRefreshAppMeta,
   onSaveYandexAuthSettings,
   onReloadYandexAuthSettings,
@@ -128,6 +129,7 @@ export default function SettingsPanel({
           updateState={updateState}
           formatStatusTime={formatStatusTime}
           onCheckForUpdates={onCheckForUpdates}
+          onInstallUpdate={onInstallUpdate}
           onRefreshAppMeta={onRefreshAppMeta}
         />
       )}

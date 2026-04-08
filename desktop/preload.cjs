@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('webTitleDesktop', {
   createNewProject: () => ipcRenderer.invoke('project:new'),
   requestAppClose: () => ipcRenderer.invoke('project:request-close'),
   setWindowTitle: (payload) => ipcRenderer.invoke('window:set-title', payload),
+  installAvailableUpdate: (payload) => ipcRenderer.invoke('updates:install-available', payload),
   getYandexAuthSettings: () => ipcRenderer.invoke('settings:get-yandex-auth'),
   saveYandexAuthSettings: (payload) => ipcRenderer.invoke('settings:save-yandex-auth', payload),
   disconnectYandexAuth: () => ipcRenderer.invoke('settings:disconnect-yandex-auth'),

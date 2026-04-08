@@ -2,9 +2,9 @@ const path = require('node:path');
 const os = require('node:os');
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
-const { spawn } = require('node:child_process');
 const { pathToFileURL } = require('node:url');
 const electron = require('electron');
+const { createUpdaterIntegration } = require('./integrations/updater.cjs');
 const { createYandexAuthIntegration } = require('./integrations/yandex-auth.cjs');
 const { createSystemFontsIntegration } = require('./integrations/system-fonts.cjs');
 
@@ -17,8 +17,6 @@ const safeStorage = electron.safeStorage;
 
 const SERVER_URL = 'http://127.0.0.1:4000';
 const HEALTH_URL = `${SERVER_URL}/api/health`;
-const APP_META_URL = `${SERVER_URL}/api/app/meta`;
-const UPDATE_CHECK_URL = `${SERVER_URL}/api/updates/check`;
 const BUILTIN_REPO_URL = 'https://github.com/perogello/Web-Title-Pro';
 const STABLE_PORTABLE_EXE_NAME = 'WebTitlePro.exe';
 const PROJECT_EXTENSION = 'wtp-project.json';
@@ -29,7 +27,6 @@ let mainWindow = null;
 let splashWindow = null;
 let updateWindow = null;
 let splashProgressTimer = null;
-let startupUpdateCheckStarted = false;
 let allowMainWindowClose = false;
 let projectSession = {
   currentProjectPath: null,
@@ -48,6 +45,7 @@ let integrationSecrets = {
 };
 let yandexAuthIntegration = null;
 let systemFontsIntegration = null;
+let updaterIntegration = null;
 
 const logFile = path.join(os.tmpdir(), 'web-title-pro-desktop.log');
 const getProjectSessionFile = () => path.join(app.getPath('userData'), 'project-session.json');
@@ -619,6 +617,52 @@ const closeUpdateWindow = () => {
   updateWindow = null;
 };
 
+const requestQuitForUpdate = async () => {
+  allowMainWindowClose = true;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.removeAllListeners('close');
+  }
+  closeUpdateWindow();
+  await wait(400);
+  app.quit();
+};
+
+const initializeUpdaterIntegration = () => {
+  updaterIntegration = createUpdaterIntegration({
+    app,
+    dialog,
+    shell,
+    log,
+    getMainWindow: () => mainWindow,
+    createUpdateWindow,
+    closeUpdateWindow,
+    setWindowProgress,
+    confirmInstall: async () => {
+      if (!mainWindow || mainWindow.isDestroyed()) {
+        return true;
+      }
+
+      try {
+        return await mainWindow.webContents.executeJavaScript(
+          'window.__webTitleConfirmUpdateInstall ? window.__webTitleConfirmUpdateInstall() : true;',
+          true,
+        );
+      } catch (error) {
+        log(`updates:confirm-install-error ${error.stack || error.message}`);
+        return false;
+      }
+    },
+    requestQuitForUpdate,
+    serverUrl: SERVER_URL,
+    repoUrl: BUILTIN_REPO_URL,
+    stablePortableExeName: STABLE_PORTABLE_EXE_NAME,
+  });
+};
+
+const runStartupUpdateCheck = async () => updaterIntegration?.runStartupUpdateCheck();
+
+initializeUpdaterIntegration();
+
 const waitForHealth = async (retries = 80) => {
   for (let attempt = 0; attempt < retries; attempt += 1) {
     try {
@@ -740,238 +784,7 @@ const createMainWindow = async () => {
   return mainWindow;
 };
 
-const fetchJson = async (url, options = {}) => {
-  const response = await fetch(url, options);
-
-  if (!response.ok) {
-    throw new Error(`Request failed with ${response.status}`);
-  }
-
-  return response.json();
-};
-
-const getAppMeta = async () => fetchJson(APP_META_URL);
-const checkForUpdates = async () => fetchJson(UPDATE_CHECK_URL, { method: 'POST' });
-
-const downloadFileWithProgress = async (url, destinationPath, onProgress) => {
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/octet-stream',
-      'User-Agent': 'Web-Title-Pro-Updater',
-    },
-  });
-
-  if (!response.ok || !response.body) {
-    throw new Error(`Download failed with ${response.status}`);
-  }
-
-  await fsp.mkdir(path.dirname(destinationPath), { recursive: true });
-
-  const contentLength = Number(response.headers.get('content-length') || 0);
-  const reader = response.body.getReader();
-  const fileHandle = await fsp.open(destinationPath, 'w');
-  let received = 0;
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-
-      if (done) {
-        break;
-      }
-
-      const chunk = Buffer.from(value);
-      await fileHandle.write(chunk);
-      received += chunk.length;
-
-      if (typeof onProgress === 'function') {
-        const percent = contentLength > 0 ? Math.round((received / contentLength) * 100) : null;
-        onProgress({ received, total: contentLength, percent });
-      }
-    }
-  } finally {
-    await fileHandle.close();
-  }
-};
-
-const escapeBatchValue = (value) => String(value).replace(/"/g, '""');
-
-const resolveStablePortableExePath = () => {
-  const currentPath = process.execPath;
-  const currentDir = path.dirname(currentPath);
-  const currentBase = path.basename(currentPath);
-
-  if (/^WebTitlePro-\d+\.\d+\.\d+\.exe$/i.test(currentBase)) {
-    return path.join(currentDir, STABLE_PORTABLE_EXE_NAME);
-  }
-
-  return currentPath;
-};
-
-const createUpdateScript = async ({ sourcePath, targetPath }) => {
-  const scriptPath = path.join(app.getPath('temp'), `web-title-pro-apply-update-${Date.now()}.cmd`);
-  const script = [
-    '@echo off',
-    'setlocal',
-    `set "SOURCE=${escapeBatchValue(sourcePath)}"`,
-    `set "TARGET=${escapeBatchValue(targetPath)}"`,
-    `set "CURRENT_PID=${process.pid}"`,
-    'powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command ^',
-    "  \"$ErrorActionPreference = 'Stop'; ^",
-    '  $source = $env:SOURCE; ^',
-    '  $target = $env:TARGET; ^',
-    '  $pidToWait = [int]$env:CURRENT_PID; ^',
-    '  $targetDir = Split-Path -Parent $target; ^',
-    '  if ($targetDir) { New-Item -ItemType Directory -Force -Path $targetDir | Out-Null }; ^',
-    '  for ($i = 0; $i -lt 240; $i++) { ^',
-    '    if (-not (Get-Process -Id $pidToWait -ErrorAction SilentlyContinue)) { break }; ^',
-    '    Start-Sleep -Milliseconds 500; ^',
-    '  }; ^',
-    '  for ($i = 0; $i -lt 240; $i++) { ^',
-    '    try { ^',
-    '      Copy-Item -LiteralPath $source -Destination $target -Force; ^',
-    '      Remove-Item -LiteralPath $source -Force -ErrorAction SilentlyContinue; ^',
-    '      Start-Process -FilePath $target; ^',
-    '      exit 0; ^',
-    '    } catch { ^',
-    '      Start-Sleep -Milliseconds 500; ^',
-    '    } ^',
-    '  }; ^',
-    '  exit 1"',
-    'exit /b 0',
-    '',
-  ].join('\r\n');
-
-  await fsp.writeFile(scriptPath, script, 'utf8');
-  return scriptPath;
-};
-
-const applyDownloadedUpdate = async (downloadPath) => {
-  const targetPath = resolveStablePortableExePath();
-  const scriptPath = await createUpdateScript({
-    sourcePath: downloadPath,
-    targetPath,
-  });
-
-  const helper = spawn('cmd.exe', ['/d', '/c', scriptPath], {
-    detached: true,
-    stdio: 'ignore',
-    windowsHide: true,
-  });
-
-  helper.unref();
-  setTimeout(() => app.quit(), 250);
-};
-
-const installUpdateFromRelease = async (updateState) => {
-  if (!updateState?.assetUrl || !updateState?.assetName) {
-    if (updateState?.releaseUrl) {
-      await shell.openExternal(updateState.releaseUrl);
-    }
-    await dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Update Package Not Found',
-      message: 'The release page was opened in the browser.',
-      detail: 'No portable .exe asset was attached to the latest release, so the download could not start automatically.',
-      buttons: ['OK'],
-      defaultId: 0,
-    });
-    return;
-  }
-
-  const progressWindow = await createUpdateWindow();
-  await setWindowProgress(progressWindow, 'Downloading update package...', 8);
-
-  const updatesDir = path.join(app.getPath('userData'), 'updates');
-  const tempDownloadPath = path.join(updatesDir, `${updateState.assetName}.download`);
-
-  try {
-    await downloadFileWithProgress(updateState.assetUrl, tempDownloadPath, ({ percent }) => {
-      const safePercent = percent === null ? 50 : Math.max(12, Math.min(92, percent));
-      void setWindowProgress(progressWindow, 'Downloading update package...', safePercent);
-    });
-
-    await setWindowProgress(progressWindow, 'Preparing update handoff...', 96);
-    await applyDownloadedUpdate(tempDownloadPath);
-  } catch (error) {
-    closeUpdateWindow();
-    await dialog.showMessageBox(mainWindow, {
-      type: 'error',
-      title: 'Update Failed',
-      message: 'The update could not be downloaded or prepared.',
-      detail: error.message || String(error),
-    });
-    throw error;
-  }
-};
-
-const runStartupUpdateCheck = async () => {
-  if (startupUpdateCheckStarted || !app.isPackaged) {
-    return;
-  }
-
-  startupUpdateCheckStarted = true;
-
-  try {
-    await wait(900);
-    const meta = await getAppMeta();
-    const updateState = await checkForUpdates();
-
-    if (updateState?.status === 'error' || updateState?.status === 'unsupported' || updateState?.status === 'no-releases') {
-      await dialog.showMessageBox(mainWindow, {
-        type: 'warning',
-        title: 'Update Check',
-        message: 'Automatic update check could not complete normally.',
-        detail: updateState?.notes || 'Unknown update status.',
-        buttons: ['OK'],
-        defaultId: 0,
-      });
-      return;
-    }
-
-    if (updateState?.available) {
-      const result = await dialog.showMessageBox(mainWindow, {
-        type: 'info',
-        title: 'Update Available',
-        message: `A newer version is available: ${updateState.latestVersion}`,
-        detail:
-          `Current version: ${meta?.version || updateState.currentVersion || '0.0.0'}\n` +
-          `Release source: ${BUILTIN_REPO_URL}\n\n` +
-          `Do you want to download and apply the update now?`,
-        buttons: ['Update Now', 'Later'],
-        defaultId: 0,
-        cancelId: 1,
-      });
-
-      if (result.response === 0) {
-        await installUpdateFromRelease(updateState);
-      }
-
-      return;
-    }
-
-    await dialog.showMessageBox(mainWindow, {
-      type: 'info',
-      title: 'Updates',
-      message: `You are on the latest version: ${meta?.version || updateState?.currentVersion || '0.0.0'}`,
-      detail:
-        `${updateState?.notes || 'Update check completed successfully.'}\n` +
-        `Source: ${BUILTIN_REPO_URL}`,
-      buttons: ['OK'],
-      defaultId: 0,
-    });
-  } catch (error) {
-    log(`updates:startup-check-error ${error.stack || error.message}`);
-    await dialog.showMessageBox(mainWindow, {
-      type: 'warning',
-      title: 'Update Check',
-      message: 'Automatic update check failed.',
-      detail: error.message || String(error),
-      buttons: ['OK'],
-      defaultId: 0,
-    });
-  }
-};
+ipcMain.handle('updates:install-available', async (_event, payload = {}) => updaterIntegration.installAvailableUpdate(payload));
 
 const bootstrap = async () => {
   await loadProjectSession();
