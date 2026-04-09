@@ -9,6 +9,7 @@ const searchParams = new URLSearchParams(window.location.search);
 const usePreviewState = searchParams.get('preview') === '1';
 const isEmbedded = searchParams.get('embed') === '1';
 const isPreview = usePreviewState;
+const usePreviewLayout = usePreviewState || isEmbedded;
 const requestedOutput = searchParams.get('output') || 'main';
 const PREVIEW_BASE_WIDTH = 1920;
 const PREVIEW_BASE_HEIGHT = 1080;
@@ -26,9 +27,10 @@ const setConnection = (label) => {
 
 document.body.dataset.preview = isPreview ? '1' : '0';
 document.body.dataset.embed = isEmbedded ? '1' : '0';
+document.body.dataset.previewLayout = usePreviewLayout ? '1' : '0';
 
 const updatePreviewScale = () => {
-  if (!isPreview) {
+  if (!usePreviewLayout) {
     return;
   }
 

@@ -9,7 +9,7 @@ export default function PreviewTitlePanel({
   draftFields,
   selectedEntryFields,
   selectedOutput,
-  snapshot,
+  previewProgram,
   program,
   embeddedPreviewUrl,
   embeddedRenderUrl,
@@ -136,8 +136,8 @@ export default function PreviewTitlePanel({
               <div className="preview-dual-grid">
                 <div className="preview-block">
                   <div className="preview-block-head">
-                    <span className={`preview-state ${(snapshot?.previewProgram?.visible) ? 'is-on' : 'is-off'}`}>{snapshot?.previewProgram?.visible ? 'PREVIEW ON' : 'PREVIEW OFF'}</span>
-                    <strong>{snapshot?.previewProgram?.entryName || 'No preview title'}</strong>
+                    <span className={`preview-state ${previewProgram?.visible ? 'is-on' : 'is-off'}`}>{previewProgram?.visible ? 'PREVIEW ON' : 'PREVIEW OFF'}</span>
+                    <strong>{previewProgram?.entryName || 'No preview title'}</strong>
                     <button className="ghost-button compact-button icon-button preview-zoom-button" onClick={() => onSetExpandedRender('preview')} title="Увеличить preview" aria-label="Увеличить preview">
                       <ZoomIcon />
                     </button>

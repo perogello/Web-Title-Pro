@@ -671,6 +671,7 @@ function ControlShell() {
   const selectedEntry =
     (snapshot?.entries || []).find((entry) => entry.id === selectedOutput?.selectedEntryId) || null;
   const program = selectedOutput?.program || snapshot?.program || null;
+  const previewProgram = selectedOutput?.previewProgram || snapshot?.previewProgram || null;
   const templates = snapshot?.templates || [];
   const timers = snapshot?.timers || [];
   const templateMap = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates]);
@@ -3807,8 +3808,8 @@ function ControlShell() {
             draftFields={draftFields}
             selectedEntryFields={selectedEntryFields}
             selectedOutput={selectedOutput}
-            snapshot={snapshot}
             program={program}
+            previewProgram={previewProgram}
             embeddedPreviewUrl={embeddedPreviewUrl}
             embeddedRenderUrl={embeddedRenderUrl}
             feedback={feedback}

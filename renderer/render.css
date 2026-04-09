@@ -28,7 +28,7 @@ body[data-air='off'] #renderer-state { background: rgba(255, 255, 255, 0.08); co
   overflow: hidden;
   contain: paint;
 }
-body[data-preview='1'] .render-stage {
+body[data-preview-layout='1'] .render-stage {
   left: 18px;
   top: 18px;
   width: 1920px;

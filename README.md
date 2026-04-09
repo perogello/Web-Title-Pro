@@ -5,13 +5,13 @@
 Web Title Pro — desktop-first система управления титрами для live production.
 Приложение объединяет React-панель управления, Node.js backend, browser renderer и Windows desktop shell для работы с локальными HTML-титрами, `vMix` и data-driven графикой.
 
-### Что нового в `0.2.8`
+### Что нового в `0.2.9`
 
-- Обновлены глобальные shortcuts и выбор output
-- Улучшены `Settings` и `Data Source`
-- Исправлен краш вкладки `Data Source`
-- Улучшено поведение render-окон
-- Перепроверено подключение `Google Sheets`
+- Критически исправлена логика выбора титра и routing по `Output`
+- Исправлены `SET / SHOW / HIDE` для multi-output сценариев
+- Исправлено поведение preview/live render-окон внутри приложения
+- Проведен дополнительный regression audit перед релизом
+- Еще раз перепроверено подключение `Google Sheets`
 
 ### Что умеет
 
@@ -61,11 +61,11 @@ npm.cmd run package:win
 Результат:
 
 ```text
-release/WebTitlePro-0.2.8.exe
+release/WebTitlePro-0.2.9.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.8.exe` — versioned release asset
+- `WebTitlePro-0.2.9.exe` — versioned release asset
 - `WebTitlePro.exe` — основной стабильный файл для запуска
 
 ### Как использовать
@@ -129,12 +129,12 @@ docs/         Product and integration notes
 Web Title Pro is a desktop-first title control system for live production.
 It combines a React control panel, Node.js backend, browser renderer, and Windows desktop shell for local HTML titles, `vMix`, and data-driven graphics workflows.
 
-### What's New in `0.2.8`
+### What's New in `0.2.9`
 
-- Updated global shortcuts and output selection workflow
-- Improved `Settings` and `Data Source`
-- Fixed the `Data Source` tab crash
-- Improved render window behavior
+- Critical fix for title selection and `Output` routing
+- Fixed `SET / SHOW / HIDE` behavior in multi-output workflows
+- Fixed embedded preview/live render window behavior
+- Performed an additional regression audit before release
 - Rechecked the `Google Sheets` integration
 
 ### Main Features
@@ -185,11 +185,11 @@ npm.cmd run package:win
 Build output:
 
 ```text
-release/WebTitlePro-0.2.8.exe
+release/WebTitlePro-0.2.9.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.8.exe` is the versioned release asset
+- `WebTitlePro-0.2.9.exe` is the versioned release asset
 - `WebTitlePro.exe` is the main stable executable for end users
 
 ### Basic Workflow
