@@ -1,0 +1,282 @@
+.khural-test-title-2 {
+  --khural-test-2-panel: #222222;
+  --khural-test-2-copy: #fff6e5;
+  --khural-test-2-tag-bg: #fff6e5;
+  --khural-test-2-tag-copy: #303030;
+  position: absolute;
+  left: 34px;
+  bottom: 30px;
+  width: fit-content;
+  max-width: min(920px, calc(100% - 88px));
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.khural-test-title-2__panel,
+.khural-test-title-2__panel-glow,
+.khural-test-title-2__copy,
+.khural-test-title-2__headline,
+.khural-test-title-2__copy h1,
+.khural-test-title-2__copy p,
+.khural-test-title-2__tag {
+  opacity: 0;
+  will-change: transform, opacity, filter;
+  backface-visibility: hidden;
+}
+
+.khural-test-title-2__panel {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  width: max-content;
+  max-width: 100%;
+  min-height: 114px;
+  border-radius: 26px;
+  background:
+    linear-gradient(180deg, rgba(34, 34, 34, 0.96), rgba(24, 24, 24, 0.95)),
+    linear-gradient(90deg, rgba(255, 246, 229, 0.08), rgba(34, 34, 34, 0));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 20px 46px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transform: translateY(16px) scale(0.985);
+}
+
+.khural-test-title-2__panel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 34%),
+    linear-gradient(90deg, rgba(255, 246, 229, 0.05), transparent 24%);
+  pointer-events: none;
+}
+
+.khural-test-title-2__panel-glow {
+  position: absolute;
+  inset: auto auto -24px 24px;
+  width: 220px;
+  height: 74px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 246, 229, 0.15) 0%, rgba(255, 246, 229, 0) 74%);
+  filter: blur(12px);
+}
+
+.khural-test-title-2__copy {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  min-width: min(380px, calc(100vw - 88px));
+  padding: 24px 30px 22px 30px;
+}
+
+.khural-test-title-2__headline {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 100%;
+}
+
+.khural-test-title-2__copy h1 {
+  margin: 0;
+  width: max-content;
+  max-width: 100%;
+  color: var(--khural-test-2-copy);
+  font-size: clamp(34px, 3.2vw, 54px);
+  font-weight: 700;
+  line-height: 0.94;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  -webkit-text-stroke: 0 transparent;
+  text-shadow: none;
+  transform: translateX(-14px);
+}
+
+.khural-test-title-2__copy p {
+  margin: 0;
+  width: max-content;
+  max-width: 100%;
+  color: var(--khural-test-2-copy);
+  font-size: clamp(17px, 1.78vw, 28px);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+  -webkit-text-stroke: 0 transparent;
+  text-shadow: none;
+  transform: translateX(-10px);
+}
+
+.khural-test-title-2__tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: min(280px, 40vw);
+  min-height: 30px;
+  padding: 5px 11px 6px;
+  border-radius: 999px;
+  background: var(--khural-test-2-tag-bg);
+  color: var(--khural-test-2-tag-copy);
+  font-size: clamp(15px, 1.18vw, 18px);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transform: translateX(-4px) translateY(-1px) scale(0.975);
+  transform-origin: left center;
+}
+
+.render-stage.is-visible .khural-test-title-2__panel {
+  animation: khural-test-2-panel-in 420ms cubic-bezier(0.2, 0.86, 0.28, 1) forwards;
+}
+
+.render-stage.is-visible .khural-test-title-2__panel-glow {
+  animation: khural-test-2-glow-in 420ms ease 90ms forwards;
+}
+
+.render-stage.is-visible .khural-test-title-2__copy,
+.render-stage.is-visible .khural-test-title-2__headline {
+  animation: khural-test-2-shell-in 220ms ease 80ms forwards;
+}
+
+.render-stage.is-visible .khural-test-title-2__copy h1 {
+  animation: khural-test-2-copy-in 260ms cubic-bezier(0.22, 0.88, 0.3, 1) 120ms forwards;
+}
+
+.render-stage.is-visible .khural-test-title-2__tag {
+  animation: khural-test-2-tag-in 220ms cubic-bezier(0.18, 0.92, 0.26, 1) 200ms forwards;
+}
+
+.render-stage.is-visible .khural-test-title-2__copy p {
+  animation: khural-test-2-copy-in 240ms cubic-bezier(0.22, 0.88, 0.3, 1) 240ms forwards;
+}
+
+.render-stage.is-hiding .khural-test-title-2__tag {
+  animation: khural-test-2-tag-out 150ms ease forwards;
+}
+
+.render-stage.is-hiding .khural-test-title-2__copy h1,
+.render-stage.is-hiding .khural-test-title-2__copy p,
+.render-stage.is-hiding .khural-test-title-2__panel-glow {
+  animation: khural-test-2-copy-out 180ms ease forwards;
+}
+
+.render-stage.is-hiding .khural-test-title-2__copy,
+.render-stage.is-hiding .khural-test-title-2__headline {
+  animation: khural-test-2-shell-out 220ms ease forwards;
+}
+
+.render-stage.is-hiding .khural-test-title-2__panel {
+  animation: khural-test-2-panel-out 240ms ease forwards;
+}
+
+@keyframes khural-test-2-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes khural-test-2-panel-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(14px) scale(0.99);
+  }
+}
+
+@keyframes khural-test-2-shell-in {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes khural-test-2-shell-out {
+  from {
+    opacity: 1;
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    filter: blur(3px);
+  }
+}
+
+@keyframes khural-test-2-copy-in {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes khural-test-2-copy-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+
+@keyframes khural-test-2-tag-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-4px) translateY(2px) scale(0.975);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(0) translateY(-2px) scale(1.015);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) translateY(-1px) scale(1);
+  }
+}
+
+@keyframes khural-test-2-tag-out {
+  from {
+    opacity: 1;
+    transform: translateX(0) translateY(-1px) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-4px) translateY(3px) scale(0.985);
+  }
+}
+
+@keyframes khural-test-2-glow-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

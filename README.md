@@ -5,12 +5,11 @@
 Web Title Pro — desktop-first система управления титрами для live production.
 Приложение объединяет React-панель управления, Node.js backend, browser renderer и Windows desktop shell для работы с локальными HTML-титрами, `vMix` и data-driven графикой.
 
-### Что нового в `0.2.10`
+### Что нового в `0.2.11`
 
-- Критически исправлен desktop updater flow
-- Обновление теперь показывает видимый статус даже после закрытия приложения
-- Усилен handoff обновления: helper продолжает работу после выхода старой версии
-- Перепроверены success/error сценарии updater-модуля
+- Обновлены `khural`-титры и их цветовая схема
+- Добавлен новый built-in шаблон `KHURAL TEST TITLE 2`
+- Убраны лишние текстовые подсветки у `Khural PIP` и `Khural PIP 2`
 
 ### Что умеет
 
@@ -60,11 +59,11 @@ npm.cmd run package:win
 Результат:
 
 ```text
-release/WebTitlePro-0.2.9.exe
+release/WebTitlePro-0.2.11.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.9.exe` — versioned release asset
+- `WebTitlePro-0.2.11.exe` — versioned release asset
 - `WebTitlePro.exe` — основной стабильный файл для запуска
 
 ### Как использовать
@@ -128,13 +127,11 @@ docs/         Product and integration notes
 Web Title Pro is a desktop-first title control system for live production.
 It combines a React control panel, Node.js backend, browser renderer, and Windows desktop shell for local HTML titles, `vMix`, and data-driven graphics workflows.
 
-### What's New in `0.2.9`
+### What's New in `0.2.11`
 
-- Critical fix for title selection and `Output` routing
-- Fixed `SET / SHOW / HIDE` behavior in multi-output workflows
-- Fixed embedded preview/live render window behavior
-- Performed an additional regression audit before release
-- Rechecked the `Google Sheets` integration
+- Updated the `khural` titles and their color scheme
+- Added a new built-in template: `KHURAL TEST TITLE 2`
+- Removed extra text glow from `Khural PIP` and `Khural PIP 2`
 
 ### Main Features
 
@@ -184,11 +181,11 @@ npm.cmd run package:win
 Build output:
 
 ```text
-release/WebTitlePro-0.2.9.exe
+release/WebTitlePro-0.2.11.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.9.exe` is the versioned release asset
+- `WebTitlePro-0.2.11.exe` is the versioned release asset
 - `WebTitlePro.exe` is the main stable executable for end users
 
 ### Basic Workflow

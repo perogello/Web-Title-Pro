@@ -2,7 +2,6 @@
   --khural-pip-copy: #fff6e5;
   --khural-pip-tag-bg: #fff6e5;
   --khural-pip-tag-copy: #303030;
-  --khural-pip-shadow: rgba(0, 0, 0, 0.34);
   position: absolute;
   left: 34px;
   bottom: 30px;
@@ -48,9 +47,8 @@
   letter-spacing: -0.025em;
   text-wrap: balance;
   overflow-wrap: anywhere;
-  text-shadow:
-    0 2px 10px var(--khural-pip-shadow),
-    0 0 26px rgba(0, 0, 0, 0.18);
+  -webkit-text-stroke: 0 transparent;
+  text-shadow: none;
   transform: translateX(-14px);
 }
 
@@ -64,9 +62,8 @@
   letter-spacing: -0.01em;
   text-wrap: pretty;
   overflow-wrap: anywhere;
-  text-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.34),
-    0 0 20px rgba(0, 0, 0, 0.16);
+  -webkit-text-stroke: 0 transparent;
+  text-shadow: none;
   transform: translateX(-10px);
 }
 

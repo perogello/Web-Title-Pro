@@ -1,5 +1,5 @@
 .khural-title {
-  --khural-accent: #f65c3a;
+  --khural-accent: #fff6e5;
   --khural-panel: #222222;
   --khural-copy: #fff6e5;
   position: absolute;
@@ -30,7 +30,7 @@
   max-width: calc(100% - 68px);
   padding: 10px 20px 11px;
   border-radius: 18px;
-  background: linear-gradient(180deg, var(--khural-accent) 0%, #e24d2d 100%);
+  background: linear-gradient(180deg, var(--khural-accent) 0%, #f1e8d6 100%);
   color: #303030;
   font-size: clamp(18px, 2.1vw, 28px);
   font-weight: 800;
@@ -54,7 +54,7 @@
   border-radius: 28px;
   background:
     linear-gradient(180deg, rgba(34, 34, 34, 0.96), rgba(24, 24, 24, 0.94)),
-    linear-gradient(90deg, rgba(246, 92, 58, 0.12), rgba(34, 34, 34, 0));
+    linear-gradient(90deg, rgba(255, 246, 229, 0.09), rgba(34, 34, 34, 0));
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow:
     0 24px 56px rgba(0, 0, 0, 0.35),
@@ -68,7 +68,7 @@
   inset: 0;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 34%),
-    linear-gradient(90deg, rgba(246, 92, 58, 0.08), transparent 26%);
+    linear-gradient(90deg, rgba(255, 246, 229, 0.06), transparent 26%);
   pointer-events: none;
 }
 
@@ -78,7 +78,7 @@
   width: 260px;
   height: 90px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(246, 92, 58, 0.18) 0%, rgba(246, 92, 58, 0) 74%);
+  background: radial-gradient(circle, rgba(255, 246, 229, 0.16) 0%, rgba(255, 246, 229, 0) 74%);
   filter: blur(12px);
   opacity: 0;
 }
@@ -113,6 +113,8 @@
   letter-spacing: -0.02em;
   text-wrap: balance;
   overflow-wrap: anywhere;
+  -webkit-text-stroke: 0 transparent;
+  text-shadow: none;
 }
 
 .khural-title__copy p {
@@ -126,6 +128,8 @@
   letter-spacing: -0.01em;
   text-wrap: pretty;
   overflow-wrap: anywhere;
+  -webkit-text-stroke: 0 transparent;
+  text-shadow: none;
 }
 
 .render-stage.is-visible .khural-title__panel {
