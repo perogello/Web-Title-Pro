@@ -5,13 +5,12 @@
 Web Title Pro — desktop-first система управления титрами для live production.
 Приложение объединяет React-панель управления, Node.js backend, browser renderer и Windows desktop shell для работы с локальными HTML-титрами, `vMix` и data-driven графикой.
 
-### Что нового в `0.2.9`
+### Что нового в `0.2.10`
 
-- Критически исправлена логика выбора титра и routing по `Output`
-- Исправлены `SET / SHOW / HIDE` для multi-output сценариев
-- Исправлено поведение preview/live render-окон внутри приложения
-- Проведен дополнительный regression audit перед релизом
-- Еще раз перепроверено подключение `Google Sheets`
+- Критически исправлен desktop updater flow
+- Обновление теперь показывает видимый статус даже после закрытия приложения
+- Усилен handoff обновления: helper продолжает работу после выхода старой версии
+- Перепроверены success/error сценарии updater-модуля
 
 ### Что умеет
 
