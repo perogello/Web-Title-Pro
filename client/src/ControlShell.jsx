@@ -27,6 +27,7 @@ import MappingTab from './control-shell/tabs/MappingTab.jsx';
 import SourcesTab from './control-shell/tabs/SourcesTab.jsx';
 import TimersTab from './control-shell/tabs/TimersTab.jsx';
 import {
+  ChevronDownIcon,
   ChevronUpIcon,
 } from './control-shell/icons.jsx';
 
@@ -4069,7 +4070,7 @@ function ControlShell() {
             </div>
             <div className="manual-row-card">
               <span className="output-note">{pendingReminder.sourceName}</span>
-              <strong>{reminderRow.values[0] || 'Selected row'}</strong>
+              <strong>{reminderRow.values?.[0] || reminderRow.label || 'Selected row'}</strong>
               <div className="row-timer-segments reminder-timer-segments">
                 {getTimerSegments(
                   Number(reminderRow.timer?.baseMs || 0),

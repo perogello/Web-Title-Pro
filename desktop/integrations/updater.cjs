@@ -106,6 +106,25 @@ const createUpdaterIntegration = ({
   };
 
   const resolveStablePortableExePath = () => {
+    const portableExecutableFile =
+      typeof process.env.PORTABLE_EXECUTABLE_FILE === 'string'
+        ? process.env.PORTABLE_EXECUTABLE_FILE.trim()
+        : '';
+
+    if (portableExecutableFile && /\.exe$/i.test(portableExecutableFile)) {
+      return path.normalize(portableExecutableFile);
+    }
+
+    const portableExecutableDir =
+      typeof process.env.PORTABLE_EXECUTABLE_DIR === 'string'
+        ? process.env.PORTABLE_EXECUTABLE_DIR.trim()
+        : '';
+
+    if (portableExecutableDir) {
+      const stablePortablePath = path.join(portableExecutableDir, stablePortableExeName);
+      return path.normalize(stablePortablePath);
+    }
+
     const currentPath = process.execPath;
     const currentDir = path.dirname(currentPath);
     const currentBase = path.basename(currentPath);
@@ -247,30 +266,55 @@ const createUpdaterIntegration = ({
       '$meta.Size = New-Object System.Drawing.Size(382, 18)',
       '$meta.Location = New-Object System.Drawing.Point(24, 124)',
       '$form.Controls.Add($meta)',
+      '$openedAt = [DateTime]::Now',
+      '$lastStateSignature = $null',
+      '$lastStateChangeAt = $openedAt',
       '$closeAt = $null',
       '$timer = New-Object System.Windows.Forms.Timer',
       '$timer.Interval = 200',
       '$timer.Add_Tick({',
       '  try {',
-      '    if (-not (Test-Path -LiteralPath $StatePath)) { return }',
-      '    $raw = Get-Content -LiteralPath $StatePath -Raw',
-      '    if (-not $raw) { return }',
-      '    $state = $raw | ConvertFrom-Json',
-      '    if ($state.message) { $status.Text = [string]$state.message }',
-      '    if ($state.percent -ge 0 -and $state.percent -le 100) {',
-      '      $progress.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous',
-      '      $progress.Value = [Math]::Max(0, [Math]::Min(100, [int]$state.percent))',
-      '    } else {',
-      '      $progress.Style = [System.Windows.Forms.ProgressBarStyle]::Marquee',
+      '    if (Test-Path -LiteralPath $StatePath) {',
+      '      $raw = Get-Content -LiteralPath $StatePath -Raw',
+      '      if ($raw) {',
+      '        $signature = [string]$raw',
+      '        if ($signature -ne $lastStateSignature) {',
+      '          $lastStateSignature = $signature',
+      '          $lastStateChangeAt = [DateTime]::Now',
+      '        }',
+      '        $state = $raw | ConvertFrom-Json',
+      '        if ($state.message) { $status.Text = [string]$state.message }',
+      '        if ($state.percent -ge 0 -and $state.percent -le 100) {',
+      '          $progress.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous',
+      '          $progress.Value = [Math]::Max(0, [Math]::Min(100, [int]$state.percent))',
+      '        } else {',
+      '          $progress.Style = [System.Windows.Forms.ProgressBarStyle]::Marquee',
+      '        }',
+      "        if ($state.status -eq 'done') {",
+      "          $meta.Text = 'The updated version is starting now.'",
+      '          if (-not $closeAt) { $closeAt = [DateTime]::Now.AddSeconds(1.5) }',
+      "        } elseif ($state.status -eq 'error') {",
+      "          $form.Text = 'Web Title Pro update failed'",
+      "          $meta.Text = 'Please reopen Web Title Pro manually if it does not restart.'",
+      '          $form.ControlBox = $true',
+      '          if (-not $closeAt) { $closeAt = [DateTime]::Now.AddSeconds(8) }',
+      '        }',
       '    }',
-      "    if ($state.status -eq 'done') {",
-      "      $meta.Text = 'The updated version is starting now.'",
-      '      if (-not $closeAt) { $closeAt = [DateTime]::Now.AddSeconds(1.2) }',
-      "    } elseif ($state.status -eq 'error') {",
-      "$form.Text = 'Web Title Pro update failed'",
-      "      $meta.Text = 'Please reopen Web Title Pro manually if it does not restart.'",
+      '      }',
+      '    }',
+      '    $stalledFor = ([DateTime]::Now - $lastStateChangeAt).TotalSeconds',
+      "    if (-not $closeAt -and $lastStateSignature -and $stalledFor -ge 30) {",
+      "      $form.Text = 'Web Title Pro update status timed out'",
+      "      $status.Text = 'The updater stopped reporting progress.'",
+      "      $meta.Text = 'Please check whether the new version has already started.'",
       '      $form.ControlBox = $true',
-      '      if (-not $closeAt) { $closeAt = [DateTime]::Now.AddSeconds(8) }',
+      '      $closeAt = [DateTime]::Now.AddSeconds(10)',
+      '    }',
+      "    if (-not $closeAt -and ([DateTime]::Now - $openedAt).TotalSeconds -ge 90) {",
+      "      $form.Text = 'Web Title Pro update status timed out'",
+      "      $meta.Text = 'The updater window stayed open too long and will close automatically.'",
+      '      $form.ControlBox = $true',
+      '      $closeAt = [DateTime]::Now.AddSeconds(6)',
       '    }',
       '    if ($closeAt -and [DateTime]::Now -ge $closeAt) {',
       '      $timer.Stop()',
@@ -393,6 +437,9 @@ const createUpdaterIntegration = ({
 
   const applyDownloadedUpdate = async (downloadPath) => {
     const targetPath = resolveStablePortableExePath();
+    log(
+      `updates:apply target=${targetPath} exec=${process.execPath} portableFile=${process.env.PORTABLE_EXECUTABLE_FILE || ''} portableDir=${process.env.PORTABLE_EXECUTABLE_DIR || ''}`,
+    );
     const taskName = `WebTitlePro-Update-${Date.now()}`;
     const { launcherPath, logPath } = await createUpdateScript({
       sourcePath: downloadPath,
