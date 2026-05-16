@@ -659,11 +659,12 @@ function ControlShell() {
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderDelaySec, setReminderDelaySec] = useState(15);
   const [pendingReminder, setPendingReminder] = useState(null);
+  const [showCompactMenu, setShowCompactMenu] = useState(false);
+  const [showOutputSelector, setShowOutputSelector] = useState(false);
   const reminderTimeoutRef = useRef(null);
   const remoteRefreshStateRef = useRef({});
   const latestDraftRef = useRef({ name: '', fields: {} });
   const appCloseAuthorizedRef = useRef(false);
-  const timerEditPauseRef = useRef(new Map());
   const outputs = snapshot?.outputs || [];
   const currentProjectName = useMemo(() => {
     const currentPath = projectStatus?.currentProjectPath || '';
@@ -1431,12 +1432,6 @@ function ControlShell() {
   const adjustSourceRowTimerSegment = async (sourceId, row, segment, delta, options = {}) => {
     const currentMs = Number(options.currentMs ?? (row.timer?.baseMs || 0));
     const nextBaseMs = changeTimerSegment(currentMs, segment, delta);
-    const syncTimerId = normalizeLinkedTimerId(
-      options.syncTimerId || options.linkedTimerId || options.linkedTimer?.id || null,
-    );
-    if (syncTimerId) {
-      beginTimerEditHold(syncTimerId);
-    }
     await updateSourceRowTimerBase(sourceId, row.id, nextBaseMs, {
       syncTimerId: options.syncTimerId || null,
       linkedTimerId: options.linkedTimerId || null,
@@ -3083,37 +3078,6 @@ function ControlShell() {
     }
   };
 
-  // Pause a running timer while the operator is adjusting its value with +/- buttons,
-  // then resume after a short period of inactivity. Lets the displayed value stay put
-  // for repeated clicks instead of being immediately overwritten by the next tick.
-  const beginTimerEditHold = (timerId) => {
-    const normalizedId = normalizeLinkedTimerId(timerId);
-    if (!normalizedId) {
-      return;
-    }
-
-    const live = timers.find((item) => normalizeLinkedTimerId(item.id) === normalizedId);
-    const existing = timerEditPauseRef.current.get(normalizedId);
-
-    if (existing?.timeoutId) {
-      clearTimeout(existing.timeoutId);
-    }
-
-    const wasRunning = existing?.wasRunning ?? Boolean(live?.running);
-
-    if (wasRunning && live?.running) {
-      void commandTimer(normalizedId, 'stop');
-    }
-
-    const timeoutId = setTimeout(() => {
-      timerEditPauseRef.current.delete(normalizedId);
-      if (wasRunning) {
-        void commandTimer(normalizedId, 'start');
-      }
-    }, 1500);
-
-    timerEditPauseRef.current.set(normalizedId, { wasRunning, timeoutId });
-  };
 
   const runTimerPanelCommand = async (timer, action) => {
     const normalizedTimerId = normalizeLinkedTimerId(timer?.id);
@@ -3799,14 +3763,54 @@ function ControlShell() {
         event.preventDefault();
         setLocalSelectedOutputId(outputShortcutEntry[0]);
         pushFeedback(`Output switched to ${outputs.find((output) => output.id === outputShortcutEntry[0])?.name || 'selected output'}`);
+        return;
+      }
+
+      const entryShortcutEntry = Object.entries(shortcutBindings?.entrySelectById || {})
+        .find(([, value]) => value === shortcutValue);
+      if (entryShortcutEntry) {
+        event.preventDefault();
+        void api(`/api/entries/${entryShortcutEntry[0]}/select`, {
+          method: 'POST',
+          body: { outputId: selectedOutput?.id },
+        }).catch(() => {});
+        return;
+      }
+
+      const timerToggleEntry = Object.entries(shortcutBindings?.timerToggleById || {})
+        .find(([, value]) => value === shortcutValue);
+      if (timerToggleEntry) {
+        event.preventDefault();
+        const timer = snapshot?.timers?.find((item) => item.id === timerToggleEntry[0]);
+        const nextAction = timer?.running ? 'stop' : 'start';
+        void commandTimer(timerToggleEntry[0], nextAction);
+        return;
+      }
+
+      const timerResetEntry = Object.entries(shortcutBindings?.timerResetById || {})
+        .find(([, value]) => value === shortcutValue);
+      if (timerResetEntry) {
+        event.preventDefault();
+        void commandTimer(timerResetEntry[0], 'reset');
+      }
+    };
+
+    const onAnyClick = (event) => {
+      if (!event.target?.closest?.('.tab-toolbar-menu')) {
+        setShowCompactMenu(false);
+      }
+      if (!event.target?.closest?.('.outputs-selector')) {
+        setShowOutputSelector(false);
       }
     };
 
     window.addEventListener('keydown', onShortcutInput, true);
     window.addEventListener('mousedown', onShortcutInput, true);
+    window.addEventListener('click', onAnyClick);
     return () => {
       window.removeEventListener('keydown', onShortcutInput, true);
       window.removeEventListener('mousedown', onShortcutInput, true);
+      window.removeEventListener('click', onAnyClick);
     };
   }, [
     learningShortcut,
@@ -3819,6 +3823,10 @@ function ControlShell() {
     shortcutBindings?.previousTitle,
     outputs,
     JSON.stringify(shortcutBindings?.outputSelectById || {}),
+    JSON.stringify(shortcutBindings?.entrySelectById || {}),
+    JSON.stringify(shortcutBindings?.timerToggleById || {}),
+    JSON.stringify(shortcutBindings?.timerResetById || {}),
+    snapshot?.timers?.map((t) => `${t.id}:${t.running}`).join('|'),
   ]);
 
   if (!snapshot || !program) {
@@ -3841,19 +3849,39 @@ function ControlShell() {
 
       <section className="tabs-card">
         <div className="mode-toggle app-tab-toggle" role="tablist" aria-label="Primary workspace tabs">
-          <button type="button" className={`mode-toggle-button ${activeTab === 'rundown' ? 'is-active' : ''}`} onClick={() => setActiveTab('rundown')}>Live</button>
-          <button type="button" className={`mode-toggle-button ${activeTab === 'sources' ? 'is-active' : ''}`} onClick={() => setActiveTab('sources')}>Data Source</button>
-          <button type="button" className={`mode-toggle-button ${activeTab === 'mapping' ? 'is-active' : ''}`} onClick={() => setActiveTab('mapping')}>Mapping</button>
-          <button type="button" className={`mode-toggle-button ${activeTab === 'timers' ? 'is-active' : ''}`} onClick={() => setActiveTab('timers')}>Timers</button>
-          <button type="button" className={`mode-toggle-button ${activeTab === 'settings' ? 'is-active' : ''}`} onClick={() => setActiveTab('settings')}>Output & Settings</button>
+          <button type="button" className={`mode-toggle-button ${activeTab === 'rundown' ? 'is-active' : ''}`} onClick={() => setActiveTab('rundown')} title="Live"><span className="tab-label-full">Live</span><span className="tab-label-icon" aria-hidden="true">▶</span></button>
+          <button type="button" className={`mode-toggle-button ${activeTab === 'sources' ? 'is-active' : ''}`} onClick={() => setActiveTab('sources')} title="Data Source"><span className="tab-label-full">Data Source</span><span className="tab-label-icon" aria-hidden="true">☰</span></button>
+          <button type="button" className={`mode-toggle-button ${activeTab === 'mapping' ? 'is-active' : ''}`} onClick={() => setActiveTab('mapping')} title="Mapping"><span className="tab-label-full">Mapping</span><span className="tab-label-icon" aria-hidden="true">⇄</span></button>
+          <button type="button" className={`mode-toggle-button ${activeTab === 'timers' ? 'is-active' : ''}`} onClick={() => setActiveTab('timers')} title="Timers"><span className="tab-label-full">Timers</span><span className="tab-label-icon" aria-hidden="true">⏱</span></button>
+          <button type="button" className={`mode-toggle-button ${activeTab === 'settings' ? 'is-active' : ''}`} onClick={() => setActiveTab('settings')} title="Output & Settings"><span className="tab-label-full">Output & Settings</span><span className="tab-label-icon" aria-hidden="true">⚙</span></button>
         </div>
         <div className="tab-toolbar">
           <span className={`connection-pill is-${connection}`}>{connection.toUpperCase()}</span>
-          <button className={`ghost-button compact-button ${showProjectPanel ? 'is-active-manage' : ''}`} onClick={() => setShowProjectPanel((current) => !current)}>
-            Project
-          </button>
-          <button className="ghost-button compact-button" onClick={() => setShowImportModal(true)}>Bulk TXT Import</button>
-          <button className="primary-button compact-button" onClick={() => setShowAddModal(true)}>Add Title</button>
+          <div className="tab-toolbar-actions">
+            <button className={`ghost-button compact-button ${showProjectPanel ? 'is-active-manage' : ''}`} onClick={() => setShowProjectPanel((current) => !current)}>
+              Project
+            </button>
+            <button className="ghost-button compact-button" onClick={() => setShowImportModal(true)}>Bulk TXT Import</button>
+            <button className="primary-button compact-button" onClick={() => setShowAddModal(true)}>Add Title</button>
+          </div>
+          <div className="tab-toolbar-menu">
+            <button
+              type="button"
+              className={`ghost-button compact-button icon-button tab-burger-button ${showCompactMenu ? 'is-open' : ''}`}
+              onClick={() => setShowCompactMenu((current) => !current)}
+              aria-label="More actions"
+              aria-expanded={showCompactMenu}
+            >
+              <span aria-hidden="true">⋯</span>
+            </button>
+            {showCompactMenu && (
+              <div className="tab-burger-menu" role="menu" onClick={(event) => event.stopPropagation()}>
+                <button className="tab-burger-item" onClick={() => { setShowCompactMenu(false); setShowProjectPanel(true); }}>Project</button>
+                <button className="tab-burger-item" onClick={() => { setShowCompactMenu(false); setShowImportModal(true); }}>Bulk TXT Import</button>
+                <button className="tab-burger-item is-primary" onClick={() => { setShowCompactMenu(false); setShowAddModal(true); }}>Add Title</button>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -3887,6 +3915,34 @@ function ControlShell() {
               <span>{output.key}</span>
             </button>
           ))}
+        </div>
+        <div className="outputs-selector">
+          <button
+            type="button"
+            className="outputs-selector-trigger"
+            onClick={() => setShowOutputSelector((current) => !current)}
+            aria-expanded={showOutputSelector}
+          >
+            <span className="meta-label">Output</span>
+            <strong>{selectedOutput?.name || '—'}</strong>
+            <span aria-hidden="true">▾</span>
+          </button>
+          {showOutputSelector && (
+            <div className="outputs-selector-menu" role="menu" onClick={(event) => event.stopPropagation()}>
+              {outputs.map((output) => (
+                <button
+                  key={output.id}
+                  className={`outputs-selector-item ${output.id === selectedOutput?.id ? 'is-active' : ''}`}
+                  onClick={() => { selectOutput(output.id); setShowOutputSelector(false); }}
+                  disabled={busyAction === `output-${output.id}`}
+                >
+                  <strong>{output.name}</strong>
+                  <span>{output.key}</span>
+                </button>
+              ))}
+              <button className="outputs-selector-item is-create" onClick={() => { createOutput(); setShowOutputSelector(false); }}>+ Add Output</button>
+            </div>
+          )}
         </div>
         {activeTab !== 'settings' && (
           <PreviewTitlePanel

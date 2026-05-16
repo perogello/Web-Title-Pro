@@ -49,6 +49,16 @@ test('normalizeMidiBindings: accepts select-output:<id> action', () => {
   assert.equal(result[0].action, 'select-output:output-main');
 });
 
+test('normalizeMidiBindings: accepts entry-select / timer-toggle / timer-reset', () => {
+  const result = normalizeMidiBindings([
+    { device: 'any', type: 'noteon', note: 51, action: 'entry-select:abc-123' },
+    { device: 'any', type: 'noteon', note: 52, action: 'timer-toggle:main' },
+    { device: 'any', type: 'noteon', note: 53, action: 'timer-reset:main' },
+  ]);
+  assert.equal(result.length, 3);
+  assert.deepEqual(result.map((b) => b.action), ['entry-select:abc-123', 'timer-toggle:main', 'timer-reset:main']);
+});
+
 test('normalizeMidiBindings: rejects select-output without id', () => {
   const result = normalizeMidiBindings([
     { device: 'any', type: 'noteon', note: 50, action: 'select-output:' },

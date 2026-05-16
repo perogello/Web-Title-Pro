@@ -93,6 +93,24 @@ export const startServer = async (options = {}) => {
       if (action.startsWith('select-output:')) {
         store.selectOutput(action.slice('select-output:'.length));
       }
+
+      if (action.startsWith('entry-select:')) {
+        store.selectEntry(action.slice('entry-select:'.length));
+      }
+
+      if (action.startsWith('timer-toggle:')) {
+        const timerId = action.slice('timer-toggle:'.length);
+        const timer = store.getTimers().find((item) => item.id === timerId);
+        if (timer?.running) {
+          store.stopTimer(timerId);
+        } else if (timer) {
+          store.startTimer(timerId);
+        }
+      }
+
+      if (action.startsWith('timer-reset:')) {
+        store.resetTimer(action.slice('timer-reset:'.length));
+      }
     } catch (error) {
       console.warn(`MIDI action skipped: ${error.message}`);
     }

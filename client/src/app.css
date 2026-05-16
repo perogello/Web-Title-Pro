@@ -1667,19 +1667,109 @@ select {
   .vmix-input-row { grid-template-columns: 1fr; }
 }
 
-/* Compact mode for very small windows: keep operator-critical controls visible,
-   hide non-essential decoration. */
+/* Compact mode plumbing — defaults */
+.tab-label-icon { display: none; }
+.tab-toolbar-menu { display: none; position: relative; }
+.tab-burger-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  padding: 6px;
+  min-width: 180px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  display: grid;
+  gap: 2px;
+  z-index: 50;
+}
+.tab-burger-item {
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: transparent;
+  border: 0;
+  color: #f5f7fb;
+  cursor: pointer;
+  font: inherit;
+}
+.tab-burger-item:hover { background: rgba(255, 255, 255, 0.06); }
+.tab-burger-item.is-primary { color: #08101d; background: #edf2ff; font-weight: 700; }
+.outputs-selector { display: none; position: relative; }
+.outputs-selector-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--edge);
+  color: #f5f7fb;
+  cursor: pointer;
+  width: 100%;
+  font: inherit;
+}
+.outputs-selector-trigger strong { flex: 1; text-align: left; }
+.outputs-selector-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  z-index: 40;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+.outputs-selector-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: transparent;
+  border: 0;
+  color: #f5f7fb;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.outputs-selector-item:hover { background: rgba(255, 255, 255, 0.06); }
+.outputs-selector-item.is-active { background: rgba(93, 219, 146, 0.16); }
+.outputs-selector-item.is-create { color: var(--green); font-weight: 700; justify-content: center; }
+.outputs-selector-item span { color: var(--text-dim); font-size: 11px; }
+
+/* Compact mode for narrower windows */
 @media (max-width: 900px) {
   .panel-kicker { font-size: 10px; }
   .topbar h1 { font-size: 18px; }
   .top-air-button { min-width: 64px; padding: 6px 10px; }
   .outputs-toolbar { gap: 6px; flex-wrap: wrap; }
   .outputs-live-group { gap: 4px; }
-  .preview-title-panel,
   .project-panel-extra-info { display: none; }
   .timer-grid { grid-template-columns: 1fr; }
   .source-table th,
   .source-table td { padding: 4px 6px; font-size: 12px; }
+  /* Tabs: icon only */
+  .tab-label-full { display: none; }
+  .tab-label-icon { display: inline; font-size: 16px; }
+  .mode-toggle-button { min-width: 40px; padding: 8px 10px; }
+  /* Hide the inline action group, expose burger menu instead */
+  .tab-toolbar-actions { display: none; }
+  .tab-toolbar-menu { display: block; }
+  /* Action buttons stay in a single row, smaller */
+  .outputs-live-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 100%; }
+  .top-air-button { font-size: 12px; min-width: 0; padding: 8px 6px; height: 36px; }
+  /* Output chips → dropdown */
+  .output-chip-list { display: none; }
+  .outputs-selector { display: block; margin-top: 8px; }
+  /* Preview panel takes lots of space — collapse to a slim toggle row */
+  .preview-title-panel { padding-bottom: 0; }
+  .preview-title-panel .preview-monitor { display: none; }
 }
 
 @media (max-width: 640px) {
@@ -1692,5 +1782,7 @@ select {
   .preview-card,
   .vmix-card,
   .integration-grid > .meta-card { display: none; }
-  .top-air-button { font-size: 12px; min-width: 56px; padding: 4px 8px; }
+  .top-air-button { font-size: 11px; padding: 6px 4px; height: 32px; }
+  .outputs-toolbar { gap: 4px; }
+  .outputs-status-group { width: 100%; justify-content: space-between; }
 }

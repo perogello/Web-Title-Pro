@@ -53,7 +53,10 @@ export const parseMidiMessage = (data = []) => {
 
 const isSupportedAction = (action = '') =>
   ['show', 'live', 'hide', 'next-title', 'previous-title'].includes(action) ||
-  /^select-output:[\w-]+$/.test(action);
+  /^select-output:[\w-]+$/.test(action) ||
+  /^entry-select:[\w-]+$/.test(action) ||
+  /^timer-toggle:[\w-]+$/.test(action) ||
+  /^timer-reset:[\w-]+$/.test(action);
 
 const isPressTrigger = (parsed = {}) => {
   if (parsed.type === 'noteon') {

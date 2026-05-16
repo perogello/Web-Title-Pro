@@ -132,21 +132,23 @@ const normalizeEntryShortcuts = (shortcuts = {}) => ({
   hide: typeof shortcuts.hide === 'string' ? shortcuts.hide : '',
 });
 
+const normalizeIdMap = (value) =>
+  value && typeof value === 'object'
+    ? Object.fromEntries(
+        Object.entries(value).map(([key, raw]) => [key, typeof raw === 'string' ? raw : '']),
+      )
+    : {};
+
 const normalizeGlobalShortcuts = (shortcuts = {}) => ({
   show: typeof shortcuts.show === 'string' ? shortcuts.show : '',
   live: typeof shortcuts.live === 'string' ? shortcuts.live : '',
   hide: typeof shortcuts.hide === 'string' ? shortcuts.hide : '',
   nextTitle: typeof shortcuts.nextTitle === 'string' ? shortcuts.nextTitle : '',
   previousTitle: typeof shortcuts.previousTitle === 'string' ? shortcuts.previousTitle : '',
-  outputSelectById:
-    shortcuts && typeof shortcuts.outputSelectById === 'object' && shortcuts.outputSelectById
-      ? Object.fromEntries(
-          Object.entries(shortcuts.outputSelectById).map(([outputId, value]) => [
-            outputId,
-            typeof value === 'string' ? value : '',
-          ]),
-        )
-      : {},
+  outputSelectById: normalizeIdMap(shortcuts.outputSelectById),
+  entrySelectById: normalizeIdMap(shortcuts.entrySelectById),
+  timerToggleById: normalizeIdMap(shortcuts.timerToggleById),
+  timerResetById: normalizeIdMap(shortcuts.timerResetById),
 });
 
 const slugifyOutputKey = (value = '') =>
