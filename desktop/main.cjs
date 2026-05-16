@@ -58,6 +58,32 @@ const log = (message) => {
 };
 log('desktop:module-loaded');
 
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!gotSingleInstanceLock) {
+  log('app:second-instance-detected exiting');
+  app.quit();
+  process.exit(0);
+}
+
+app.on('second-instance', () => {
+  log('app:second-instance-activated');
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    mainWindow.focus();
+  }
+});
+
+process.on('uncaughtException', (error) => {
+  log(`process:uncaughtException ${error?.stack || error?.message || error}`);
+});
+
+process.on('unhandledRejection', (reason) => {
+  log(`process:unhandledRejection ${reason?.stack || reason?.message || String(reason)}`);
+});
+
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const normalizeProjectSession = (value = {}) => ({

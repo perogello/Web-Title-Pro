@@ -131,3 +131,19 @@ export const ChevronRightIcon = () => (
     <path d="m9 18 6-6-6-6" />
   </svg>
 );
+
+export const PaletteIcon = () => (
+  <svg {...iconProps}>
+    <path d="M12 22a10 10 0 1 1 10-10c0 2.5-2 3.5-4 3.5h-1.5a1.5 1.5 0 0 0-1 2.6 1.5 1.5 0 0 1-1 2.6Z" />
+    <circle cx="7.5" cy="11" r="1" fill="currentColor" />
+    <circle cx="12" cy="7.5" r="1" fill="currentColor" />
+    <circle cx="16.5" cy="11" r="1" fill="currentColor" />
+  </svg>
+);
+
+export const PlusIcon = () => (
+  <svg {...iconProps}>
+    <path d="M12 5v14" />
+    <path d="M5 12h14" />
+  </svg>
+);

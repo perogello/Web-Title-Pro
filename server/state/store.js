@@ -212,6 +212,42 @@ const normalizeTimer = (timer = {}) => ({
     : [],
 });
 
+export const resolveTimerColor = (timer, currentMs) => {
+  if (!timer) {
+    return '';
+  }
+
+  const defaultColor = typeof timer.defaultColor === 'string' ? timer.defaultColor : '';
+  const triggers = Array.isArray(timer.colorTriggers) ? timer.colorTriggers : [];
+
+  if (!triggers.length) {
+    return defaultColor;
+  }
+
+  const value = Number(currentMs ?? timer.valueMs ?? 0);
+
+  if (timer.mode === 'countup') {
+    const sortedAsc = [...triggers].sort((a, b) => Number(a.atMs || 0) - Number(b.atMs || 0));
+    let chosen = '';
+    for (const trigger of sortedAsc) {
+      if (value >= Number(trigger.atMs || 0)) {
+        chosen = trigger.color;
+      } else {
+        break;
+      }
+    }
+    return chosen || defaultColor;
+  }
+
+  const sortedAsc = [...triggers].sort((a, b) => Number(a.atMs || 0) - Number(b.atMs || 0));
+  for (const trigger of sortedAsc) {
+    if (value <= Number(trigger.atMs || 0)) {
+      return trigger.color;
+    }
+  }
+  return defaultColor;
+};
+
 const createDefaultState = () => ({
   selectedEntryId: null,
   selectedOutputId: null,
@@ -353,7 +389,9 @@ export class TitleStore extends EventEmitter {
   }
 
   async persist() {
-    await fs.writeJson(this.stateFile, this.state, { spaces: 2 });
+    const tmpFile = `${this.stateFile}.tmp`;
+    await fs.writeJson(tmpFile, this.state, { spaces: 2 });
+    await fs.move(tmpFile, this.stateFile, { overwrite: true });
   }
 
   async close() {
@@ -675,6 +713,7 @@ export class TitleStore extends EventEmitter {
         ...deepClone(timer),
         currentMs,
         display: formatTimer(currentMs, timer.displayFormat),
+        color: resolveTimerColor(timer, currentMs),
       };
     });
   }

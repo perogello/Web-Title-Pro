@@ -57,21 +57,65 @@ export class VmixService extends EventEmitter {
     this.refreshInFlight = null;
     this.syncTimer = null;
     this.pendingTimers = [];
+    this.consecutiveFailures = 0;
+    this.stopped = true;
+    this.lastTimerColorByKey = new Map();
   }
 
-  start() {
-    if (this.pollTimer) {
+  async setInputTextColour({ inputKey, fieldName = 'Text', color }) {
+    if (!inputKey || !color) {
+      return false;
+    }
+
+    const config = this.store.getVmixConfig();
+    const host = sanitizeHost(config.host || this.state.host);
+    const url = new URL(`${host}/api/`);
+    url.searchParams.set('Function', 'SetTextColour');
+    url.searchParams.set('Input', inputKey);
+    url.searchParams.set('SelectedName', fieldName || 'Text');
+    url.searchParams.set('Value', color);
+    const response = await fetch(url, { method: 'GET' });
+
+    if (!response.ok) {
+      throw new Error(`vMix text colour update failed with ${response.status}`);
+    }
+
+    return true;
+  }
+
+  computePollDelay() {
+    if (this.consecutiveFailures <= 0) {
+      return 1000;
+    }
+    return Math.min(15000, 1000 * Math.pow(2, Math.min(this.consecutiveFailures - 1, 4)));
+  }
+
+  schedulePoll() {
+    if (this.stopped) {
       return;
     }
 
+    clearTimeout(this.pollTimer);
+    this.pollTimer = setTimeout(() => {
+      this.refresh()
+        .catch(() => {})
+        .finally(() => this.schedulePoll());
+    }, this.computePollDelay());
+  }
+
+  start() {
+    if (!this.stopped) {
+      return;
+    }
+
+    this.stopped = false;
     this.refresh().catch(() => {});
-    this.pollTimer = setInterval(() => {
-      this.refresh().catch(() => {});
-    }, 1000);
+    this.schedulePoll();
   }
 
   stop() {
-    clearInterval(this.pollTimer);
+    this.stopped = true;
+    clearTimeout(this.pollTimer);
     this.pollTimer = null;
   }
 
@@ -123,6 +167,7 @@ export class VmixService extends EventEmitter {
           enrichedInputs.find((input) => input.number === config.selectedTimerInputKey) ||
           null;
 
+        this.consecutiveFailures = 0;
         this.state = {
           connected: true,
           host,
@@ -134,6 +179,7 @@ export class VmixService extends EventEmitter {
         this.emit('change', this.getState());
         return this.getState();
       } catch (error) {
+        this.consecutiveFailures += 1;
         this.state = {
           ...this.state,
           connected: false,
@@ -315,6 +361,23 @@ export class VmixService extends EventEmitter {
           fieldName: timer.vmixTextField || 'Text',
         });
       } catch {}
+
+      const desiredColor = typeof timer.color === 'string' ? timer.color : '';
+      const colorKey = `${timer.vmixInputKey}::${timer.vmixTextField || 'Text'}`;
+      const lastColor = this.lastTimerColorByKey.get(colorKey);
+
+      if (desiredColor && desiredColor !== lastColor) {
+        try {
+          await this.setInputTextColour({
+            inputKey: timer.vmixInputKey,
+            fieldName: timer.vmixTextField || 'Text',
+            color: desiredColor,
+          });
+          this.lastTimerColorByKey.set(colorKey, desiredColor);
+        } catch {}
+      } else if (!desiredColor && lastColor) {
+        this.lastTimerColorByKey.delete(colorKey);
+      }
     }
   }
 

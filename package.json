@@ -12,7 +12,8 @@
     "start": "node server/index.js",
     "desktop": "npm run build && node scripts/run-desktop.cjs",
     "desktop:dev": "node scripts/run-desktop.cjs",
-    "package:win": "npm run build && electron-builder --win portable && node scripts/finalize-portable.cjs"
+    "package:win": "npm run build && electron-builder --win portable && node scripts/finalize-portable.cjs",
+    "test": "node --test tests/*.test.js"
   },
   "keywords": [],
   "author": "perogello",

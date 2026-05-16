@@ -16,11 +16,27 @@ import { VmixService } from './vmix/vmix-service.js';
 import { UpdateService } from './updates/update-service.js';
 
 let activeRuntime = null;
+let processHandlersInstalled = false;
+
+const installProcessHandlers = () => {
+  if (processHandlersInstalled) {
+    return;
+  }
+  processHandlersInstalled = true;
+  process.on('uncaughtException', (error) => {
+    console.error('uncaughtException:', error?.stack || error?.message || error);
+  });
+  process.on('unhandledRejection', (reason) => {
+    console.error('unhandledRejection:', reason?.stack || reason?.message || reason);
+  });
+};
 
 export const startServer = async (options = {}) => {
   if (activeRuntime) {
     return activeRuntime;
   }
+
+  installProcessHandlers();
 
   const reportProgress = (label, percent) => {
     if (typeof options.onProgress === 'function') {

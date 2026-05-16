@@ -22,7 +22,9 @@ export const normalizeMidiBindings = (bindings = defaultBindings) =>
     .map((binding) => normalizeBinding(binding))
     .filter((binding) => isSupportedAction(binding.action));
 
-const parseMidiMessage = (data = []) => {
+export const SUPPORTED_MIDI_ACTIONS = ['show', 'live', 'hide', 'next-title', 'previous-title'];
+
+export const parseMidiMessage = (data = []) => {
   const [status, data1, data2] = data;
   const command = status >> 4;
 

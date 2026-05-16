@@ -4,9 +4,9 @@ import path from 'node:path';
 export const BUILTIN_REPO_URL = 'https://github.com/perogello/Web-Title-Pro';
 const DEFAULT_UPDATE_CHANNEL = 'prerelease';
 
-const normalizeRepoUrl = (value = '') => value.trim().replace(/\/+$/, '');
+export const normalizeRepoUrl = (value = '') => value.trim().replace(/\/+$/, '');
 
-const parseGithubRepo = (url) => {
+export const parseGithubRepo = (url) => {
   const match = /^https?:\/\/github\.com\/([^/]+)\/([^/]+)$/i.exec(normalizeRepoUrl(url));
   if (!match) {
     return null;
@@ -18,7 +18,7 @@ const parseGithubRepo = (url) => {
   };
 };
 
-const compareVersions = (left = '', right = '') => {
+export const compareVersions = (left = '', right = '') => {
   const normalize = (value) =>
     String(value)
       .replace(/^v/i, '')

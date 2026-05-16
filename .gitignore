@@ -9,3 +9,4 @@ Thumbs.db
 .DS_Store
 templates/*.zip
 templates/*.7z
+/.claude/
