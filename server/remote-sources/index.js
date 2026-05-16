@@ -53,7 +53,7 @@ export const fetchRemoteSourceData = async ({ type, url, sheetName, signal, reso
     url: effectiveUrl,
     buffer: payload.buffer,
   })
-    ? readWorkbookAsCsv({
+    ? await readWorkbookAsCsv({
         buffer: payload.buffer,
         requestedSheetName: sheetName,
       })

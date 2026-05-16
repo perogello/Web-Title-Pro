@@ -1,4 +1,10 @@
-import * as XLSX from 'xlsx';
+let XLSX = null;
+const loadXLSX = async () => {
+  if (!XLSX) {
+    XLSX = await import('xlsx');
+  }
+  return XLSX;
+};
 
 export const MAX_REMOTE_SOURCE_BYTES = 5 * 1024 * 1024;
 
@@ -77,8 +83,9 @@ export const looksLikeHtmlText = (text) => {
   return normalized.startsWith('<!doctype html') || normalized.startsWith('<html') || normalized.startsWith('<?xml');
 };
 
-export const readWorkbookAsCsv = ({ buffer, requestedSheetName }) => {
-  const workbook = XLSX.read(buffer, { type: 'buffer' });
+export const readWorkbookAsCsv = async ({ buffer, requestedSheetName }) => {
+  const xlsxModule = await loadXLSX();
+  const workbook = xlsxModule.read(buffer, { type: 'buffer' });
   const sheetNames = Array.isArray(workbook.SheetNames) ? workbook.SheetNames.filter(Boolean) : [];
 
   if (!sheetNames.length) {
@@ -93,7 +100,7 @@ export const readWorkbookAsCsv = ({ buffer, requestedSheetName }) => {
   }
 
   return {
-    text: XLSX.utils.sheet_to_csv(worksheet, { blankrows: false }),
+    text: xlsxModule.utils.sheet_to_csv(worksheet, { blankrows: false }),
     sheetNames,
     sheetName: resolvedSheetName,
   };
