@@ -603,6 +603,10 @@ const createSplashWindow = async () => {
     splashWindow = null;
   });
 
+  try {
+    splashWindow.webContents.setBackgroundThrottling(false);
+  } catch {}
+
   await setWindowProgress(splashWindow, 'Launching application...', 8);
   return splashWindow;
 };
@@ -823,12 +827,18 @@ const createMainWindow = async () => {
 
 ipcMain.handle('updates:install-available', async (_event, payload = {}) => updaterIntegration.installAvailableUpdate(payload));
 
+const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));
+
 const bootstrap = async () => {
   await loadProjectSession();
   await loadIntegrationSecrets();
   await createSplashWindow();
+  // Let splash actually paint and become interactive before doing heavy work.
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  await yieldToEventLoop();
   await ensureBackend();
   await setWindowProgress(splashWindow, 'Loading interface...', 96);
+  await yieldToEventLoop();
   await createMainWindow();
   void runStartupUpdateCheck();
 };

@@ -1,5 +1,13 @@
 import { EventEmitter } from 'node:events';
-import JZZ from 'jzz';
+
+let JZZ = null;
+const loadJZZ = async () => {
+  if (!JZZ) {
+    const mod = await import('jzz');
+    JZZ = mod.default || mod;
+  }
+  return JZZ;
+};
 
 const defaultBindings = [
   { device: 'any', type: 'noteon', note: 60, action: 'show' },
@@ -155,7 +163,8 @@ export class MidiService extends EventEmitter {
     try {
       await this.closePorts();
 
-      this.engine = JZZ();
+      const JZZCtor = await loadJZZ();
+      this.engine = JZZCtor();
       const info = this.engine.info?.() || {};
       this.inputs = info.inputs || [];
       this.error = null;

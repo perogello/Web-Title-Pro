@@ -1,5 +1,12 @@
 import { EventEmitter } from 'node:events';
-import { JSDOM } from 'jsdom';
+
+let JSDOM = null;
+const loadJSDOM = async () => {
+  if (!JSDOM) {
+    ({ JSDOM } = await import('jsdom'));
+  }
+  return JSDOM;
+};
 
 const sanitizeHost = (value = '') => value.trim().replace(/\/+$/, '');
 const normalizeTitleAnimation = (value, fallback) => {
@@ -141,7 +148,8 @@ export class VmixService extends EventEmitter {
         }
 
         const xmlText = await response.text();
-        const dom = new JSDOM(xmlText, { contentType: 'text/xml' });
+        const JSDOMCtor = await loadJSDOM();
+        const dom = new JSDOMCtor(xmlText, { contentType: 'text/xml' });
         const { document } = dom.window;
         const inputs = [...document.querySelectorAll('vmix > inputs > input')].map((node) => ({
           key: node.getAttribute('key') || '',
