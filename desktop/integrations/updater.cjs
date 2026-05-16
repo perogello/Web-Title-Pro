@@ -540,14 +540,10 @@ const createUpdaterIntegration = ({
       const updateState = await checkForUpdates();
 
       if (updateState?.status === 'error' || updateState?.status === 'unsupported' || updateState?.status === 'no-releases') {
-        await dialog.showMessageBox(getMainWindow(), {
-          type: 'warning',
-          title: 'Update Check',
-          message: 'Automatic update check could not complete normally.',
-          detail: updateState?.notes || 'Unknown update status.',
-          buttons: ['OK'],
-          defaultId: 0,
-        });
+        // Don't interrupt the operator with a dialog on every cold start when
+        // the network is flaky or GitHub rate-limits us. Log it silently —
+        // the user can manually re-check from Settings → Updates.
+        log(`updates:startup-check-skipped status=${updateState?.status} notes=${updateState?.notes || ''}`);
         return;
       }
 

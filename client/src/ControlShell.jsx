@@ -663,6 +663,7 @@ function ControlShell() {
   const remoteRefreshStateRef = useRef({});
   const latestDraftRef = useRef({ name: '', fields: {} });
   const appCloseAuthorizedRef = useRef(false);
+  const timerEditPauseRef = useRef(new Map());
   const outputs = snapshot?.outputs || [];
   const currentProjectName = useMemo(() => {
     const currentPath = projectStatus?.currentProjectPath || '';
@@ -1430,6 +1431,12 @@ function ControlShell() {
   const adjustSourceRowTimerSegment = async (sourceId, row, segment, delta, options = {}) => {
     const currentMs = Number(options.currentMs ?? (row.timer?.baseMs || 0));
     const nextBaseMs = changeTimerSegment(currentMs, segment, delta);
+    const syncTimerId = normalizeLinkedTimerId(
+      options.syncTimerId || options.linkedTimerId || options.linkedTimer?.id || null,
+    );
+    if (syncTimerId) {
+      beginTimerEditHold(syncTimerId);
+    }
     await updateSourceRowTimerBase(sourceId, row.id, nextBaseMs, {
       syncTimerId: options.syncTimerId || null,
       linkedTimerId: options.linkedTimerId || null,
@@ -3076,6 +3083,38 @@ function ControlShell() {
     }
   };
 
+  // Pause a running timer while the operator is adjusting its value with +/- buttons,
+  // then resume after a short period of inactivity. Lets the displayed value stay put
+  // for repeated clicks instead of being immediately overwritten by the next tick.
+  const beginTimerEditHold = (timerId) => {
+    const normalizedId = normalizeLinkedTimerId(timerId);
+    if (!normalizedId) {
+      return;
+    }
+
+    const live = timers.find((item) => normalizeLinkedTimerId(item.id) === normalizedId);
+    const existing = timerEditPauseRef.current.get(normalizedId);
+
+    if (existing?.timeoutId) {
+      clearTimeout(existing.timeoutId);
+    }
+
+    const wasRunning = existing?.wasRunning ?? Boolean(live?.running);
+
+    if (wasRunning && live?.running) {
+      void commandTimer(normalizedId, 'stop');
+    }
+
+    const timeoutId = setTimeout(() => {
+      timerEditPauseRef.current.delete(normalizedId);
+      if (wasRunning) {
+        void commandTimer(normalizedId, 'start');
+      }
+    }, 1500);
+
+    timerEditPauseRef.current.set(normalizedId, { wasRunning, timeoutId });
+  };
+
   const runTimerPanelCommand = async (timer, action) => {
     const normalizedTimerId = normalizeLinkedTimerId(timer?.id);
     const autoOutputId = resolveAutoTimerOutputId(timer, {});
@@ -3826,9 +3865,9 @@ function ControlShell() {
           </div>
           <div className="outputs-toolbar">
             <div className="outputs-live-group">
-              <button className="top-air-button show" onClick={() => runProgramAction('show', selectedEntry?.id)} disabled={!selectedEntry || busyAction === 'show'}>SHOW</button>
-              <button className={`top-air-button set ${selectedEntry?.entryType === 'vmix' ? 'is-disabled-mode' : ''}`} onClick={() => runProgramAction('update', selectedEntry?.id)} disabled={!selectedEntry || selectedEntry?.entryType === 'vmix' || busyAction === 'update'}>SET</button>
-              <button className="top-air-button hide" onClick={() => runProgramAction('hide')} disabled={busyAction === 'hide'}>HIDE</button>
+              <button className="top-air-button show" onClick={() => runProgramAction('show', selectedEntry?.id)} disabled={!selectedEntry || busyAction === 'show'}>TITLE IN</button>
+              <button className={`top-air-button set ${selectedEntry?.entryType === 'vmix' ? 'is-disabled-mode' : ''}`} onClick={() => runProgramAction('update', selectedEntry?.id)} disabled={!selectedEntry || selectedEntry?.entryType === 'vmix' || busyAction === 'update'} title="Prepare local title in live without showing it">LOAD</button>
+              <button className="top-air-button hide is-danger" onClick={() => runProgramAction('hide')} disabled={busyAction === 'hide'}>TITLE OUT</button>
             </div>
             <div className="outputs-status-group">
               <span className={`status-badge ${program.visible ? 'tone-on' : 'tone-off'}`}>{program.visible ? 'ON AIR' : 'OFF'}</span>

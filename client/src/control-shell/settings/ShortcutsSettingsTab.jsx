@@ -7,26 +7,45 @@ export default function ShortcutsSettingsTab({
   onCancelLearning,
 }) {
   const globalBindings = [
-    { id: 'show', label: 'SHOW' },
+    { id: 'show', label: 'TITLE IN' },
     { id: 'live', label: 'LIVE' },
-    { id: 'hide', label: 'HIDE' },
+    { id: 'hide', label: 'TITLE OUT' },
     { id: 'previousTitle', label: 'PREVIOUS TITLE' },
     { id: 'nextTitle', label: 'NEXT TITLE' },
   ];
 
+  const renderRow = ({ key, label, value, action }) => {
+    const isLearning = learningShortcut?.action === action;
+    return (
+      <div className={`shortcut-action-row ${isLearning ? 'is-learning' : ''}`} key={key}>
+        <strong>{label}</strong>
+        {isLearning ? (
+          <code className="shortcut-learning-cell">Press a key or mouse button…</code>
+        ) : (
+          <code>{value || 'Not assigned'}</code>
+        )}
+        <div className="topbar-actions">
+          {isLearning ? (
+            <button className="ghost-button compact-button" onClick={onCancelLearning}>Cancel</button>
+          ) : (
+            <button className="ghost-button compact-button" onClick={() => onStartLearning(null, action)}>
+              Learn
+            </button>
+          )}
+          <button
+            className="ghost-button compact-button"
+            onClick={() => onClearShortcut(null, action)}
+            disabled={!value || isLearning}
+          >
+            Clear
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="integration-grid">
-      {learningShortcut && (
-        <div className="meta-card">
-          <span className="meta-label">Learning</span>
-          <strong>{learningShortcut.label || `Global / ${String(learningShortcut.action).toUpperCase()}`}</strong>
-          <span className="output-note">Press the desired key or mouse button now.</span>
-          <div className="output-url-actions">
-            <button className="ghost-button compact-button" onClick={onCancelLearning}>Cancel Learn</button>
-          </div>
-        </div>
-      )}
-
       <div className="shortcut-entry-card">
         <div className="card-head">
           <div>
@@ -34,24 +53,14 @@ export default function ShortcutsSettingsTab({
           </div>
         </div>
         <div className="shortcut-action-grid">
-          {globalBindings.map((binding) => {
-            const value = shortcutBindings?.[binding.id] || '';
-
-            return (
-              <div className="shortcut-action-row" key={binding.id}>
-                <strong>{binding.label}</strong>
-                <code>{value || 'Not assigned'}</code>
-                <div className="topbar-actions">
-                  <button className="ghost-button compact-button" onClick={() => onStartLearning(null, binding.id)}>
-                    Learn
-                  </button>
-                  <button className="ghost-button compact-button" onClick={() => onClearShortcut(null, binding.id)} disabled={!value}>
-                    Clear
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          {globalBindings.map((binding) =>
+            renderRow({
+              key: binding.id,
+              label: binding.label,
+              value: shortcutBindings?.[binding.id] || '',
+              action: binding.id,
+            }),
+          )}
         </div>
       </div>
 
@@ -62,23 +71,14 @@ export default function ShortcutsSettingsTab({
           </div>
         </div>
         <div className="shortcut-action-grid">
-          {outputs.map((output) => {
-            const value = shortcutBindings?.outputSelectById?.[output.id] || '';
-            return (
-              <div className="shortcut-action-row" key={`output-${output.id}`}>
-                <strong>{output.name}</strong>
-                <code>{value || 'Not assigned'}</code>
-                <div className="topbar-actions">
-                  <button className="ghost-button compact-button" onClick={() => onStartLearning(null, `selectOutput:${output.id}`)}>
-                    Learn
-                  </button>
-                  <button className="ghost-button compact-button" onClick={() => onClearShortcut(null, `selectOutput:${output.id}`)} disabled={!value}>
-                    Clear
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          {outputs.map((output) =>
+            renderRow({
+              key: `output-${output.id}`,
+              label: output.name,
+              value: shortcutBindings?.outputSelectById?.[output.id] || '',
+              action: `selectOutput:${output.id}`,
+            }),
+          )}
         </div>
       </div>
     </div>
