@@ -28,19 +28,21 @@ export default function ShortcutsSettingsTab({
         )}
         <div className="topbar-actions">
           {isLearning ? (
-            <button className="ghost-button compact-button" onClick={onCancelLearning}>Cancel</button>
+            <button className="ghost-button compact-button is-cancel-learn" onClick={onCancelLearning}>Cancel</button>
           ) : (
-            <button className="ghost-button compact-button" onClick={() => onStartLearning(null, action)}>
-              Learn
-            </button>
+            <>
+              <button className="ghost-button compact-button" onClick={() => onStartLearning(null, action)}>
+                Learn
+              </button>
+              <button
+                className="ghost-button compact-button"
+                onClick={() => onClearShortcut(null, action)}
+                disabled={!value}
+              >
+                Clear
+              </button>
+            </>
           )}
-          <button
-            className="ghost-button compact-button"
-            onClick={() => onClearShortcut(null, action)}
-            disabled={!value || isLearning}
-          >
-            Clear
-          </button>
         </div>
       </div>
     );

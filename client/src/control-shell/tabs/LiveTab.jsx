@@ -40,10 +40,22 @@ export default function LiveTab({
     event.stopPropagation();
 
     const startX = event.clientX;
-    const startWidth = event.currentTarget.parentElement?.offsetWidth || getColumnWidth(column) || 160;
+    const targetTh = event.currentTarget.parentElement;
+    const startWidth = targetTh?.offsetWidth || getColumnWidth(column) || 160;
+
+    // Excel-style: snapshot every other column's current rendered width once
+    // before we start dragging, so they don't reflow when this column changes.
+    const siblings = targetTh?.parentElement?.querySelectorAll?.('th[data-column-id]') || [];
+    siblings.forEach((th) => {
+      const otherId = th.getAttribute('data-column-id');
+      if (otherId && otherId !== column.id && !getColumnWidth({ id: otherId })) {
+        onResizeSourceColumn?.(selectedSource.id, otherId, th.offsetWidth);
+      }
+    });
 
     const onMove = (moveEvent) => {
-      onResizeSourceColumn?.(selectedSource.id, column.id, startWidth + moveEvent.clientX - startX);
+      const next = Math.max(48, startWidth + moveEvent.clientX - startX);
+      onResizeSourceColumn?.(selectedSource.id, column.id, next);
     };
     const onUp = () => {
       window.removeEventListener('mousemove', onMove);
@@ -124,6 +136,7 @@ export default function LiveTab({
                 {selectedSourceDisplayColumns.map((column) => (
                   <th
                     key={column.id}
+                    data-column-id={column.id}
                     className="is-resizable-column"
                     style={getColumnWidth(column) ? { width: `${getColumnWidth(column)}px` } : undefined}
                   >

@@ -517,7 +517,6 @@ function ControlShell() {
   const [draftFields, setDraftFields] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [templateValidationReport, setTemplateValidationReport] = useState(null);
-  const [showImportModal, setShowImportModal] = useState(false);
   const [styleEditorEntryId, setStyleEditorEntryId] = useState(null);
   const [styleEditorDraft, setStyleEditorDraft] = useState({});
   const [systemFontOptions, setSystemFontOptions] = useState([]);
@@ -532,9 +531,6 @@ function ControlShell() {
   const [uploadName, setUploadName] = useState('');
   const [uploadFiles, setUploadFiles] = useState([]);
   const [uploadDirectoryPath, setUploadDirectoryPath] = useState('');
-  const [txtTemplateId, setTxtTemplateId] = useState('');
-  const [txtPayload, setTxtPayload] = useState('');
-  const [txtFileName, setTxtFileName] = useState('');
   const [busyAction, setBusyAction] = useState('');
   const [feedback, setFeedback] = useState('');
   const [localSelectedOutputId, setLocalSelectedOutputId] = useState(null);
@@ -633,7 +629,6 @@ function ControlShell() {
   const templateMap = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates]);
   const selectedTemplate = selectedEntry ? templateMap.get(selectedEntry.templateId) : null;
   const selectedCreateTemplate = templateMap.get(newEntryTemplateId) || null;
-  const selectedTxtTemplate = templateMap.get(txtTemplateId) || null;
   const selectedEntryFields = useMemo(
     () => selectedEntry?.templateFields || selectedTemplate?.fields || [],
     [selectedEntry?.templateFields, selectedTemplate?.fields],
@@ -1022,7 +1017,6 @@ function ControlShell() {
   useEffect(() => {
     if (!templates.length) return;
     setNewEntryTemplateId((current) => current || templates[0].id);
-    setTxtTemplateId((current) => current || templates[0].id);
   }, [templates]);
 
   useEffect(() => {
@@ -1794,39 +1788,6 @@ function ControlShell() {
     } finally {
       setBusyAction('');
     }
-  };
-
-  const importTxtToRundown = async () => {
-    const text = txtPayload.trim();
-
-    if (!text) {
-      pushFeedback('Р’СЃС‚Р°РІСЊС‚Рµ TXT-РґР°РЅРЅС‹Рµ РёР»Рё РІС‹Р±РµСЂРёС‚Рµ TXT С„Р°Р№Р»');
-      return;
-    }
-
-    setBusyAction('import-txt');
-
-    try {
-      await api('/api/import/txt', {
-        method: 'POST',
-        body: { templateId: txtTemplateId, text, outputId: selectedOutput?.id },
-      });
-
-      setTxtPayload('');
-      setTxtFileName('');
-      setShowImportModal(false);
-      pushFeedback('TXT РґРѕР±Р°РІР»РµРЅ РІ rundown');
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    } finally {
-      setBusyAction('');
-    }
-  };
-
-  const onTxtFilePicked = async (file) => {
-    if (!file) return;
-    setTxtPayload(await file.text());
-    setTxtFileName(file.name);
   };
 
   const importSourceDataset = async () => {
@@ -3706,7 +3667,6 @@ function ControlShell() {
             <button className={`ghost-button compact-button ${showProjectPanel ? 'is-active-manage' : ''}`} onClick={() => setShowProjectPanel((current) => !current)}>
               Project
             </button>
-            <button className="ghost-button compact-button" onClick={() => setShowImportModal(true)}>Bulk TXT Import</button>
             <button className="primary-button compact-button" onClick={() => setShowAddModal(true)}>Add Title</button>
           </div>
           <div className="tab-toolbar-menu">
@@ -3722,7 +3682,6 @@ function ControlShell() {
             {showCompactMenu && (
               <div className="tab-burger-menu" role="menu" onClick={(event) => event.stopPropagation()}>
                 <button className="tab-burger-item" onClick={() => { setShowCompactMenu(false); setShowProjectPanel(true); }}>Project</button>
-                <button className="tab-burger-item" onClick={() => { setShowCompactMenu(false); setShowImportModal(true); }}>Bulk TXT Import</button>
                 <button className="tab-burger-item is-primary" onClick={() => { setShowCompactMenu(false); setShowAddModal(true); }}>Add Title</button>
               </div>
             )}
@@ -3743,7 +3702,12 @@ function ControlShell() {
               <button className="top-air-button hide is-danger" onClick={() => runProgramAction('hide')} disabled={busyAction === 'hide'}>TITLE OUT</button>
             </div>
             <div className="outputs-status-group">
-              <span className={`status-badge ${program.visible ? 'tone-on' : 'tone-off'}`}>{program.visible ? 'ON AIR' : 'OFF'}</span>
+              <span
+                className={`status-badge ${program.visible ? 'tone-on' : 'tone-off'}`}
+                title={`Last action from this app: ${program.lastAction || 'IDLE'}. Not synced from vMix.`}
+              >
+                {program.visible ? 'ON AIR' : 'OFF'}
+              </span>
               <button className="ghost-button compact-button" onClick={createOutput}>+ Add Output</button>
             </div>
           </div>
@@ -4310,48 +4274,6 @@ function ControlShell() {
                 <button className="primary-button full-width" onClick={uploadTemplateFromSelection} disabled={busyAction === 'upload-template'}>Upload Template</button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {showImportModal && (
-        <div className="modal-backdrop" onClick={() => setShowImportModal(false)}>
-          <div className="modal-card modal-card--narrow" onClick={(event) => event.stopPropagation()}>
-            <div className="card-head">
-              <div>
-                <span className="panel-kicker">TXT Import</span>
-                <h3>Р”РѕР±Р°РІР»РµРЅРёРµ СЃС‚СЂРѕРє С‚РёС‚СЂРѕРІ РІ rundown</h3>
-              </div>
-              <button className="ghost-button" onClick={() => setShowImportModal(false)}>Close</button>
-            </div>
-            <label className="input-block">
-              <span>Template</span>
-              <select value={txtTemplateId} onChange={(event) => setTxtTemplateId(event.target.value)}>
-                {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
-              </select>
-            </label>
-            {selectedTxtTemplate?.source === 'custom' && (
-              <div className="template-manage-row">
-                <span className="output-note">Custom template selected</span>
-                <button
-                  className="ghost-button compact-button danger-button"
-                  type="button"
-                  onClick={() => deleteCustomTemplate(selectedTxtTemplate.id, setTxtTemplateId)}
-                >
-                  Delete Template
-                </button>
-              </div>
-            )}
-            <label className="input-block">
-              <span>TXT file</span>
-              <input type="file" accept=".txt,.csv" onChange={(event) => onTxtFilePicked(event.target.files?.[0]).catch((requestError) => pushFeedback(requestError.message))} />
-            </label>
-            {txtFileName && <div className="file-chip">Р¤Р°Р№Р»: {txtFileName}</div>}
-            <label className="input-block">
-              <span>TXT Payload</span>
-              <textarea value={txtPayload} onChange={(event) => setTxtPayload(event.target.value)} placeholder="John Carter|Lead Anchor|Studio A&#10;Maya Chen|Field Reporter|Berlin" />
-            </label>
-            <button className="primary-button full-width" onClick={importTxtToRundown} disabled={busyAction === 'import-txt'}>Import Lines To Rundown</button>
           </div>
         </div>
       )}

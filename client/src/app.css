@@ -294,15 +294,21 @@ select {
 .field-chip, .meta-card { padding: 9px 10px; display: flex; flex-direction: column; gap: 4px; }
 .status-badge, .connection-pill, .preview-state, .flag {
   border-radius: 999px;
-  padding: 6px 11px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.tone-on, .preview-state.is-on, .flag-live { color: #24070b; background: var(--red); }
+.status-badge.tone-on { color: #fff5f5; background: var(--red); box-shadow: 0 0 0 0 rgba(255, 93, 109, 0.6); animation: badge-pulse 1.4s ease-in-out infinite; }
+.tone-on, .preview-state.is-on, .flag-live { color: #fff5f5; background: var(--red); }
 .connection-pill.is-connected { color: #08140d; background: var(--green); }
-.tone-off, .preview-state.is-off { color: #1a1d22; background: #3a4049; }
+.status-badge.tone-off { color: #e6ecf5; background: #4a525e; }
+.tone-off, .preview-state.is-off { color: #e6ecf5; background: #4a525e; }
+@keyframes badge-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 93, 109, 0); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 93, 109, 0.22); }
+}
 .connection-pill.is-reconnecting, .connection-pill.is-connecting, .flag-standby { color: #231a01; background: var(--yellow); }
 .connection-pill.is-disconnected { color: #24070b; background: var(--red); }
 .shortcut-strip { gap: 10px; flex-wrap: wrap; color: var(--text-dim); font-size: 11px; }
@@ -1298,8 +1304,10 @@ select {
   overflow: auto;
 }
 .source-table {
-  width: 100%;
+  width: auto;
+  min-width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 .source-table th,
 .source-table td {
@@ -1331,10 +1339,10 @@ select {
 }
 .source-column-resizer {
   position: absolute;
-  top: 8px;
-  bottom: 8px;
-  right: -4px;
-  width: 9px;
+  top: 0;
+  bottom: 0;
+  right: -10px;
+  width: 20px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1345,8 +1353,8 @@ select {
   content: '';
   position: absolute;
   left: 50%;
-  top: 0;
-  bottom: 0;
+  top: 6px;
+  bottom: 6px;
   width: 2px;
   transform: translateX(-50%);
   background: rgba(255, 255, 255, 0.18);
@@ -1356,7 +1364,7 @@ select {
 .source-column-resizer:hover::before,
 .source-column-resizer:active::before {
   background: var(--green);
-  width: 3px;
+  width: 4px;
 }
 .source-table tbody td.is-resizable-cell {
   border-right: 1px solid rgba(255, 255, 255, 0.06);
