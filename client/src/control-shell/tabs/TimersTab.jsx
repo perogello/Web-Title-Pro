@@ -1,5 +1,16 @@
 import { ChevronLeftIcon, ChevronRightIcon, PauseIcon, PlayIcon, ResetIcon, TrashIcon } from '../icons.jsx';
 
+const formatTriggerSeconds = (ms = 0) => String(Math.max(0, Math.round(Number(ms || 0) / 1000)));
+
+const normalizeColorTriggers = (triggers = []) =>
+  Array.isArray(triggers)
+    ? triggers.map((trigger, index) => ({
+        id: trigger.id || `trigger-${index + 1}`,
+        atMs: Math.max(0, Number(trigger.atMs || 0)),
+        color: trigger.color || '#f65c3a',
+      }))
+    : [];
+
 export default function TimersTab({
   timers,
   reminderEnabled,
@@ -42,6 +53,35 @@ export default function TimersTab({
         <div className="timer-grid">
           {timers.map((timer) => (
             <div className="timer-panel" key={timer.id}>
+              {(() => {
+                const colorTriggers = normalizeColorTriggers(timer.colorTriggers);
+                const updateColorTrigger = (triggerId, patch) => {
+                  onUpdateTimer(timer.id, {
+                    colorTriggers: colorTriggers.map((trigger) =>
+                      trigger.id === triggerId ? { ...trigger, ...patch } : trigger,
+                    ),
+                  });
+                };
+                const removeColorTrigger = (triggerId) => {
+                  onUpdateTimer(timer.id, {
+                    colorTriggers: colorTriggers.filter((trigger) => trigger.id !== triggerId),
+                  });
+                };
+                const addColorTrigger = () => {
+                  onUpdateTimer(timer.id, {
+                    colorTriggers: [
+                      ...colorTriggers,
+                      {
+                        id: `trigger-${Date.now()}`,
+                        atMs: timer.mode === 'countup' ? 10000 : 10000,
+                        color: '#f65c3a',
+                      },
+                    ],
+                  });
+                };
+
+                return (
+                  <>
               <div className="timer-source-head">
                 <strong>{timer.name}</strong>
                 <div className="mode-toggle" role="tablist" aria-label={`Timer output mode ${timer.name}`}>
@@ -81,6 +121,51 @@ export default function TimersTab({
                 </select>
                 <input type="number" min="0" step="1" defaultValue={Math.round(timer.durationMs / 1000)} onBlur={(event) => onUpdateTimer(timer.id, { durationMs: Number(event.target.value) * 1000 })} />
               </div>
+              <details className="timer-color-panel">
+                <summary>Timer Colors</summary>
+                <div className="timer-color-row">
+                  <label className="input-block compact">
+                    <span>Default color</span>
+                    <input
+                      type="color"
+                      value={timer.defaultColor || '#ffffff'}
+                      onChange={(event) => onUpdateTimer(timer.id, { defaultColor: event.target.value })}
+                    />
+                  </label>
+                  <button className="ghost-button compact-button" type="button" onClick={addColorTrigger}>Add Trigger</button>
+                </div>
+                {colorTriggers.map((trigger) => (
+                  <div className="timer-color-trigger-row" key={trigger.id}>
+                    <label className="input-block compact">
+                      <span>{timer.mode === 'countup' ? 'After sec' : 'At sec left'}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={formatTriggerSeconds(trigger.atMs)}
+                        onChange={(event) => updateColorTrigger(trigger.id, { atMs: Math.max(0, Number(event.target.value || 0) * 1000) })}
+                      />
+                    </label>
+                    <label className="input-block compact">
+                      <span>Color</span>
+                      <input
+                        type="color"
+                        value={trigger.color || '#f65c3a'}
+                        onChange={(event) => updateColorTrigger(trigger.id, { color: event.target.value })}
+                      />
+                    </label>
+                    <button
+                      className="ghost-button compact-button icon-button danger-button"
+                      type="button"
+                      onClick={() => removeColorTrigger(trigger.id)}
+                      aria-label="Remove color trigger"
+                      title="Remove color trigger"
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                ))}
+              </details>
               {timer.sourceType !== 'vmix' ? (
                 <>
                   <label className="input-block compact">
@@ -182,6 +267,9 @@ export default function TimersTab({
                   <TrashIcon />
                 </button>
               </div>
+                  </>
+                );
+              })()}
             </div>
           ))}
         </div>

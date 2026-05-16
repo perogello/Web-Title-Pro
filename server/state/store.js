@@ -200,6 +200,16 @@ const normalizeTimer = (timer = {}) => ({
   vmixInputKey: timer.vmixInputKey || null,
   vmixTextField: timer.vmixTextField?.trim() || 'Text',
   displayFormat: ['hh:mm:ss', 'mm:ss', 'ss'].includes(timer.displayFormat) ? timer.displayFormat : 'mm:ss',
+  defaultColor: typeof timer.defaultColor === 'string' && timer.defaultColor.trim() ? timer.defaultColor.trim() : '',
+  colorTriggers: Array.isArray(timer.colorTriggers)
+    ? timer.colorTriggers
+        .map((trigger, index) => ({
+          id: trigger.id || `trigger-${index + 1}`,
+          atMs: Math.max(0, Number(trigger.atMs || 0)),
+          color: typeof trigger.color === 'string' && trigger.color.trim() ? trigger.color.trim() : '',
+        }))
+        .filter((trigger) => trigger.color)
+    : [],
 });
 
 const createDefaultState = () => ({
@@ -222,6 +232,9 @@ const createDefaultState = () => ({
       notes: 'Automatic update checks use the built-in GitHub repository.',
     },
     shortcuts: normalizeGlobalShortcuts(),
+    midi: {
+      bindings: [],
+    },
   },
   program: createDefaultProgram(),
   entries: [],
@@ -269,6 +282,13 @@ const buildProjectState = (incoming = {}) => {
       shortcuts: {
         ...baseState.integrations.shortcuts,
         ...normalizeGlobalShortcuts(incoming?.integrations?.shortcuts || {}),
+      },
+      midi: {
+        ...baseState.integrations.midi,
+        ...(incoming?.integrations?.midi || {}),
+        bindings: Array.isArray(incoming?.integrations?.midi?.bindings)
+          ? incoming.integrations.midi.bindings
+          : baseState.integrations.midi.bindings,
       },
     },
     program: {
@@ -613,6 +633,19 @@ export class TitleStore extends EventEmitter {
 
   getNavigationShortcuts() {
     return deepClone(this.state.integrations.shortcuts || normalizeGlobalShortcuts());
+  }
+
+  getMidiBindings() {
+    return deepClone(this.state.integrations.midi?.bindings || []);
+  }
+
+  updateMidiBindings(bindings = []) {
+    this.state.integrations.midi = {
+      ...(this.state.integrations.midi || {}),
+      bindings: Array.isArray(bindings) ? deepClone(bindings) : [],
+    };
+    this.touch();
+    return this.getMidiBindings();
   }
 
   updateNavigationShortcuts(patch = {}) {
@@ -1292,6 +1325,8 @@ export class TitleStore extends EventEmitter {
       vmixInputKey: payload.vmixInputKey,
       vmixTextField: payload.vmixTextField,
       displayFormat: payload.displayFormat,
+      defaultColor: payload.defaultColor,
+      colorTriggers: payload.colorTriggers,
     });
 
     this.state.timers.push(timer);
@@ -1344,6 +1379,17 @@ export class TitleStore extends EventEmitter {
 
     if (payload.displayFormat !== undefined) {
       timer.displayFormat = ['hh:mm:ss', 'mm:ss', 'ss'].includes(payload.displayFormat) ? payload.displayFormat : timer.displayFormat;
+    }
+
+    if (payload.defaultColor !== undefined) {
+      timer.defaultColor = typeof payload.defaultColor === 'string' ? payload.defaultColor.trim() : '';
+    }
+
+    if (payload.colorTriggers !== undefined) {
+      timer.colorTriggers = normalizeTimer({
+        ...timer,
+        colorTriggers: payload.colorTriggers,
+      }).colorTriggers;
     }
 
     if (payload.valueMs !== undefined) {

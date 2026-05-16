@@ -48,26 +48,37 @@ export const startServer = async (options = {}) => {
 
   await store.init();
 
-  const midiService = new MidiService();
+  const midiService = new MidiService({
+    bindings: store.getMidiBindings(),
+    onBindingsChange: (bindings) => store.updateMidiBindings(bindings),
+  });
   midiService.on('action', ({ action }) => {
-    if (action === 'show') {
-      store.showSelected();
-    }
+    try {
+      if (action === 'show') {
+        store.showSelected();
+      }
 
-    if (action === 'update' || action === 'live') {
-      store.updateProgram();
-    }
+      if (action === 'update' || action === 'live') {
+        store.updateProgram();
+      }
 
-    if (action === 'hide') {
-      store.hideProgram();
-    }
+      if (action === 'hide') {
+        store.hideProgram();
+      }
 
-    if (action === 'next-title') {
-      store.selectAdjacentEntry('next');
-    }
+      if (action === 'next-title') {
+        store.selectAdjacentEntry('next');
+      }
 
-    if (action === 'previous-title') {
-      store.selectAdjacentEntry('previous');
+      if (action === 'previous-title') {
+        store.selectAdjacentEntry('previous');
+      }
+
+      if (action.startsWith('select-output:')) {
+        store.selectOutput(action.slice('select-output:'.length));
+      }
+    } catch (error) {
+      console.warn(`MIDI action skipped: ${error.message}`);
     }
   });
 

@@ -229,10 +229,29 @@ const resolveTimerForSlot = (template, output, timers, slotId) => {
   );
 };
 
+const resolveTimerColor = (timer) => {
+  if (!timer) {
+    return '';
+  }
+
+  const triggers = Array.isArray(timer.colorTriggers) ? timer.colorTriggers : [];
+  const sortedTriggers = [...triggers].sort((a, b) => Number(b.atMs || 0) - Number(a.atMs || 0));
+  const currentMs = Number(timer.currentMs ?? timer.valueMs ?? 0);
+  const matchedTrigger =
+    timer.mode === 'countup'
+      ? [...sortedTriggers].reverse().find((trigger) => currentMs >= Number(trigger.atMs || 0))
+      : sortedTriggers.find((trigger) => currentMs <= Number(trigger.atMs || 0));
+
+  return matchedTrigger?.color || timer.defaultColor || '';
+};
+
 const applyTimers = (template, output, timers = []) => {
   stage.querySelectorAll('[data-timer]').forEach((node) => {
     const timer = resolveTimerForSlot(template, output, timers, node.getAttribute('data-timer'));
     node.textContent = timer?.display || '00:00.0';
+    const timerColor = resolveTimerColor(timer);
+    node.style.color = timerColor;
+    node.style.setProperty('--timer-color', timerColor || 'currentColor');
   });
 };
 

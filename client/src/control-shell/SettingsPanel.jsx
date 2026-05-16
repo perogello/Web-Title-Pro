@@ -108,6 +108,7 @@ export default function SettingsPanel({
       {settingsTab === 'midi' && (
         <MidiSettingsTab
           midiState={midiState}
+          outputs={outputs}
           onRefreshMidiState={onRefreshMidiState}
           onStartMidiLearn={onStartMidiLearn}
           onStopMidiLearn={onStopMidiLearn}

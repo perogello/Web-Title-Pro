@@ -92,21 +92,8 @@ export default function PreviewTitlePanel({
                   </div>
                 </div>
               )}
-              {selectedEntry && selectedEntry.entryType !== 'vmix' && (
-                <div className="output-note">
-                  Remove only takes this title out of rundown. Template files stay in the templates folder and can be added again later.
-                </div>
-              )}
               {selectedEntry ? (
                 <div className={`preview-editor-fields ${selectedEntry?.entryType === 'vmix' ? 'is-vmix' : 'is-local'}`}>
-                  <label className="input-block compact entry-name-field">
-                    {selectedEntry?.entryType !== 'vmix' ? <span>Entry Name</span> : null}
-                    <input
-                      value={draftName}
-                      placeholder={selectedEntry?.entryType === 'vmix' ? 'Rundown name' : ''}
-                      onChange={(event) => onDraftNameChange(event.target.value)}
-                    />
-                  </label>
                   {selectedEntryFields.map((field) => (
                     selectedEntry?.entryType === 'vmix' ? (
                       <label className="input-block compact" key={field.name}>

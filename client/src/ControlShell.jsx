@@ -52,6 +52,21 @@ const slugFieldKey = (value = '') =>
     .replace(/^_+|_+$/g, '') || `field_${Math.random().toString(16).slice(2, 6)}`;
 
 const getSourceRowEditKey = (sourceId, rowId) => `${sourceId}:${rowId}`;
+const LIVE_SOURCE_COLUMN_WIDTHS_KEY = 'web-title-pro.liveSourceColumnWidths';
+const loadLiveSourceColumnWidths = () => {
+  try {
+    const raw = window.localStorage.getItem(LIVE_SOURCE_COLUMN_WIDTHS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+const saveLiveSourceColumnWidths = (widths) => {
+  try {
+    window.localStorage.setItem(LIVE_SOURCE_COLUMN_WIDTHS_KEY, JSON.stringify(widths || {}));
+  } catch {}
+};
 const normalizeLinkedTimerId = (value) => {
   if (value === undefined || value === null) {
     return null;
@@ -631,6 +646,7 @@ function ControlShell() {
   const [activeSourceRows, setActiveSourceRows] = useState({});
   const [activeTimerRows, setActiveTimerRows] = useState({});
   const [sourceRowTimers, setSourceRowTimers] = useState({});
+  const [liveSourceColumnWidths, setLiveSourceColumnWidths] = useState(() => loadLiveSourceColumnWidths());
   const [showPreviewPanel, setShowPreviewPanel] = useState(false);
   const [expandedRender, setExpandedRender] = useState(null);
   const [manageRundown, setManageRundown] = useState(false);
@@ -874,8 +890,14 @@ function ControlShell() {
         url: `${BACKEND_ORIGIN}/api/commands/next-title`,
         payload: { outputId: selectedOutput?.id || undefined },
       },
+      ...outputs.map((output) => ({
+        id: `select-output-${output.id}`,
+        label: `SELECT ${output.name}`,
+        url: `${BACKEND_ORIGIN}/api/commands/select-output`,
+        payload: { outputId: output.id },
+      })),
     ],
-    [selectedOutput?.id, selectedOutput?.selectedEntryId],
+    [outputs, selectedOutput?.id, selectedOutput?.selectedEntryId],
   );
   const outputRenderTargets = useMemo(() => {
     if (!outputInfo) {
@@ -945,6 +967,10 @@ function ControlShell() {
   useEffect(() => {
     saveSourceLibrary(sourceLibrary);
   }, [sourceLibrary]);
+
+  useEffect(() => {
+    saveLiveSourceColumnWidths(liveSourceColumnWidths);
+  }, [liveSourceColumnWidths]);
 
   useEffect(() => {
     if (!sourceLibrary.length) {
@@ -1378,11 +1404,15 @@ function ControlShell() {
     const rowKey = getSourceRowEditKey(sourceId, rowId);
     setSourceRowTimers((current) => ({
       ...current,
-      [rowKey]: {
-        status: 'idle',
-        currentMs: Math.max(0, nextBaseMs),
-        lastTickAt: null,
-      },
+      [rowKey]: (() => {
+        const previous = current[rowKey] || {};
+        const isRunning = previous.status === 'running' && !options.forceIdle;
+        return {
+          status: isRunning ? 'running' : 'idle',
+          currentMs: Math.max(0, nextBaseMs),
+          lastTickAt: isRunning ? Date.now() : null,
+        };
+      })(),
     }));
 
     const effectiveSyncTimerId = normalizeLinkedTimerId(
@@ -1486,9 +1516,11 @@ function ControlShell() {
     }
 
     if (action === 'reset') {
-      await updateSourceRowTimerBase(sourceId, row.id, 0, {
+      const resetMs = Number(row.timer?.baseMs || options.linkedTimer?.durationMs || 0);
+      await updateSourceRowTimerBase(sourceId, row.id, resetMs, {
         syncTimerId: options.syncTimerId || null,
         linkedTimer: options.linkedTimer || null,
+        forceIdle: true,
       });
       if (effectiveSyncTimerId) {
         await commandTimer(effectiveSyncTimerId, 'reset');
@@ -2739,11 +2771,18 @@ function ControlShell() {
         body: { name: nextName, fields: nextFields },
       });
 
-      if (outputEntry.entryType === 'vmix' || output.program?.visible) {
-        await api('/api/program/update', {
-          method: 'POST',
-          body: { entryId: outputEntry.id, outputId },
-        });
+      if (autoUpdate && (outputEntry.entryType === 'vmix' || output.program?.visible)) {
+        if (outputEntry.entryType === 'vmix') {
+          await api(`/api/entries/${outputEntry.id}/vmix-sync`, {
+            method: 'POST',
+            body: { action: 'update' },
+          });
+        } else {
+          await api('/api/program/update', {
+            method: 'POST',
+            body: { entryId: outputEntry.id, outputId },
+          });
+        }
       }
 
       if (outputId === selectedOutput?.id) {
@@ -3582,6 +3621,17 @@ function ControlShell() {
     }
   };
 
+  const resizeLiveSourceColumn = (sourceId, columnId, width) => {
+    if (!sourceId || !columnId) {
+      return;
+    }
+
+    setLiveSourceColumnWidths((current) => ({
+      ...current,
+      [`${sourceId}:${columnId}`]: Math.max(72, Math.min(640, Math.round(Number(width) || 0))),
+    }));
+  };
+
   const runVmixTimerAction = async (action) => {
     try {
       const nextState = await api('/api/vmix/timer-action', {
@@ -3936,6 +3986,7 @@ function ControlShell() {
             activeSourceBinding={activeSourceBinding}
             activeTimerBinding={activeTimerBinding}
             linkedSourceTimer={linkedSourceTimer}
+            liveSourceColumnWidths={liveSourceColumnWidths}
             normalizeLinkedTimerId={normalizeLinkedTimerId}
             getSourceRowTimerState={getSourceRowTimerState}
             getTimerSegments={getTimerSegments}
@@ -3946,6 +3997,7 @@ function ControlShell() {
             onApplySourceRow={applySourceRow}
             onControlSourceRowTimer={controlSourceRowTimer}
             onAdjustSourceRowTimerSegment={adjustSourceRowTimerSegment}
+            onResizeSourceColumn={resizeLiveSourceColumn}
           />
         )}
 

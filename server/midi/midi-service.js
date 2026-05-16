@@ -9,6 +9,19 @@ const defaultBindings = [
   { device: 'any', type: 'noteon', note: 64, action: 'next-title' },
 ];
 
+const normalizeBinding = (binding = {}) => ({
+  device: typeof binding.device === 'string' && binding.device ? binding.device : 'any',
+  type: ['noteon', 'cc'].includes(binding.type) ? binding.type : 'noteon',
+  ...(binding.note !== undefined ? { note: Number(binding.note) } : {}),
+  ...(binding.controller !== undefined ? { controller: Number(binding.controller) } : {}),
+  action: typeof binding.action === 'string' ? binding.action : '',
+});
+
+export const normalizeMidiBindings = (bindings = defaultBindings) =>
+  (Array.isArray(bindings) && bindings.length ? bindings : defaultBindings)
+    .map((binding) => normalizeBinding(binding))
+    .filter((binding) => isSupportedAction(binding.action));
+
 const parseMidiMessage = (data = []) => {
   const [status, data1, data2] = data;
   const command = status >> 4;
@@ -28,17 +41,35 @@ const parseMidiMessage = (data = []) => {
   return null;
 };
 
+const isSupportedAction = (action = '') =>
+  ['show', 'live', 'hide', 'next-title', 'previous-title'].includes(action) ||
+  /^select-output:[\w-]+$/.test(action);
+
+const isPressTrigger = (parsed = {}) => {
+  if (parsed.type === 'noteon') {
+    return true;
+  }
+
+  if (parsed.type === 'cc') {
+    return Number(parsed.value || 0) > 0;
+  }
+
+  return false;
+};
+
 export class MidiService extends EventEmitter {
-  constructor() {
+  constructor({ bindings, onBindingsChange } = {}) {
     super();
     this.enabled = false;
     this.inputs = [];
-    this.bindings = [...defaultBindings];
+    this.bindings = normalizeMidiBindings(bindings);
+    this.onBindingsChange = typeof onBindingsChange === 'function' ? onBindingsChange : null;
     this.error = null;
     this.engine = null;
     this.ports = [];
     this.learningAction = null;
     this.lastMessage = null;
+    this.lastActionKeys = new Map();
   }
 
   async init() {
@@ -68,7 +99,9 @@ export class MidiService extends EventEmitter {
       receivedAt: new Date().toISOString(),
     };
 
-    if (this.learningAction) {
+    const canTriggerAction = isPressTrigger(parsed);
+
+    if (this.learningAction && canTriggerAction) {
       const nextBinding = {
         device: inputName,
         type: parsed.type,
@@ -87,8 +120,14 @@ export class MidiService extends EventEmitter {
         ...this.bindings.filter((binding) => binding.action !== this.learningAction),
         nextBinding,
       ];
+      this.onBindingsChange?.(this.bindings);
       this.learningAction = null;
       this.emit('state', this.getState());
+    }
+
+    if (!canTriggerAction) {
+      this.emit('state', this.getState());
+      return;
     }
 
     for (const binding of this.bindings) {
@@ -98,6 +137,13 @@ export class MidiService extends EventEmitter {
       const controllerMatches = binding.controller === undefined || binding.controller === parsed.controller;
 
       if (deviceMatches && typeMatches && noteMatches && controllerMatches) {
+        const actionKey = `${binding.action}:${inputName}:${parsed.type}:${parsed.note ?? parsed.controller ?? ''}`;
+        const now = Date.now();
+        const previousAt = this.lastActionKeys.get(actionKey) || 0;
+        if (now - previousAt < 140) {
+          continue;
+        }
+        this.lastActionKeys.set(actionKey, now);
         this.emit('action', { action: binding.action, device: inputName, message: parsed });
       }
     }
@@ -147,7 +193,7 @@ export class MidiService extends EventEmitter {
   }
 
   startLearn(action) {
-    if (!['show', 'live', 'hide', 'next-title', 'previous-title'].includes(action)) {
+    if (!isSupportedAction(action)) {
       throw new Error('Unsupported MIDI learn action.');
     }
 
@@ -163,11 +209,12 @@ export class MidiService extends EventEmitter {
   }
 
   clearBinding(action) {
-    if (!['show', 'live', 'hide', 'next-title', 'previous-title'].includes(action)) {
+    if (!isSupportedAction(action)) {
       throw new Error('Unsupported MIDI binding action.');
     }
 
     this.bindings = this.bindings.filter((binding) => binding.action !== action);
+    this.onBindingsChange?.(this.bindings);
     if (this.learningAction === action) {
       this.learningAction = null;
     }

@@ -467,6 +467,11 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
         store.selectAdjacentEntry('next', request.body.outputId);
       } else if (action === 'previous-title') {
         store.selectAdjacentEntry('previous', request.body.outputId);
+      } else if (action === 'select-output') {
+        if (!request.body.outputId) {
+          throw new Error('Output is required.');
+        }
+        store.selectOutput(request.body.outputId);
       } else {
         throw new Error('Unsupported command.');
       }

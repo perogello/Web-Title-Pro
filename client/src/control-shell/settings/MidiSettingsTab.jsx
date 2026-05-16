@@ -1,5 +1,6 @@
 export default function MidiSettingsTab({
   midiState,
+  outputs = [],
   onRefreshMidiState,
   onStartMidiLearn,
   onStopMidiLearn,
@@ -12,6 +13,10 @@ export default function MidiSettingsTab({
     { id: 'previous-title', label: 'PREVIOUS TITLE' },
     { id: 'next-title', label: 'NEXT TITLE' },
   ];
+  const outputBindingLabels = outputs.map((output) => ({
+    id: `select-output:${output.id}`,
+    label: `SELECT ${output.name}`,
+  }));
 
   const getBindingValue = (action) => {
     const binding = (midiState?.bindings || []).find((item) => item.action === action);
@@ -80,6 +85,35 @@ export default function MidiSettingsTab({
               </div>
             );
           })}
+        </div>
+      </div>
+      <div className="shortcut-entry-card">
+        <div className="card-head">
+          <div>
+            <h3>Output Bindings</h3>
+          </div>
+        </div>
+        <div className="shortcut-action-grid">
+          {outputBindingLabels.map((binding) => {
+            const value = getBindingValue(binding.id);
+            const hasBinding = value !== 'Not assigned';
+
+            return (
+              <div className="shortcut-action-row" key={binding.id}>
+                <strong>{binding.label}</strong>
+                <code>{value}</code>
+                <div className="topbar-actions">
+                  <button className="ghost-button compact-button" onClick={() => onStartMidiLearn(binding.id)}>
+                    Learn
+                  </button>
+                  <button className="ghost-button compact-button" onClick={() => onClearMidiBinding(binding.id)} disabled={!hasBinding}>
+                    Clear
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {!outputBindingLabels.length && <div className="empty-state">No outputs available.</div>}
         </div>
       </div>
       <div className="midi-device-list">

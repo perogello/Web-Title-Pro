@@ -783,6 +783,40 @@ select {
 .timer-controls select {
   min-width: 0;
 }
+.timer-color-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--edge);
+}
+.timer-color-panel summary {
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.timer-color-panel[open] summary {
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+.timer-color-row,
+.timer-color-trigger-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+.timer-color-trigger-row {
+  grid-template-columns: minmax(82px, 0.8fr) minmax(92px, 0.8fr) auto;
+}
+.timer-color-panel input[type="color"] {
+  min-height: 34px;
+  padding: 2px;
+}
 .timer-format-row {
   display: flex;
   align-items: center;
@@ -1252,6 +1286,25 @@ select {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 12px;
+}
+.source-table th.is-resizable-column {
+  position: sticky;
+  min-width: 72px;
+}
+.source-column-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 7px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  z-index: 2;
+}
+.source-column-resizer:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 .source-column-head {
   display: flex;

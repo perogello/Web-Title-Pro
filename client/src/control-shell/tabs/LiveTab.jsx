@@ -15,6 +15,7 @@ export default function LiveTab({
   activeSourceBinding,
   activeTimerBinding,
   linkedSourceTimer,
+  liveSourceColumnWidths,
   normalizeLinkedTimerId,
   getSourceRowTimerState,
   getTimerSegments,
@@ -25,7 +26,34 @@ export default function LiveTab({
   onApplySourceRow,
   onControlSourceRowTimer,
   onAdjustSourceRowTimerSegment,
+  onResizeSourceColumn,
 }) {
+  const getColumnWidth = (column) =>
+    selectedSource?.id && column?.id ? liveSourceColumnWidths?.[`${selectedSource.id}:${column.id}`] : null;
+
+  const startColumnResize = (event, column) => {
+    if (!selectedSource?.id || !column?.id) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startX = event.clientX;
+    const startWidth = event.currentTarget.parentElement?.offsetWidth || getColumnWidth(column) || 160;
+
+    const onMove = (moveEvent) => {
+      onResizeSourceColumn?.(selectedSource.id, column.id, startWidth + moveEvent.clientX - startX);
+    };
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
   return (
     <section className="card live-source-card">
       <div className="card-head">
@@ -94,11 +122,21 @@ export default function LiveTab({
               <tr>
                 <th>#</th>
                 {selectedSourceDisplayColumns.map((column) => (
-                  <th key={column.id}>
+                  <th
+                    key={column.id}
+                    className="is-resizable-column"
+                    style={getColumnWidth(column) ? { width: `${getColumnWidth(column)}px` } : undefined}
+                  >
                     <div className="source-column-head" title={column.binding ? `${column.label} -> ${column.binding}` : column.label}>
                       <span>{column.label}</span>
                       {column.binding && <small>{column.binding}</small>}
                     </div>
+                    <button
+                      type="button"
+                      className="source-column-resizer"
+                      onMouseDown={(event) => startColumnResize(event, column)}
+                      aria-label={`Resize ${column.label}`}
+                    />
                   </th>
                 ))}
                 {selectedLinkedTimerId && <th>Timer</th>}
@@ -125,7 +163,7 @@ export default function LiveTab({
                   >
                     <td>{row.index}</td>
                     {selectedSourceDisplayColumns.map((column, index) => (
-                      <td key={column.id}>
+                      <td key={column.id} style={getColumnWidth(column) ? { width: `${getColumnWidth(column)}px` } : undefined}>
                         <span className="source-table-value">{row.values[index] || ''}</span>
                       </td>
                     ))}

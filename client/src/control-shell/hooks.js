@@ -138,7 +138,7 @@ export const useMidiState = () => {
     };
 
     load();
-    timerId = window.setInterval(load, 4000);
+    timerId = window.setInterval(load, 900);
 
     return () => {
       mounted = false;
