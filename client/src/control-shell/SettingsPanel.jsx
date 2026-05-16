@@ -18,6 +18,8 @@ export default function SettingsPanel({
   outputs,
   learningShortcut,
   shortcutBindings,
+  shortcutEntries,
+  shortcutTimers,
   bitfocusActions,
   midiState,
   appMeta,
@@ -93,6 +95,8 @@ export default function SettingsPanel({
           learningShortcut={learningShortcut}
           shortcutBindings={shortcutBindings}
           outputs={outputs}
+          entries={shortcutEntries}
+          timers={shortcutTimers}
           onStartLearning={onStartLearningShortcut}
           onClearShortcut={onClearShortcut}
           onCancelLearning={onCancelLearningShortcut}

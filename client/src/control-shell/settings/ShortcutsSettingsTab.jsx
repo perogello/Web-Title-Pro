@@ -2,6 +2,8 @@ export default function ShortcutsSettingsTab({
   learningShortcut,
   shortcutBindings,
   outputs,
+  entries = [],
+  timers = [],
   onStartLearning,
   onClearShortcut,
   onCancelLearning,
@@ -81,6 +83,52 @@ export default function ShortcutsSettingsTab({
           )}
         </div>
       </div>
+
+      {entries.length > 0 && (
+        <div className="shortcut-entry-card">
+          <div className="card-head">
+            <div>
+              <h3>Title entries</h3>
+            </div>
+          </div>
+          <div className="shortcut-action-grid">
+            {entries.map((entry) =>
+              renderRow({
+                key: `entry-${entry.id}`,
+                label: entry.name || entry.templateName || entry.id,
+                value: shortcutBindings?.entrySelectById?.[entry.id] || '',
+                action: `selectEntry:${entry.id}`,
+              }),
+            )}
+          </div>
+        </div>
+      )}
+
+      {timers.length > 0 && (
+        <div className="shortcut-entry-card">
+          <div className="card-head">
+            <div>
+              <h3>Timers</h3>
+            </div>
+          </div>
+          <div className="shortcut-action-grid">
+            {timers.flatMap((timer) => [
+              renderRow({
+                key: `timer-toggle-${timer.id}`,
+                label: `${timer.name || timer.id} — Start / Stop`,
+                value: shortcutBindings?.timerToggleById?.[timer.id] || '',
+                action: `timerToggle:${timer.id}`,
+              }),
+              renderRow({
+                key: `timer-reset-${timer.id}`,
+                label: `${timer.name || timer.id} — Reset`,
+                value: shortcutBindings?.timerResetById?.[timer.id] || '',
+                action: `timerReset:${timer.id}`,
+              }),
+            ])}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

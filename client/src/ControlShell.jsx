@@ -30,12 +30,7 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
 } from './control-shell/icons.jsx';
-
-const isTypingTarget = (target) => {
-  if (!target) return false;
-  const tag = target.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
-};
+import { useGlobalShortcuts } from './control-shell/use-global-shortcuts.js';
 
 const createClientId = (prefix = 'item') => {
   if (window.crypto?.randomUUID) {
@@ -197,64 +192,6 @@ const getTimerSegments = (milliseconds, format = 'mm:ss') => {
     { key: 'minutes', value: String(fullMinutes).padStart(2, '0') },
     { key: 'seconds', value: String(seconds).padStart(2, '0') },
   ];
-};
-
-const describeMouseButton = (button) => {
-  const labels = {
-    0: 'Mouse Left',
-    1: 'Mouse Middle',
-    2: 'Mouse Right',
-    3: 'Mouse Back',
-    4: 'Mouse Forward',
-  };
-
-  return labels[button] || `Mouse ${button}`;
-};
-
-const normalizeKeyName = (key = '') => {
-  const map = {
-    ' ': 'Space',
-    Escape: 'Escape',
-    Esc: 'Escape',
-    Enter: 'Enter',
-    ArrowUp: 'Arrow Up',
-    ArrowDown: 'Arrow Down',
-    ArrowLeft: 'Arrow Left',
-    ArrowRight: 'Arrow Right',
-    Delete: 'Delete',
-    Backspace: 'Backspace',
-    Tab: 'Tab',
-  };
-
-  if (map[key]) {
-    return map[key];
-  }
-
-  if (key.length === 1) {
-    return key.toUpperCase();
-  }
-
-  return key;
-};
-
-const formatShortcutFromEvent = (event) => {
-  const parts = [];
-
-  if (event.ctrlKey) parts.push('Ctrl');
-  if (event.altKey) parts.push('Alt');
-  if (event.shiftKey) parts.push('Shift');
-  if (event.metaKey) parts.push('Meta');
-
-  const base =
-    event.type === 'mousedown'
-      ? describeMouseButton(event.button)
-      : normalizeKeyName(event.key || '');
-
-  if (!base || ['Control', 'Shift', 'Alt', 'Meta'].includes(base)) {
-    return '';
-  }
-
-  return [...parts, base].join('+');
 };
 
 const buildEffectiveLocalFieldMap = (entry, templateFields = []) => {
@@ -3547,13 +3484,23 @@ function ControlShell() {
 
   const saveGlobalShortcut = async (action, value) => {
     try {
-      const body = action.startsWith('selectOutput:')
-        ? {
-            outputSelectById: {
-              ...(shortcutBindings?.outputSelectById || {}),
-              [action.slice('selectOutput:'.length)]: value,
-            },
-          }
+      const prefixMap = [
+        ['selectOutput:', 'outputSelectById'],
+        ['selectEntry:', 'entrySelectById'],
+        ['timerToggle:', 'timerToggleById'],
+        ['timerReset:', 'timerResetById'],
+      ];
+      const matchedPrefix = prefixMap.find(([prefix]) => action.startsWith(prefix));
+      const body = matchedPrefix
+        ? (() => {
+            const [prefix, field] = matchedPrefix;
+            return {
+              [field]: {
+                ...(shortcutBindings?.[field] || {}),
+                [action.slice(prefix.length)]: value,
+              },
+            };
+          })()
         : {
             [action]: value,
           };
@@ -3703,131 +3650,29 @@ function ControlShell() {
     pushFeedback('РЎС‚СЂРѕРєР° РґРѕР±Р°РІР»РµРЅР° РІ Source Table');
   };
 
-  useEffect(() => {
-    const onShortcutInput = (event) => {
-      if (isTypingTarget(event.target)) {
-        return;
-      }
-
-      if (
-        event.type === 'mousedown' &&
-        event.button === 0 &&
-        !event.ctrlKey &&
-        !event.altKey &&
-        !event.shiftKey &&
-        !event.metaKey
-      ) {
-        return;
-      }
-
-      const shortcutValue = formatShortcutFromEvent(event);
-
-      if (!shortcutValue) {
-        return;
-      }
-
-      if (learningShortcut) {
-        event.preventDefault();
-        event.stopPropagation();
-        void saveGlobalShortcut(learningShortcut.action, shortcutValue);
-        setLearningShortcut(null);
-        return;
-      }
-
-      if (
-        shortcutBindings?.show === shortcutValue ||
-        shortcutBindings?.live === shortcutValue ||
-        shortcutBindings?.hide === shortcutValue
-      ) {
-        event.preventDefault();
-        const action =
-          shortcutBindings?.show === shortcutValue
-            ? 'show'
-            : shortcutBindings?.live === shortcutValue
-              ? 'live'
-              : 'hide';
-        void triggerGlobalShortcut(action);
-        return;
-      }
-
-      if (shortcutBindings?.nextTitle === shortcutValue || shortcutBindings?.previousTitle === shortcutValue) {
-        event.preventDefault();
-        void triggerNavigationShortcut(shortcutBindings?.nextTitle === shortcutValue ? 'nextTitle' : 'previousTitle');
-        return;
-      }
-
-      const outputShortcutEntry = Object.entries(shortcutBindings?.outputSelectById || {})
-        .find(([, value]) => value === shortcutValue);
-
-      if (outputShortcutEntry) {
-        event.preventDefault();
-        setLocalSelectedOutputId(outputShortcutEntry[0]);
-        pushFeedback(`Output switched to ${outputs.find((output) => output.id === outputShortcutEntry[0])?.name || 'selected output'}`);
-        return;
-      }
-
-      const entryShortcutEntry = Object.entries(shortcutBindings?.entrySelectById || {})
-        .find(([, value]) => value === shortcutValue);
-      if (entryShortcutEntry) {
-        event.preventDefault();
-        void api(`/api/entries/${entryShortcutEntry[0]}/select`, {
-          method: 'POST',
-          body: { outputId: selectedOutput?.id },
-        }).catch(() => {});
-        return;
-      }
-
-      const timerToggleEntry = Object.entries(shortcutBindings?.timerToggleById || {})
-        .find(([, value]) => value === shortcutValue);
-      if (timerToggleEntry) {
-        event.preventDefault();
-        const timer = snapshot?.timers?.find((item) => item.id === timerToggleEntry[0]);
-        const nextAction = timer?.running ? 'stop' : 'start';
-        void commandTimer(timerToggleEntry[0], nextAction);
-        return;
-      }
-
-      const timerResetEntry = Object.entries(shortcutBindings?.timerResetById || {})
-        .find(([, value]) => value === shortcutValue);
-      if (timerResetEntry) {
-        event.preventDefault();
-        void commandTimer(timerResetEntry[0], 'reset');
-      }
-    };
-
-    const onAnyClick = (event) => {
+  useGlobalShortcuts({
+    api,
+    shortcutBindings,
+    learningShortcut,
+    outputs,
+    snapshot,
+    selectedOutput,
+    setLearningShortcut,
+    setLocalSelectedOutputId,
+    saveGlobalShortcut,
+    triggerGlobalShortcut,
+    triggerNavigationShortcut,
+    commandTimer,
+    pushFeedback,
+    onCloseFloatingMenus: (event) => {
       if (!event.target?.closest?.('.tab-toolbar-menu')) {
         setShowCompactMenu(false);
       }
       if (!event.target?.closest?.('.outputs-selector')) {
         setShowOutputSelector(false);
       }
-    };
-
-    window.addEventListener('keydown', onShortcutInput, true);
-    window.addEventListener('mousedown', onShortcutInput, true);
-    window.addEventListener('click', onAnyClick);
-    return () => {
-      window.removeEventListener('keydown', onShortcutInput, true);
-      window.removeEventListener('mousedown', onShortcutInput, true);
-      window.removeEventListener('click', onAnyClick);
-    };
-  }, [
-    learningShortcut,
-    selectedOutput?.id,
-    selectedEntry?.id,
-    shortcutBindings?.show,
-    shortcutBindings?.live,
-    shortcutBindings?.hide,
-    shortcutBindings?.nextTitle,
-    shortcutBindings?.previousTitle,
-    outputs,
-    JSON.stringify(shortcutBindings?.outputSelectById || {}),
-    JSON.stringify(shortcutBindings?.entrySelectById || {}),
-    JSON.stringify(shortcutBindings?.timerToggleById || {}),
-    JSON.stringify(shortcutBindings?.timerResetById || {}),
-    snapshot?.timers?.map((t) => `${t.id}:${t.running}`).join('|'),
-  ]);
+    },
+  });
 
   if (!snapshot || !program) {
     return <div className="loading-shell">Loading control surface...</div>;
@@ -3992,6 +3837,8 @@ function ControlShell() {
           outputs={outputs}
           learningShortcut={learningShortcut}
           shortcutBindings={shortcutBindings}
+          shortcutEntries={snapshot?.entries || []}
+          shortcutTimers={snapshot?.timers || []}
           bitfocusActions={bitfocusActions}
           midiState={midiState}
           appMeta={appMeta}
@@ -4006,14 +3853,23 @@ function ControlShell() {
           onCopyRenderUrl={(output) => copyText(output.renderUrl).then(() => pushFeedback(`Render URL ${output.name} copied`))}
           onCopyPreviewUrl={(output) => copyText(output.previewUrl).then(() => pushFeedback(`Preview URL ${output.name} copied`))}
           onCopyBaseUrl={(url) => copyText(url).then(() => pushFeedback('Base URL copied'))}
-          onStartLearningShortcut={(_entry, action) => setLearningShortcut({
-            scope: 'navigation',
-            entry: null,
-            action,
-            label: action.startsWith('selectOutput:')
-              ? `Output / ${outputs.find((output) => output.id === action.slice('selectOutput:'.length))?.name || 'Select Output'}`
-              : `Command / ${String(action).toUpperCase()}`,
-          })}
+          onStartLearningShortcut={(_entry, action) => {
+            let label = `Command / ${String(action).toUpperCase()}`;
+            if (action.startsWith('selectOutput:')) {
+              const o = outputs.find((output) => output.id === action.slice('selectOutput:'.length));
+              label = `Output / ${o?.name || 'Select Output'}`;
+            } else if (action.startsWith('selectEntry:')) {
+              const e = (snapshot?.entries || []).find((entry) => entry.id === action.slice('selectEntry:'.length));
+              label = `Entry / ${e?.name || 'Select Entry'}`;
+            } else if (action.startsWith('timerToggle:')) {
+              const t = (snapshot?.timers || []).find((timer) => timer.id === action.slice('timerToggle:'.length));
+              label = `Timer / ${t?.name || 'Timer'} — Start/Stop`;
+            } else if (action.startsWith('timerReset:')) {
+              const t = (snapshot?.timers || []).find((timer) => timer.id === action.slice('timerReset:'.length));
+              label = `Timer / ${t?.name || 'Timer'} — Reset`;
+            }
+            setLearningShortcut({ scope: 'navigation', entry: null, action, label });
+          }}
           onClearShortcut={(_entry, action) => saveGlobalShortcut(action, '')}
           onCancelLearningShortcut={() => setLearningShortcut(null)}
           onCopyBitfocusUrl={(action) => copyText(action.url).then(() => pushFeedback(`URL ${action.label} copied`))}
