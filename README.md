@@ -2,25 +2,45 @@
 
 ## RU
 
-Web Title Pro — desktop-first система управления титрами для live production.
-Приложение объединяет React-панель управления, Node.js backend, browser renderer и Windows desktop shell для работы с локальными HTML-титрами, `vMix` и data-driven графикой.
+**Web Title Pro** — локальное desktop-приложение для управления эфирными титрами, lower thirds, таймерами и data-driven графикой в live production.
 
-### Что нового в `0.2.11`
+Приложение рассчитано на режиссеров трансляций, операторов титров и небольшие продакшн-команды, которым нужно быстро управлять несколькими титрами, источниками данных и output-каналами без тяжелой broadcast-системы.
 
-- Обновлены `khural`-титры и их цветовая схема
-- Добавлен новый built-in шаблон `KHURAL TEST TITLE 2`
-- Убраны лишние текстовые подсветки у `Khural PIP` и `Khural PIP 2`
+Web Title Pro объединяет:
 
-### Что умеет
+- Windows desktop shell на Electron
+- React-панель управления
+- Node.js backend с HTTP API и WebSocket-синхронизацией
+- browser renderer для вывода графики в vMix, OBS или любой Browser Source
+- локальные HTML/CSS/JS-шаблоны титров
+- интеграцию с vMix titles и text fields
 
-- Локальные HTML/CSS/JS титры без перезагрузки Browser Source
-- `vMix` titles и text fields
-- Несколько независимых outputs
-- `Data Source` таблицы из text, `TXT / CSV`, `CSV URL`, `Google Sheets`, `Yandex Disk`
-- Mapping данных в титры
-- Таймеры, shortcuts, MIDI, Bitfocus / HTTP API
-- Проекты: `New / Open / Save / Save As / Recent`
-- Portable Windows build с updater flow
+### Для чего подходит
+
+- Lower thirds для спикеров, гостей, ведущих и участников эфира
+- PIP-титры для презентаций и конференций
+- Data-driven титры из таблиц и CSV
+- Несколько независимых output-каналов
+- Управление титрами с основного ПК и удаленного браузера в одной сети
+- Быстрое переключение строк rundown / data source
+- Таймеры с цветовыми состояниями
+- Интеграция с Bitfocus Companion, MIDI-контроллерами, клавиатурой и мышью
+
+### Основные возможности
+
+- **Local HTML titles**: кастомные титры на HTML/CSS/JS без перезагрузки Browser Source.
+- **vMix workflow**: добавление vMix-титров, обновление text fields, управление состоянием из приложения.
+- **Multiple outputs**: разные output-каналы могут иметь разные выбранные титры и rundown.
+- **Preview / Live render**: отдельные preview и live render windows для проверки перед эфиром.
+- **Data Sources**: ручной ввод, TXT / CSV, CSV URL, Google Sheets, Yandex Disk public link.
+- **Mapping**: сопоставление колонок таблицы с полями титра.
+- **Live Data Source**: быстрый выбор строки, ресайз колонок, таймеры в строках.
+- **Timers**: countdown / countup, формат отображения, цветовые триггеры по времени.
+- **Shortcuts**: keyboard / mouse shortcuts для команд, outputs, титров и таймеров.
+- **MIDI**: Learn / Clear bindings для MIDI-контроллеров, включая note и CC-сообщения.
+- **Bitfocus / HTTP API**: управление из Companion через Generic HTTP module.
+- **Projects**: New / Open / Save / Save As / Recent.
+- **Portable Windows build**: запуск без установки через `.exe`.
 
 ### Быстрый старт из исходников
 
@@ -29,7 +49,7 @@ npm install
 npm run dev
 ```
 
-Если PowerShell блокирует `npm.ps1`:
+Если PowerShell блокирует `npm.ps1`, используй:
 
 ```bash
 npm.cmd install
@@ -44,7 +64,7 @@ npm.cmd run dev
 
 ### Desktop режим
 
-Запуск desktop-версии:
+Запуск desktop-приложения:
 
 ```bash
 npm.cmd run desktop
@@ -56,57 +76,71 @@ npm.cmd run desktop
 npm.cmd run package:win
 ```
 
-Результат:
+Результат сборки:
 
 ```text
-release/WebTitlePro-0.2.11.exe
+release/WebTitlePro-<version>.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.11.exe` — versioned release asset
-- `WebTitlePro.exe` — основной стабильный файл для запуска
+### Базовый workflow
 
-### Как использовать
-
-1. Открой приложение.
+1. Запусти `WebTitlePro.exe`.
 2. Создай или выбери `Output`.
-3. Добавь локальный или `vMix` титр.
-4. Загрузи `Data Source` или введи данные вручную.
-5. При необходимости настрой `Mapping`.
-6. Используй `SHOW`, `SET` и `HIDE`.
-7. Подключи render URL в `vMix` или `OBS` Browser Source.
+3. Добавь local HTML title или vMix title.
+4. Открой render URL в vMix / OBS Browser Source.
+5. Загрузи `Data Source` или заполни поля вручную.
+6. Настрой `Mapping`, если титр должен брать данные из таблицы.
+7. Используй `TITLE IN`, `LOAD`, `TITLE OUT`, shortcuts, MIDI или Bitfocus.
 
-### Data Source
+### Работа с титрами
+
+Локальный титр — это папка с HTML-шаблоном, стилями, optional JS и metadata. Шаблон может быть простым статичным lower third или более сложной анимацией.
 
 Поддерживаются:
 
-- Text
-- TXT / CSV File
-- CSV URL
-- Google Sheets
-- Yandex Disk public link
+- редактируемые поля текста
+- системные и кастомные шрифты
+- inline style editing для поддерживаемых шаблонов
+- CSS-анимации и keyframes
+- JavaScript внутри шаблона, если он нужен для более сложной графики
+- data attributes для интеграции с renderer
 
-Для `Google Sheets` и `Yandex Disk` доступны `Refresh` и `Auto-refresh`.
-
-### Yandex
-
-Интеграция с Yandex настраивается локально в:
-
-```text
-Settings -> Yandex
-```
-
-Приложение не поставляется с готовыми credentials или токенами.
-Подробная инструкция:
-
-- [docs/YANDEX_CREDENTIALS.md](docs/YANDEX_CREDENTIALS.md)
-
-### Разработка шаблонов
-
-Если хочешь делать свои local HTML-титры для `Web Title Pro`, смотри:
+Документация для авторов шаблонов:
 
 - [docs/TEMPLATE_GUIDE.md](docs/TEMPLATE_GUIDE.md)
 - [docs/TEMPLATE_STARTER](docs/TEMPLATE_STARTER)
+
+### Data Source
+
+Поддерживаемые источники:
+
+- Text
+- TXT / CSV file
+- CSV URL
+- Google Sheets public link
+- Yandex Disk public link
+
+Для удаленных таблиц доступны `Refresh` и `Auto-refresh`. Если таблица открыта в редакторе Google Sheets или другом сервисе, обновления могут приходить с задержкой на стороне сервиса.
+
+### Управление извне
+
+Web Title Pro можно управлять не только из интерфейса:
+
+- Keyboard / mouse shortcuts
+- MIDI-контроллеры
+- Bitfocus Companion через HTTP
+- Прямые HTTP-запросы к backend API
+- Удаленный Control UI из браузера в той же сети
+
+Bitfocus-документация:
+
+- [docs/BITFOCUS.md](docs/BITFOCUS.md)
+- [docs/BITFOCUS_RU.md](docs/BITFOCUS_RU.md)
+
+### Важное про сеть
+
+Backend по умолчанию доступен в локальной сети на порту `4000`. Это удобно для работы с ноутбука или второго ПК, но в публичной сети лучше использовать изолированную production-сеть, потому что любой участник подсети может отправлять HTTP-команды приложению.
 
 ### Структура проекта
 
@@ -117,32 +151,53 @@ renderer/     Browser renderer
 desktop/      Electron desktop shell
 templates/    Built-in local templates
 scripts/      Build and helper scripts
-docs/         Product and integration notes
+docs/         Product and integration docs
+tests/        Node test suite
 ```
 
 ---
 
 ## EN
 
-Web Title Pro is a desktop-first title control system for live production.
-It combines a React control panel, Node.js backend, browser renderer, and Windows desktop shell for local HTML titles, `vMix`, and data-driven graphics workflows.
+**Web Title Pro** is a local desktop application for controlling live titles, lower thirds, timers, and data-driven graphics in live production.
 
-### What's New in `0.2.11`
+It is designed for broadcast directors, title operators, event teams, and small production crews that need fast control over multiple titles, data sources, and output channels without a heavy broadcast graphics system.
 
-- Updated the `khural` titles and their color scheme
-- Added a new built-in template: `KHURAL TEST TITLE 2`
-- Removed extra text glow from `Khural PIP` and `Khural PIP 2`
+Web Title Pro combines:
+
+- Electron-based Windows desktop shell
+- React control panel
+- Node.js backend with HTTP API and WebSocket synchronization
+- Browser renderer for vMix, OBS, or any Browser Source
+- Local HTML/CSS/JS title templates
+- vMix title and text-field integration
+
+### Use Cases
+
+- Speaker, guest, host, and participant lower thirds
+- PIP titles for presentations and conferences
+- Data-driven titles from tables and CSV files
+- Multiple independent output channels
+- Remote control from another browser on the same network
+- Fast rundown / data-source row switching
+- Timers with color states
+- Control via Bitfocus Companion, MIDI controllers, keyboard, and mouse
 
 ### Main Features
 
-- Local HTML/CSS/JS titles without reloading the Browser Source
-- `vMix` titles and text fields
-- Multiple independent outputs
-- `Data Source` tables from text, `TXT / CSV`, `CSV URL`, `Google Sheets`, and `Yandex Disk`
-- Data mapping into titles
-- Timers, shortcuts, MIDI, Bitfocus / HTTP API
-- Project workflow: `New / Open / Save / Save As / Recent`
-- Portable Windows build with updater flow
+- **Local HTML titles**: custom HTML/CSS/JS graphics without reloading the Browser Source.
+- **vMix workflow**: add vMix titles, update text fields, and control title state from the app.
+- **Multiple outputs**: different outputs can have different selected titles and rundowns.
+- **Preview / Live render**: separate preview and live render windows for safe checks before air.
+- **Data Sources**: manual input, TXT / CSV, CSV URL, Google Sheets, Yandex Disk public link.
+- **Mapping**: map table columns to title fields.
+- **Live Data Source**: fast row selection, resizable columns, row timers.
+- **Timers**: countdown / countup, display format, color triggers by time.
+- **Shortcuts**: keyboard / mouse bindings for commands, outputs, titles, and timers.
+- **MIDI**: Learn / Clear bindings for MIDI controllers, including note and CC messages.
+- **Bitfocus / HTTP API**: control through Companion using the Generic HTTP module.
+- **Projects**: New / Open / Save / Save As / Recent.
+- **Portable Windows build**: run the app from a standalone `.exe`.
 
 ### Quick Start From Source
 
@@ -181,54 +236,68 @@ npm.cmd run package:win
 Build output:
 
 ```text
-release/WebTitlePro-0.2.11.exe
+release/WebTitlePro-<version>.exe
 release/WebTitlePro.exe
 ```
 
-- `WebTitlePro-0.2.11.exe` is the versioned release asset
-- `WebTitlePro.exe` is the main stable executable for end users
-
 ### Basic Workflow
 
-1. Open the app.
+1. Start `WebTitlePro.exe`.
 2. Create or select an `Output`.
-3. Add a local or `vMix` title.
-4. Load a `Data Source` or enter data manually.
-5. Configure `Mapping` when needed.
-6. Use `SHOW`, `SET`, and `HIDE`.
-7. Connect the render URL to `vMix` or `OBS` Browser Source.
+3. Add a local HTML title or a vMix title.
+4. Open the render URL in vMix / OBS Browser Source.
+5. Load a `Data Source` or edit fields manually.
+6. Configure `Mapping` if the title should use table data.
+7. Use `TITLE IN`, `LOAD`, `TITLE OUT`, shortcuts, MIDI, or Bitfocus.
 
-### Data Sources
+### Title Templates
 
-Supported input types:
+A local title is a folder with an HTML template, styles, optional JS, and metadata. It can be a simple static lower third or a more advanced animated graphic.
 
-- Text
-- TXT / CSV File
-- CSV URL
-- Google Sheets
-- Yandex Disk public link
+Supported template capabilities:
 
-`Google Sheets` and `Yandex Disk` support `Refresh` and `Auto-refresh`.
+- editable text fields
+- system and custom fonts
+- inline style editing for supported templates
+- CSS animations and keyframes
+- optional JavaScript for more advanced graphics
+- data attributes for renderer integration
 
-### Yandex
-
-Yandex integration is configured locally in:
-
-```text
-Settings -> Yandex
-```
-
-The app does not ship with built-in credentials or tokens.
-See:
-
-- [docs/YANDEX_CREDENTIALS.md](docs/YANDEX_CREDENTIALS.md)
-
-### Template Development
-
-If you want to build custom local HTML titles for `Web Title Pro`, see:
+Template authoring docs:
 
 - [docs/TEMPLATE_GUIDE.md](docs/TEMPLATE_GUIDE.md)
 - [docs/TEMPLATE_STARTER](docs/TEMPLATE_STARTER)
+
+### Data Sources
+
+Supported sources:
+
+- Text
+- TXT / CSV file
+- CSV URL
+- Google Sheets public link
+- Yandex Disk public link
+
+Remote tables support `Refresh` and `Auto-refresh`. If a Google Sheet or another remote table is open in an editor, updates may be delayed by the service itself.
+
+### External Control
+
+Web Title Pro can be controlled outside the main UI:
+
+- Keyboard / mouse shortcuts
+- MIDI controllers
+- Bitfocus Companion over HTTP
+- Direct HTTP requests to the backend API
+- Remote Control UI from another browser on the same network
+
+Bitfocus documentation:
+
+- [docs/BITFOCUS.md](docs/BITFOCUS.md)
+- [docs/BITFOCUS_RU.md](docs/BITFOCUS_RU.md)
+
+### Network Note
+
+The backend is available on the local network on port `4000` by default. This is useful for laptop / second-PC control, but on public networks you should isolate the production network because anyone on the subnet can send HTTP commands to the app.
 
 ### Project Structure
 
@@ -239,5 +308,6 @@ renderer/     Browser renderer
 desktop/      Electron desktop shell
 templates/    Built-in local templates
 scripts/      Build and helper scripts
-docs/         Product and integration notes
+docs/         Product and integration docs
+tests/        Node test suite
 ```
