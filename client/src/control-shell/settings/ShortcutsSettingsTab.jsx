@@ -7,7 +7,10 @@ export default function ShortcutsSettingsTab({
   onStartLearning,
   onClearShortcut,
   onCancelLearning,
+  onToggleGlobal,
 }) {
+  const isMouseShortcut = (value = '') => /Mouse(\s|$)/i.test(value);
+  const globalActions = shortcutBindings?.globalActions || {};
   const globalBindings = [
     { id: 'show', label: 'TITLE IN' },
     { id: 'live', label: 'LIVE' },
@@ -18,15 +21,35 @@ export default function ShortcutsSettingsTab({
 
   const renderRow = ({ key, label, value, action }) => {
     const isLearning = learningShortcut?.action === action;
+    const isGlobal = Boolean(globalActions[action]);
+    const canBeGlobal = Boolean(value) && !isMouseShortcut(value);
     return (
       <div className={`shortcut-action-row ${isLearning ? 'is-learning' : ''}`} key={key}>
         <strong>{label}</strong>
         {isLearning ? (
           <code className="shortcut-learning-cell">Press a key or mouse button…</code>
         ) : (
-          <code>{value || 'Not assigned'}</code>
+          <code className={`shortcut-binding-value ${value ? '' : 'is-unset'}`}>
+            {value || 'Not assigned'}
+          </code>
         )}
         <div className="topbar-actions">
+          {!isLearning && (
+            <label
+              className={`shortcut-global-toggle ${isGlobal ? 'is-on' : ''} ${!canBeGlobal ? 'is-disabled' : ''}`}
+              title={canBeGlobal
+                ? 'Global: shortcut works even when the app window is not in focus'
+                : (value ? 'Mouse buttons cannot be global' : 'Assign a shortcut first')}
+            >
+              <input
+                type="checkbox"
+                checked={isGlobal}
+                disabled={!canBeGlobal}
+                onChange={(event) => onToggleGlobal?.(action, event.target.checked)}
+              />
+              <span>Global</span>
+            </label>
+          )}
           {isLearning ? (
             <button className="ghost-button compact-button is-cancel-learn" onClick={onCancelLearning}>Cancel</button>
           ) : (

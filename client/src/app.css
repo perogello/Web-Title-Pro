@@ -498,7 +498,59 @@ select {
 }
 .shortcut-action-row code {
   overflow-wrap: anywhere;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #f5f7fb;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 10px;
+  border-radius: 8px;
+  display: inline-block;
+  text-align: center;
+  min-width: 64px;
 }
+.shortcut-action-row code.is-unset {
+  font-weight: 500;
+  color: var(--text-dim);
+  font-style: italic;
+  background: transparent;
+  border-style: dashed;
+}
+.shortcut-action-row code.shortcut-learning-cell {
+  font-weight: 700;
+  background: rgba(93, 219, 146, 0.12);
+  border-color: rgba(93, 219, 146, 0.45);
+  color: var(--green);
+  font-style: normal;
+}
+.shortcut-global-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  user-select: none;
+}
+.shortcut-global-toggle input { margin: 0; cursor: pointer; }
+.shortcut-global-toggle.is-on {
+  background: rgba(93, 219, 146, 0.14);
+  border-color: rgba(93, 219, 146, 0.4);
+  color: var(--green);
+}
+.shortcut-global-toggle.is-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.shortcut-global-toggle.is-disabled input { cursor: not-allowed; }
 .shortcut-action-row.is-learning {
   background: rgba(93, 219, 146, 0.12);
   border-color: rgba(93, 219, 146, 0.45);

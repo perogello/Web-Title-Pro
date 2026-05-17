@@ -3635,6 +3635,82 @@ function ControlShell() {
     },
   });
 
+  // Sync registered OS-level global shortcuts with the desktop main process
+  // whenever the bindings or the per-action global flags change.
+  useEffect(() => {
+    if (!window.webTitleDesktop?.syncGlobalShortcuts) return;
+    window.webTitleDesktop
+      .syncGlobalShortcuts({
+        show: shortcutBindings?.show,
+        live: shortcutBindings?.live,
+        hide: shortcutBindings?.hide,
+        nextTitle: shortcutBindings?.nextTitle,
+        previousTitle: shortcutBindings?.previousTitle,
+        outputSelectById: shortcutBindings?.outputSelectById || {},
+        entrySelectById: shortcutBindings?.entrySelectById || {},
+        timerToggleById: shortcutBindings?.timerToggleById || {},
+        timerResetById: shortcutBindings?.timerResetById || {},
+        globalActions: shortcutBindings?.globalActions || {},
+      })
+      .catch(() => {});
+  }, [
+    shortcutBindings?.show,
+    shortcutBindings?.live,
+    shortcutBindings?.hide,
+    shortcutBindings?.nextTitle,
+    shortcutBindings?.previousTitle,
+    JSON.stringify(shortcutBindings?.outputSelectById || {}),
+    JSON.stringify(shortcutBindings?.entrySelectById || {}),
+    JSON.stringify(shortcutBindings?.timerToggleById || {}),
+    JSON.stringify(shortcutBindings?.timerResetById || {}),
+    JSON.stringify(shortcutBindings?.globalActions || {}),
+  ]);
+
+  // Dispatch a fired OS-global shortcut by reusing the same action handlers
+  // the in-window keyboard listener uses.
+  useEffect(() => {
+    if (!window.webTitleDesktop?.onGlobalShortcutFired) return undefined;
+    return window.webTitleDesktop.onGlobalShortcutFired(({ action }) => {
+      if (!action) return;
+      if (['show', 'live', 'hide'].includes(action)) {
+        void triggerGlobalShortcut(action);
+        return;
+      }
+      if (action === 'nextTitle' || action === 'previousTitle') {
+        void triggerNavigationShortcut(action);
+        return;
+      }
+      if (action.startsWith('selectOutput:')) {
+        setLocalSelectedOutputId(action.slice('selectOutput:'.length));
+        return;
+      }
+      if (action.startsWith('selectEntry:')) {
+        void api(`/api/entries/${action.slice('selectEntry:'.length)}/select`, {
+          method: 'POST',
+          body: { outputId: selectedOutput?.id },
+        }).catch(() => {});
+        return;
+      }
+      if (action.startsWith('timerToggle:')) {
+        const timerId = action.slice('timerToggle:'.length);
+        const timer = snapshot?.timers?.find((item) => item.id === timerId);
+        const next = timer?.running ? 'stop' : 'start';
+        void commandTimer(timerId, next);
+        return;
+      }
+      if (action.startsWith('timerReset:')) {
+        void commandTimer(action.slice('timerReset:'.length), 'reset');
+      }
+    });
+  }, [
+    triggerGlobalShortcut,
+    triggerNavigationShortcut,
+    setLocalSelectedOutputId,
+    selectedOutput?.id,
+    snapshot?.timers?.map((t) => `${t.id}:${t.running}`).join('|'),
+    commandTimer,
+  ]);
+
   if (!snapshot || !program) {
     return <div className="loading-shell">Loading control surface...</div>;
   }
@@ -3836,6 +3912,12 @@ function ControlShell() {
           }}
           onClearShortcut={(_entry, action) => saveGlobalShortcut(action, '')}
           onCancelLearningShortcut={() => setLearningShortcut(null)}
+          onToggleGlobalShortcut={(action, isOn) => {
+            void api('/api/shortcuts/navigation', {
+              method: 'PUT',
+              body: { globalActions: { [action]: !!isOn } },
+            }).catch((requestError) => pushFeedback(requestError.message));
+          }}
           onCopyBitfocusUrl={(action) => copyText(action.url).then(() => pushFeedback(`URL ${action.label} copied`))}
           onCopyBitfocusPayload={(action) => copyText(JSON.stringify(action.payload)).then(() => pushFeedback(`Payload ${action.label} copied`))}
           onRefreshMidiState={refreshMidiState}

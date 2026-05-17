@@ -139,6 +139,15 @@ const normalizeIdMap = (value) =>
       )
     : {};
 
+const normalizeBooleanMap = (value) =>
+  value && typeof value === 'object'
+    ? Object.fromEntries(
+        Object.entries(value)
+          .filter(([, raw]) => raw === true || raw === 'true')
+          .map(([key]) => [key, true]),
+      )
+    : {};
+
 const normalizeGlobalShortcuts = (shortcuts = {}) => ({
   show: typeof shortcuts.show === 'string' ? shortcuts.show : '',
   live: typeof shortcuts.live === 'string' ? shortcuts.live : '',
@@ -149,6 +158,7 @@ const normalizeGlobalShortcuts = (shortcuts = {}) => ({
   entrySelectById: normalizeIdMap(shortcuts.entrySelectById),
   timerToggleById: normalizeIdMap(shortcuts.timerToggleById),
   timerResetById: normalizeIdMap(shortcuts.timerResetById),
+  globalActions: normalizeBooleanMap(shortcuts.globalActions),
 });
 
 const slugifyOutputKey = (value = '') =>
@@ -694,13 +704,18 @@ export class TitleStore extends EventEmitter {
 
   updateNavigationShortcuts(patch = {}) {
     const current = normalizeGlobalShortcuts(this.state.integrations.shortcuts || {});
+    const mergeMap = (field) => ({
+      ...(current[field] || {}),
+      ...((patch && typeof patch[field] === 'object' && patch[field]) || {}),
+    });
     const normalizedPatch = normalizeGlobalShortcuts({
       ...current,
       ...patch,
-      outputSelectById: {
-        ...(current.outputSelectById || {}),
-        ...((patch && typeof patch.outputSelectById === 'object' && patch.outputSelectById) || {}),
-      },
+      outputSelectById: mergeMap('outputSelectById'),
+      entrySelectById: mergeMap('entrySelectById'),
+      timerToggleById: mergeMap('timerToggleById'),
+      timerResetById: mergeMap('timerResetById'),
+      globalActions: mergeMap('globalActions'),
     });
 
     this.state.integrations.shortcuts = {

@@ -37,6 +37,7 @@ export default function SettingsPanel({
   onStartLearningShortcut,
   onClearShortcut,
   onCancelLearningShortcut,
+  onToggleGlobalShortcut,
   onCopyBitfocusUrl,
   onCopyBitfocusPayload,
   onRefreshMidiState,
@@ -100,6 +101,7 @@ export default function SettingsPanel({
           onStartLearning={onStartLearningShortcut}
           onClearShortcut={onClearShortcut}
           onCancelLearning={onCancelLearningShortcut}
+          onToggleGlobal={onToggleGlobalShortcut}
         />
       )}
       {settingsTab === 'bitfocus' && (

@@ -5,6 +5,7 @@ const fsp = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
 const electron = require('electron');
 const { createUpdaterIntegration } = require('./integrations/updater.cjs');
+const { createGlobalShortcutManager } = require('./integrations/global-shortcuts.cjs');
 const { createYandexAuthIntegration } = require('./integrations/yandex-auth.cjs');
 const { createSystemFontsIntegration } = require('./integrations/system-fonts.cjs');
 
@@ -14,6 +15,9 @@ const dialog = electron.dialog;
 const ipcMain = electron.ipcMain;
 const shell = electron.shell;
 const safeStorage = electron.safeStorage;
+const globalShortcut = electron.globalShortcut;
+
+let globalShortcutManager = null;
 
 const SERVER_URL = 'http://127.0.0.1:4000';
 const HEALTH_URL = `${SERVER_URL}/api/health`;
@@ -704,6 +708,21 @@ const runStartupUpdateCheck = async () => updaterIntegration?.runStartupUpdateCh
 
 initializeUpdaterIntegration();
 
+globalShortcutManager = createGlobalShortcutManager({
+  globalShortcut,
+  getMainWindow: () => mainWindow,
+  log,
+});
+
+ipcMain.handle('shortcuts:sync-global', async (_event, shortcutBindings = {}) => {
+  if (!globalShortcutManager) {
+    return { registered: [], conflicts: [], available: false };
+  }
+  const result = globalShortcutManager.sync(shortcutBindings || {});
+  log(`global-shortcut:sync registered=${result.registered.length} conflicts=${result.conflicts.length}`);
+  return { ...result, available: true };
+});
+
 const waitForHealth = async (retries = 80) => {
   for (let attempt = 0; attempt < retries; attempt += 1) {
     try {
@@ -867,6 +886,7 @@ app.on('activate', async () => {
 app.on('before-quit', () => {
   stopPseudoProgress();
   log('app:before-quit');
+  try { globalShortcutManager?.unregisterAll(); } catch {}
   if (ownsBackendRuntime && backendRuntime?.close) {
     try {
       backendRuntime.close();

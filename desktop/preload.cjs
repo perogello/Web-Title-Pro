@@ -20,4 +20,10 @@ contextBridge.exposeInMainWorld('webTitleDesktop', {
   openPath: (targetPath) => ipcRenderer.invoke('system:open-path', targetPath),
   openTemplateFolders: () => ipcRenderer.invoke('templates:open-folders'),
   pickTemplateFolder: () => ipcRenderer.invoke('templates:pick-folder'),
+  syncGlobalShortcuts: (shortcutBindings) => ipcRenderer.invoke('shortcuts:sync-global', shortcutBindings),
+  onGlobalShortcutFired: (callback) => {
+    const listener = (_event, payload) => callback?.(payload);
+    ipcRenderer.on('global-shortcut-fired', listener);
+    return () => ipcRenderer.removeListener('global-shortcut-fired', listener);
+  },
 });
