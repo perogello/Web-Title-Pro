@@ -1,5 +1,7 @@
 # Bitfocus Companion integration
 
+> Русская версия: [BITFOCUS_RU.md](BITFOCUS_RU.md)
+
 Web Title Pro talks to Companion through its **Generic HTTP** module — no custom
 plugin install is required. This document lists every action you can bind to a
 Stream Deck button and gives copy-paste configurations.
