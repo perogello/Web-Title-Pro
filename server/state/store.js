@@ -578,7 +578,11 @@ export class TitleStore extends EventEmitter {
         nextOutput.program = createDefaultProgram();
       }
 
-      if (!nextOutput.program.templateId && nextOutput.selectedEntryId) {
+      // Bootstrap program from selected entry only when nothing is loaded yet
+      // (no entryId on program). vMix entries legitimately have templateId === null,
+      // so we cannot use templateId as the 'is program loaded' signal — that would
+      // overwrite ON AIR/last-action every reconcile pass for vMix titles.
+      if (!nextOutput.program.entryId && nextOutput.selectedEntryId) {
         const entry = this.state.entries.find((item) => item.id === nextOutput.selectedEntryId);
         const presentation = this.getEntryPresentation(entry);
 
