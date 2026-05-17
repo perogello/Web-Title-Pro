@@ -155,6 +155,37 @@ export default function MidiSettingsTab({
         ))}
         {!midiState?.inputs?.length && <div className="empty-state">No MIDI devices detected.</div>}
       </div>
+
+      <div className="shortcut-entry-card">
+        <div className="card-head">
+          <div>
+            <h3>MIDI Monitor</h3>
+            <span className="output-note">
+              Last 50 raw messages from any connected device. Use this to verify the controller is sending data and to inspect what bytes it actually emits.
+            </span>
+          </div>
+        </div>
+        <div className="midi-monitor">
+          {(midiState?.recentMessages || []).length === 0 && (
+            <div className="empty-state">No MIDI messages received yet. Press a button / move a fader on the controller.</div>
+          )}
+          {(midiState?.recentMessages || []).map((m, idx) => {
+            const time = m.at ? new Date(m.at).toISOString().slice(11, 23) : '';
+            const rawHex = (m.raw || []).map((b) => `0x${b.toString(16).padStart(2, '0').toUpperCase()}`).join(' ');
+            const parsedLabel = m.parsed
+              ? `${m.parsed.type}${m.parsed.note !== undefined ? ` note ${m.parsed.note}` : ''}${m.parsed.controller !== undefined ? ` cc ${m.parsed.controller}` : ''}${m.parsed.velocity !== undefined ? ` vel ${m.parsed.velocity}` : ''}${m.parsed.value !== undefined ? ` value ${m.parsed.value}` : ''}`
+              : 'unparsed';
+            return (
+              <div className="midi-monitor-row" key={`${m.at}-${idx}`}>
+                <span className="midi-monitor-time">{time}</span>
+                <strong className="midi-monitor-device">{m.device}</strong>
+                <code className="midi-monitor-raw">{rawHex || '—'}</code>
+                <span className="midi-monitor-parsed">{parsedLabel}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

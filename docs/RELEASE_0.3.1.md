@@ -2,22 +2,30 @@
 
 ## RU
 
-Критическое сервисное обновление после 0.3.0.
+Патч после 0.3.0.
 
-- Исправлена и усилена поддержка MIDI-контроллеров, включая APC mini: приложение корректно распознает нажатия, игнорирует отпускание кнопок и сохраняет бинды.
-- Команды Shortcuts / MIDI / Bitfocus приведены к единой логике: управление титром, next / previous, выбор output, выбор титра и управление таймерами.
-- Улучшены цветовые триггеры таймеров и применение цвета в local/vMix workflow.
-- Исправлены регрессии ON AIR/OFF для vMix-титров по последнему действию из приложения.
-- Улучшена работа Live Data Source: ширина колонок, reset таймера, редактирование времени во время запуска.
-- Добавлены проверки стабильности и мелкие UI/UX-исправления перед релизом.
+- **Единый набор actions** во вкладках Shortcuts / MIDI / Bitfocus —
+  Commands, Outputs, Title entries, Timers (toggle + reset). В
+  Bitfocus раньше отсутствовали entries и timers.
+- **MIDI tab**: Learn-режим теперь подсвечивает строку самого action
+  и показывает Cancel в той же строке (как в Shortcuts).
+- **MIDI Monitor**: новая панель в Settings → MIDI с последними
+  50 сырыми сообщениями от контроллера (hex bytes + распарсенный
+  тип). Помогает диагностировать контроллеры (APC mini и пр.) если
+  бинды не срабатывают.
+- Новый endpoint `POST /api/timers/<id>/toggle` для Bitfocus.
 
 ## EN
 
-Critical maintenance update after 0.3.0.
+Patch on top of 0.3.0.
 
-- MIDI controller support improved, including APC mini: button presses are detected correctly, release events are ignored, and bindings persist.
-- Shortcuts / MIDI / Bitfocus now follow one command model: title control, next / previous, output selection, title selection, and timer control.
-- Timer color triggers and color application in local/vMix workflows were improved.
-- vMix title ON AIR/OFF regressions fixed based on the last action sent by the app.
-- Live Data Source workflow improved: column widths, timer reset behavior, and timer edits while running.
-- Stability checks and small UI/UX fixes included before release.
+- **Unified action set** across Shortcuts / MIDI / Bitfocus tabs —
+  Commands, Outputs, Title entries, Timers (toggle + reset). Bitfocus
+  was previously missing entries and timers.
+- **MIDI tab**: Learn now highlights the action row inline with a
+  Cancel button (same UX as Shortcuts).
+- **MIDI Monitor**: new panel in Settings → MIDI showing the last 50
+  raw messages from the connected controller (hex bytes + parsed
+  type). Useful for diagnosing controllers (APC mini etc.) when
+  bindings don't fire.
+- New endpoint `POST /api/timers/<id>/toggle` for Bitfocus.

@@ -1063,6 +1063,47 @@ select {
   display: grid;
   gap: 8px;
 }
+.midi-monitor {
+  display: grid;
+  gap: 4px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px 12px 12px;
+}
+.midi-monitor-row {
+  display: grid;
+  grid-template-columns: 90px minmax(120px, 1fr) minmax(160px, 1.4fr) minmax(140px, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+.midi-monitor-row:first-child {
+  background: rgba(93, 219, 146, 0.1);
+}
+.midi-monitor-time {
+  color: var(--text-dim);
+}
+.midi-monitor-device {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.midi-monitor-raw {
+  background: transparent;
+  padding: 0;
+  letter-spacing: 0.04em;
+}
+.midi-monitor-parsed {
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .source-layout {
   display: grid;
   grid-template-columns: 360px minmax(0, 1fr);

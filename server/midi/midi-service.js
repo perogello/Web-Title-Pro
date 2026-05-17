@@ -83,6 +83,19 @@ export class MidiService extends EventEmitter {
     this.learningAction = null;
     this.lastMessage = null;
     this.lastActionKeys = new Map();
+    this.recentMessages = [];
+    this.recentMessagesLimit = 50;
+  }
+
+  recordRawMessage(inputName, rawBytes, parsed) {
+    const entry = {
+      at: new Date().toISOString(),
+      device: inputName,
+      raw: Array.isArray(rawBytes) ? rawBytes : [...(rawBytes || [])],
+      parsed: parsed || null,
+    };
+    this.recentMessages = [entry, ...this.recentMessages].slice(0, this.recentMessagesLimit);
+    return entry;
   }
 
   async init() {
@@ -181,9 +194,12 @@ export class MidiService extends EventEmitter {
               this.ports.push(port);
 
               port.connect((message) => {
-                const parsed = parseMidiMessage(Array.from(message));
+                const raw = Array.from(message);
+                const parsed = parseMidiMessage(raw);
+                this.recordRawMessage(input.name, raw, parsed);
 
                 if (!parsed) {
+                  this.emit('state', this.getState());
                   return;
                 }
 
@@ -244,6 +260,7 @@ export class MidiService extends EventEmitter {
       error: this.error,
       learningAction: this.learningAction,
       lastMessage: this.lastMessage,
+      recentMessages: this.recentMessages,
     };
   }
 }
