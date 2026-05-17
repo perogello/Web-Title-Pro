@@ -479,6 +479,10 @@ select {
   border-radius: 14px;
   padding: 12px;
 }
+.shortcut-bindings-card {
+  width: fit-content;
+  max-width: 100%;
+}
 .shortcut-action-grid {
   display: grid;
   gap: 8px;
@@ -486,7 +490,7 @@ select {
 }
 .shortcut-action-row {
   display: grid;
-  grid-template-columns: minmax(128px, max-content) minmax(130px, max-content) auto;
+  grid-template-columns: 230px 150px max-content;
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
@@ -497,7 +501,8 @@ select {
   max-width: 100%;
 }
 .shortcut-action-row > strong {
-  max-width: 220px;
+  width: 230px;
+  max-width: 230px;
   line-height: 1.15;
 }
 .shortcut-action-row > .topbar-actions {
@@ -507,7 +512,6 @@ select {
   opacity: 0.55;
 }
 .shortcut-action-row code {
-  overflow-wrap: anywhere;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
   font-size: 14px;
   font-weight: 700;
@@ -519,9 +523,12 @@ select {
   border-radius: 8px;
   display: inline-block;
   text-align: center;
-  min-width: 64px;
-  width: fit-content;
-  max-width: 280px;
+  min-width: 0;
+  width: 150px;
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .shortcut-action-row code.is-unset {
   font-weight: 500;
@@ -529,7 +536,6 @@ select {
   font-style: italic;
   background: transparent;
   border-style: dashed;
-  min-width: 130px;
 }
 .shortcut-action-row code.shortcut-learning-cell {
   font-weight: 700;
@@ -565,6 +571,7 @@ select {
 }
 .shortcut-global-toggle.is-disabled input { cursor: not-allowed; }
 .shortcut-action-row.is-learning {
+  grid-template-columns: 230px 150px max-content;
   background: rgba(93, 219, 146, 0.12);
   border-color: rgba(93, 219, 146, 0.45);
   animation: shortcut-learning-pulse 1.2s ease-in-out infinite;
@@ -572,6 +579,8 @@ select {
 .shortcut-action-row.is-learning .shortcut-learning-cell {
   color: var(--green);
   font-weight: 700;
+  width: 150px;
+  max-width: 150px;
 }
 @keyframes shortcut-learning-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(93, 219, 146, 0); }

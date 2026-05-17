@@ -23,13 +23,14 @@ export default function ShortcutsSettingsTab({
     const isLearning = learningShortcut?.action === action;
     const isGlobal = Boolean(globalActions[action]);
     const canBeGlobal = Boolean(value) && !isMouseShortcut(value);
+
     return (
       <div className={`shortcut-action-row ${isLearning ? 'is-learning' : ''}`} key={key}>
         <strong>{label}</strong>
         {isLearning ? (
-          <code className="shortcut-learning-cell">Press a key or mouse button…</code>
+          <code className="shortcut-learning-cell" title="Press a key or mouse button.">Press key...</code>
         ) : (
-          <code className={`shortcut-binding-value ${value ? '' : 'is-unset'}`}>
+          <code className={`shortcut-binding-value ${value ? '' : 'is-unset'}`} title={value || 'Not assigned'}>
             {value || 'Not assigned'}
           </code>
         )}
@@ -73,7 +74,7 @@ export default function ShortcutsSettingsTab({
 
   return (
     <div className="integration-grid">
-      <div className="shortcut-entry-card">
+      <div className="shortcut-entry-card shortcut-bindings-card">
         <div className="card-head">
           <div>
             <h3>Commands</h3>
@@ -91,7 +92,7 @@ export default function ShortcutsSettingsTab({
         </div>
       </div>
 
-      <div className="shortcut-entry-card">
+      <div className="shortcut-entry-card shortcut-bindings-card">
         <div className="card-head">
           <div>
             <h3>Outputs</h3>
@@ -110,7 +111,7 @@ export default function ShortcutsSettingsTab({
       </div>
 
       {entries.length > 0 && (
-        <div className="shortcut-entry-card">
+        <div className="shortcut-entry-card shortcut-bindings-card">
           <div className="card-head">
             <div>
               <h3>Title entries</h3>
@@ -130,7 +131,7 @@ export default function ShortcutsSettingsTab({
       )}
 
       {timers.length > 0 && (
-        <div className="shortcut-entry-card">
+        <div className="shortcut-entry-card shortcut-bindings-card">
           <div className="card-head">
             <div>
               <h3>Timers</h3>
@@ -140,13 +141,13 @@ export default function ShortcutsSettingsTab({
             {timers.flatMap((timer) => [
               renderRow({
                 key: `timer-toggle-${timer.id}`,
-                label: `${timer.name || timer.id} — Start / Stop`,
+                label: `${timer.name || timer.id} - Start / Stop`,
                 value: shortcutBindings?.timerToggleById?.[timer.id] || '',
                 action: `timerToggle:${timer.id}`,
               }),
               renderRow({
                 key: `timer-reset-${timer.id}`,
-                label: `${timer.name || timer.id} — Reset`,
+                label: `${timer.name || timer.id} - Reset`,
                 value: shortcutBindings?.timerResetById?.[timer.id] || '',
                 action: `timerReset:${timer.id}`,
               }),

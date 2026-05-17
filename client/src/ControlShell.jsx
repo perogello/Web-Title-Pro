@@ -48,6 +48,12 @@ const slugFieldKey = (value = '') =>
 
 const getSourceRowEditKey = (sourceId, rowId) => `${sourceId}:${rowId}`;
 const LINKED_TIMER_OVERRIDE_MS = 1800;
+const TIMER_MAX_MS = (99 * 3600 + 59 * 60 + 59) * 1000;
+const TIMER_SEGMENT_STEP_MS = {
+  hours: 3600000,
+  minutes: 60000,
+  seconds: 1000,
+};
 const LIVE_SOURCE_COLUMN_WIDTHS_KEY = 'web-title-pro.liveSourceColumnWidths';
 const loadLiveSourceColumnWidths = () => {
   try {
@@ -156,17 +162,14 @@ const formatCompactTimer = (milliseconds, format = 'mm:ss') => {
 };
 
 const changeTimerSegment = (milliseconds, segment, delta) => {
-  const date = {
-    hours: Math.floor(milliseconds / 3600000),
-    minutes: Math.floor((milliseconds % 3600000) / 60000),
-    seconds: Math.floor((milliseconds % 60000) / 1000),
-  };
-  const limits = { hours: 99, minutes: 59, seconds: 59 };
-  const next = { ...date };
+  const stepMs = TIMER_SEGMENT_STEP_MS[segment] || 0;
+  const currentMs = Math.max(0, Number(milliseconds || 0));
 
-  next[segment] = Math.max(0, Math.min(limits[segment], next[segment] + delta));
+  if (!stepMs) {
+    return Math.min(TIMER_MAX_MS, currentMs);
+  }
 
-  return (next.hours * 3600 + next.minutes * 60 + next.seconds) * 1000;
+  return Math.max(0, Math.min(TIMER_MAX_MS, currentMs + delta * stepMs));
 };
 
 const getTimerSegments = (milliseconds, format = 'mm:ss') => {
@@ -1265,13 +1268,16 @@ function ControlShell() {
           }
 
           const elapsed = now - (timer.lastTickAt || now);
-          const nextMs = Math.max(0, timer.currentMs - elapsed);
+          const timerMode = timer.mode === 'countup' ? 'countup' : 'countdown';
+          const nextMs = timerMode === 'countup'
+            ? Math.min(TIMER_MAX_MS, Math.max(0, timer.currentMs + elapsed))
+            : Math.max(0, timer.currentMs - elapsed);
           changed = true;
           next[rowKey] = {
             ...timer,
             currentMs: nextMs,
             lastTickAt: now,
-            status: nextMs === 0 ? 'finished' : 'running',
+            status: timerMode === 'countdown' && nextMs === 0 ? 'finished' : 'running',
           };
         }
 
@@ -1374,6 +1380,7 @@ function ControlShell() {
           status: isRunning ? 'running' : 'idle',
           currentMs: Math.max(0, nextBaseMs),
           lastTickAt: isRunning ? Date.now() : null,
+          mode: options.linkedTimer?.mode === 'countup' ? 'countup' : 'countdown',
           linkedOverride,
           ...(linkedOverride ? { linkedOverrideExpiresAt: Date.now() + LINKED_TIMER_OVERRIDE_MS } : {}),
         };
@@ -1461,6 +1468,7 @@ function ControlShell() {
               ? Math.max(0, currentTimer.currentMs || Number(row.timer?.baseMs || 0))
               : Math.max(0, currentTimer.currentMs || Number(row.timer?.baseMs || 0)),
             lastTickAt: shouldPause ? null : Date.now(),
+            mode: options.linkedTimer?.mode === 'countup' ? 'countup' : 'countdown',
             linkedOverride: true,
             linkedOverrideExpiresAt: Date.now() + LINKED_TIMER_OVERRIDE_MS,
           };
@@ -4422,8 +4430,6 @@ function ControlShell() {
 }
 
 export default ControlShell;
-
-
 
 
 

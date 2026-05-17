@@ -1,3 +1,15 @@
+const formatMidiTrigger = (binding = {}) => {
+  if (binding.controller !== undefined) {
+    return `CC ${binding.controller}`;
+  }
+
+  if (binding.note !== undefined) {
+    return `Note ${binding.note}`;
+  }
+
+  return binding.type === 'cc' ? 'CC' : 'MIDI';
+};
+
 export default function MidiSettingsTab({
   midiState,
   outputs = [],
@@ -24,36 +36,54 @@ export default function MidiSettingsTab({
     label: entry.name || entry.templateName || entry.id,
   }));
   const timerBindings = timers.flatMap((timer) => [
-    { id: `timer-toggle:${timer.id}`, label: `${timer.name || timer.id} — Start / Stop` },
-    { id: `timer-reset:${timer.id}`, label: `${timer.name || timer.id} — Reset` },
+    { id: `timer-toggle:${timer.id}`, label: `${timer.name || timer.id} - Start / Stop` },
+    { id: `timer-reset:${timer.id}`, label: `${timer.name || timer.id} - Reset` },
   ]);
 
-  const getBindingValue = (action) => {
+  const getBindingInfo = (action) => {
     const binding = (midiState?.bindings || []).find((item) => item.action === action);
     if (!binding) {
-      return '';
+      return { value: '', title: 'Not assigned' };
     }
+
     const deviceLabel = binding.device === 'any' ? 'Any device' : binding.device;
-    const triggerLabel = `${binding.type}${binding.note !== undefined ? ` note ${binding.note}` : ''}${binding.controller !== undefined ? ` cc ${binding.controller}` : ''}`;
-    return `${deviceLabel} / ${triggerLabel}`;
+    const triggerLabel = formatMidiTrigger(binding);
+
+    return {
+      value: triggerLabel,
+      title: `${deviceLabel} / ${triggerLabel}`,
+    };
   };
 
-  const formatLastMessage = () => {
+  const getLearningInfo = () => {
     const m = midiState?.lastMessage;
-    if (!m) return 'Press the desired button on your MIDI device…';
-    return `Last: ${m.device || 'any'} / ${m.type}${m.note !== undefined ? ` note ${m.note}` : ''}${m.controller !== undefined ? ` cc ${m.controller}` : ''}`;
+    if (!m) {
+      return {
+        value: 'Press MIDI...',
+        title: 'Press the desired button on your MIDI device.',
+      };
+    }
+
+    const triggerLabel = formatMidiTrigger(m);
+    return {
+      value: `Last: ${triggerLabel}`,
+      title: `${m.device || 'Any device'} / ${triggerLabel}`,
+    };
   };
 
   const renderRow = ({ key, label, action }) => {
-    const value = getBindingValue(action);
+    const bindingInfo = getBindingInfo(action);
+    const value = bindingInfo.value;
     const isLearning = midiState?.learningAction === action;
+    const learningInfo = isLearning ? getLearningInfo() : null;
+
     return (
       <div className={`shortcut-action-row ${isLearning ? 'is-learning' : ''}`} key={key}>
         <strong>{label}</strong>
         {isLearning ? (
-          <code className="shortcut-learning-cell">{formatLastMessage()}</code>
+          <code className="shortcut-learning-cell" title={learningInfo.title}>{learningInfo.value}</code>
         ) : (
-          <code className={`shortcut-binding-value ${value ? '' : 'is-unset'}`}>
+          <code className={`shortcut-binding-value ${value ? '' : 'is-unset'}`} title={bindingInfo.title}>
             {value || 'Not assigned'}
           </code>
         )}
@@ -99,7 +129,7 @@ export default function MidiSettingsTab({
         <span className="output-note">{midiState?.error || 'The service listens for MIDI inputs automatically when the app starts.'}</span>
       </div>
 
-      <div className="shortcut-entry-card">
+      <div className="shortcut-entry-card shortcut-bindings-card">
         <div className="card-head">
           <div>
             <h3>Commands</h3>
@@ -110,7 +140,7 @@ export default function MidiSettingsTab({
         </div>
       </div>
 
-      <div className="shortcut-entry-card">
+      <div className="shortcut-entry-card shortcut-bindings-card">
         <div className="card-head">
           <div>
             <h3>Outputs</h3>
@@ -123,7 +153,7 @@ export default function MidiSettingsTab({
       </div>
 
       {entryBindings.length > 0 && (
-        <div className="shortcut-entry-card">
+        <div className="shortcut-entry-card shortcut-bindings-card">
           <div className="card-head">
             <div>
               <h3>Title entries</h3>
@@ -136,7 +166,7 @@ export default function MidiSettingsTab({
       )}
 
       {timerBindings.length > 0 && (
-        <div className="shortcut-entry-card">
+        <div className="shortcut-entry-card shortcut-bindings-card">
           <div className="card-head">
             <div>
               <h3>Timers</h3>
@@ -181,7 +211,7 @@ export default function MidiSettingsTab({
               <div className="midi-monitor-row" key={`${m.at}-${idx}`}>
                 <span className="midi-monitor-time">{time}</span>
                 <strong className="midi-monitor-device">{m.device}</strong>
-                <code className="midi-monitor-raw">{rawHex || '—'}</code>
+                <code className="midi-monitor-raw">{rawHex || '-'}</code>
                 <span className="midi-monitor-parsed">{parsedLabel}</span>
               </div>
             );

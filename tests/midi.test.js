@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseMidiMessage, normalizeMidiBindings, SUPPORTED_MIDI_ACTIONS } from '../server/midi/midi-service.js';
+import { parseMidiMessage, normalizeMidiBindings } from '../server/midi/midi-service.js';
 
 test('parseMidiMessage: note on with velocity > 0', () => {
   const result = parseMidiMessage([0x90, 60, 127]);
@@ -26,10 +26,9 @@ test('parseMidiMessage: program change is unsupported', () => {
   assert.equal(parseMidiMessage([0xC0, 1, 0]), null);
 });
 
-test('normalizeMidiBindings: returns defaults for empty input', () => {
+test('normalizeMidiBindings: empty input has no preassigned bindings', () => {
   const result = normalizeMidiBindings([]);
-  assert.ok(result.length > 0);
-  assert.ok(result.every((b) => SUPPORTED_MIDI_ACTIONS.includes(b.action)));
+  assert.deepEqual(result, []);
 });
 
 test('normalizeMidiBindings: filters out unsupported actions', () => {

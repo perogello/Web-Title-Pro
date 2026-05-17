@@ -9,14 +9,6 @@ const loadJZZ = async () => {
   return JZZ;
 };
 
-const defaultBindings = [
-  { device: 'any', type: 'noteon', note: 60, action: 'show' },
-  { device: 'any', type: 'noteon', note: 61, action: 'live' },
-  { device: 'any', type: 'noteon', note: 62, action: 'hide' },
-  { device: 'any', type: 'noteon', note: 63, action: 'previous-title' },
-  { device: 'any', type: 'noteon', note: 64, action: 'next-title' },
-];
-
 const normalizeBinding = (binding = {}) => ({
   device: typeof binding.device === 'string' && binding.device ? binding.device : 'any',
   type: ['noteon', 'cc'].includes(binding.type) ? binding.type : 'noteon',
@@ -25,8 +17,8 @@ const normalizeBinding = (binding = {}) => ({
   action: typeof binding.action === 'string' ? binding.action : '',
 });
 
-export const normalizeMidiBindings = (bindings = defaultBindings) =>
-  (Array.isArray(bindings) && bindings.length ? bindings : defaultBindings)
+export const normalizeMidiBindings = (bindings = []) =>
+  (Array.isArray(bindings) ? bindings : [])
     .map((binding) => normalizeBinding(binding))
     .filter((binding) => isSupportedAction(binding.action));
 
