@@ -588,5 +588,18 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     }
   });
 
+  router.post('/timers/:timerId/toggle', (request, response) => {
+    try {
+      const { timerId } = request.params;
+      const timer = store.getTimers().find((item) => item.id === timerId);
+      if (!timer) {
+        throw new Error('Timer not found.');
+      }
+      response.json(timer.running ? store.stopTimer(timerId) : store.startTimer(timerId));
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
   return router;
 };

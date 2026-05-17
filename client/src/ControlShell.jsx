@@ -792,47 +792,47 @@ function ControlShell() {
 
     return selectedSource?.columns || [];
   }, [selectedEntryFields, selectedSource]);
-  const bitfocusActions = useMemo(
-    () => [
-      {
-        id: 'show',
-        label: 'SHOW',
-        url: `${BACKEND_ORIGIN}/api/commands/show`,
-        payload: { entryId: selectedOutput?.selectedEntryId || undefined, outputId: selectedOutput?.id || undefined },
-      },
-      {
-        id: 'live',
-        label: 'LIVE',
-        url: `${BACKEND_ORIGIN}/api/commands/live`,
-        payload: { entryId: selectedOutput?.selectedEntryId || undefined, outputId: selectedOutput?.id || undefined },
-      },
-      {
-        id: 'hide',
-        label: 'HIDE',
-        url: `${BACKEND_ORIGIN}/api/commands/hide`,
-        payload: { outputId: selectedOutput?.id || undefined },
-      },
-      {
-        id: 'previous-title',
-        label: 'PREVIOUS TITLE',
-        url: `${BACKEND_ORIGIN}/api/commands/previous-title`,
-        payload: { outputId: selectedOutput?.id || undefined },
-      },
-      {
-        id: 'next-title',
-        label: 'NEXT TITLE',
-        url: `${BACKEND_ORIGIN}/api/commands/next-title`,
-        payload: { outputId: selectedOutput?.id || undefined },
-      },
+  const bitfocusActions = useMemo(() => {
+    const entries = snapshot?.entries || [];
+    const allTimers = snapshot?.timers || [];
+    return [
+      { section: 'Commands', id: 'show', label: 'TITLE IN', url: `${BACKEND_ORIGIN}/api/commands/show`, payload: { entryId: selectedOutput?.selectedEntryId || undefined, outputId: selectedOutput?.id || undefined } },
+      { section: 'Commands', id: 'live', label: 'LIVE', url: `${BACKEND_ORIGIN}/api/commands/live`, payload: { entryId: selectedOutput?.selectedEntryId || undefined, outputId: selectedOutput?.id || undefined } },
+      { section: 'Commands', id: 'hide', label: 'TITLE OUT', url: `${BACKEND_ORIGIN}/api/commands/hide`, payload: { outputId: selectedOutput?.id || undefined } },
+      { section: 'Commands', id: 'previous-title', label: 'PREVIOUS TITLE', url: `${BACKEND_ORIGIN}/api/commands/previous-title`, payload: { outputId: selectedOutput?.id || undefined } },
+      { section: 'Commands', id: 'next-title', label: 'NEXT TITLE', url: `${BACKEND_ORIGIN}/api/commands/next-title`, payload: { outputId: selectedOutput?.id || undefined } },
       ...outputs.map((output) => ({
+        section: 'Outputs',
         id: `select-output-${output.id}`,
-        label: `SELECT ${output.name}`,
-        url: `${BACKEND_ORIGIN}/api/commands/select-output`,
-        payload: { outputId: output.id },
+        label: output.name,
+        url: `${BACKEND_ORIGIN}/api/outputs/${output.id}/select`,
+        payload: {},
       })),
-    ],
-    [outputs, selectedOutput?.id, selectedOutput?.selectedEntryId],
-  );
+      ...entries.map((entry) => ({
+        section: 'Title entries',
+        id: `select-entry-${entry.id}`,
+        label: entry.name || entry.templateName || entry.id,
+        url: `${BACKEND_ORIGIN}/api/entries/${entry.id}/select`,
+        payload: { outputId: selectedOutput?.id || undefined },
+      })),
+      ...allTimers.flatMap((timer) => [
+        {
+          section: 'Timers',
+          id: `timer-toggle-${timer.id}`,
+          label: `${timer.name || timer.id} — Start / Stop`,
+          url: `${BACKEND_ORIGIN}/api/timers/${timer.id}/toggle`,
+          payload: {},
+        },
+        {
+          section: 'Timers',
+          id: `timer-reset-${timer.id}`,
+          label: `${timer.name || timer.id} — Reset`,
+          url: `${BACKEND_ORIGIN}/api/timers/${timer.id}/reset`,
+          payload: {},
+        },
+      ]),
+    ];
+  }, [outputs, snapshot?.entries, snapshot?.timers, selectedOutput?.id, selectedOutput?.selectedEntryId]);
   const outputRenderTargets = useMemo(() => {
     if (!outputInfo) {
       return [];
