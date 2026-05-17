@@ -47,6 +47,7 @@ const slugFieldKey = (value = '') =>
     .replace(/^_+|_+$/g, '') || `field_${Math.random().toString(16).slice(2, 6)}`;
 
 const getSourceRowEditKey = (sourceId, rowId) => `${sourceId}:${rowId}`;
+const LINKED_TIMER_OVERRIDE_MS = 1800;
 const LIVE_SOURCE_COLUMN_WIDTHS_KEY = 'web-title-pro.liveSourceColumnWidths';
 const loadLiveSourceColumnWidths = () => {
   try {
@@ -1282,7 +1283,26 @@ function ControlShell() {
   }, []);
 
   const getSourceRowTimerState = (sourceId, row, linkedTimer = null, isTimerRow = false) => {
+    const rowKey = getSourceRowEditKey(sourceId, row.id);
+    const localTimerState = sourceRowTimers[rowKey] || null;
+    const fallbackTimerState = {
+      status: 'idle',
+      currentMs: Number(row.timer?.baseMs || 0),
+      lastTickAt: null,
+    };
+
     if (linkedTimer && isTimerRow) {
+      const overrideIsFresh =
+        localTimerState?.linkedOverride &&
+        Number(localTimerState.linkedOverrideExpiresAt || 0) > Date.now();
+
+      if (overrideIsFresh) {
+        return {
+          ...localTimerState,
+          linked: true,
+        };
+      }
+
       return {
         status: getLinkedTimerStatus(linkedTimer, Number(row.timer?.baseMs || 0)),
         currentMs: Number(linkedTimer.currentMs ?? 0),
@@ -1291,12 +1311,11 @@ function ControlShell() {
       };
     }
 
-    const rowKey = getSourceRowEditKey(sourceId, row.id);
-    return sourceRowTimers[rowKey] || {
-      status: 'idle',
-      currentMs: Number(row.timer?.baseMs || 0),
-      lastTickAt: null,
-    };
+    if (localTimerState?.linkedOverride) {
+      return fallbackTimerState;
+    }
+
+    return localTimerState || fallbackTimerState;
   };
 
   const updateSourceRowTimerBase = async (sourceId, rowId, nextBaseMs, options = {}) => {
@@ -1335,18 +1354,33 @@ function ControlShell() {
       }),
     );
     const rowKey = getSourceRowEditKey(sourceId, rowId);
-    setSourceRowTimers((current) => ({
-      ...current,
-      [rowKey]: (() => {
+    setSourceRowTimers((current) => {
+      const next = { ...current };
+
+      if (options.linkedTimer) {
+        for (const [key, timerState] of Object.entries(next)) {
+          if (key !== rowKey && timerState?.linkedOverride) {
+            delete next[key];
+          }
+        }
+      }
+
+      next[rowKey] = (() => {
         const previous = current[rowKey] || {};
-        const isRunning = previous.status === 'running' && !options.forceIdle;
+        const linkedTimerIsRunning = Boolean(options.linkedTimer?.running && !options.forceIdle);
+        const isRunning = (previous.status === 'running' || linkedTimerIsRunning) && !options.forceIdle;
+        const linkedOverride = Boolean(options.linkedTimer);
         return {
           status: isRunning ? 'running' : 'idle',
           currentMs: Math.max(0, nextBaseMs),
           lastTickAt: isRunning ? Date.now() : null,
+          linkedOverride,
+          ...(linkedOverride ? { linkedOverrideExpiresAt: Date.now() + LINKED_TIMER_OVERRIDE_MS } : {}),
         };
-      })(),
-    }));
+      })();
+
+      return next;
+    });
 
     const effectiveSyncTimerId = normalizeLinkedTimerId(
       options.syncTimerId || options.linkedTimerId || options.linkedTimer?.id || null,
@@ -1410,6 +1444,29 @@ function ControlShell() {
           });
           await commandTimer(effectiveSyncTimerId, 'start');
         }
+      }
+
+      if (isLinkedTimer) {
+        setSourceRowTimers((current) => {
+          const next = { ...current };
+          for (const [key, timerState] of Object.entries(next)) {
+            if (key !== rowKey && timerState?.linkedOverride) {
+              delete next[key];
+            }
+          }
+
+          next[rowKey] = {
+            status: shouldPause ? 'paused' : 'running',
+            currentMs: shouldPause
+              ? Math.max(0, currentTimer.currentMs || Number(row.timer?.baseMs || 0))
+              : Math.max(0, currentTimer.currentMs || Number(row.timer?.baseMs || 0)),
+            lastTickAt: shouldPause ? null : Date.now(),
+            linkedOverride: true,
+            linkedOverrideExpiresAt: Date.now() + LINKED_TIMER_OVERRIDE_MS,
+          };
+
+          return next;
+        });
       }
 
       if (!isLinkedTimer) {
@@ -4365,9 +4422,6 @@ function ControlShell() {
 }
 
 export default ControlShell;
-
-
-
 
 
 

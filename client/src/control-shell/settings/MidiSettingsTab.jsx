@@ -53,7 +53,9 @@ export default function MidiSettingsTab({
         {isLearning ? (
           <code className="shortcut-learning-cell">{formatLastMessage()}</code>
         ) : (
-          <code>{value || 'Not assigned'}</code>
+          <code className={`shortcut-binding-value ${value ? '' : 'is-unset'}`}>
+            {value || 'Not assigned'}
+          </code>
         )}
         <div className="topbar-actions">
           {isLearning ? (

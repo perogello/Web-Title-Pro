@@ -482,16 +482,26 @@ select {
 .shortcut-action-grid {
   display: grid;
   gap: 8px;
+  justify-items: start;
 }
 .shortcut-action-row {
   display: grid;
-  grid-template-columns: 86px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(128px, max-content) minmax(130px, max-content) auto;
   gap: 10px;
   align-items: center;
   padding: 10px 12px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.06);
+  width: fit-content;
+  max-width: 100%;
+}
+.shortcut-action-row > strong {
+  max-width: 220px;
+  line-height: 1.15;
+}
+.shortcut-action-row > .topbar-actions {
+  flex-wrap: nowrap;
 }
 .shortcut-action-row.is-disabled {
   opacity: 0.55;
@@ -510,6 +520,8 @@ select {
   display: inline-block;
   text-align: center;
   min-width: 64px;
+  width: fit-content;
+  max-width: 280px;
 }
 .shortcut-action-row code.is-unset {
   font-weight: 500;
@@ -517,6 +529,7 @@ select {
   font-style: italic;
   background: transparent;
   border-style: dashed;
+  min-width: 130px;
 }
 .shortcut-action-row code.shortcut-learning-cell {
   font-weight: 700;
