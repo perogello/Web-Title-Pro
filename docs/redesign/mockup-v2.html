@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>Web Title Pro — Redesign Mockup v2</title>
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --bg-2: #131319;
+    --card: #181820;
+    --card-2: #1f1f29;
+    --border: #2a2a36;
+    --border-strong: #404055;
+    --text: #ebebf0;
+    --text-dim: #8a8a99;
+    --text-faint: #5c5c6a;
+
+    --select: #ffb347;          /* SELECTED accent — теплый оранжевый */
+    --select-bg: rgba(255,179,71,0.08);
+    --live: #f93232;
+    --live-bg: rgba(249,50,50,0.14);
+    --good: #00b86b;
+    --warn: #ffb84d;
+    --vmix: #6aa3ff;
+
+    --font: "Segoe UI", "YS Text", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  body { min-height: 100vh; }
+  button { font: inherit; cursor: pointer; }
+
+  /* ====== SHELL ====== */
+  .shell {
+    display: grid;
+    grid-template-rows: 40px 1fr;
+    height: 100vh;
+    min-width: 720px;
+  }
+
+  /* ====== TOP BAR (одна строка: меню + табы + статус) ====== */
+  .topbar {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 0 12px;
+    background: #07070a;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .app-menu {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text);
+  }
+  .app-menu:hover { background: var(--bg-2); border-color: var(--border); }
+  .app-menu .burger { font-size: 14px; line-height: 1; }
+  .app-menu .project { font-size: 12px; color: var(--text-dim); }
+  .app-menu .project strong { color: var(--text); font-weight: 600; }
+  .app-menu .dirty { color: var(--warn); margin-left: 4px; }
+
+  /* File ▾ dropdown */
+  .app-menu-dropdown {
+    position: absolute;
+    top: 38px;
+    left: 8px;
+    min-width: 240px;
+    background: #0e0e14;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    z-index: 100;
+    display: none;
+  }
+  .app-menu-dropdown.is-open { display: block; }
+  .app-menu-dropdown button, .app-menu-dropdown .sep {
+    display: block; width: 100%;
+    text-align: left;
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .app-menu-dropdown button:hover { background: var(--bg-2); }
+  .app-menu-dropdown .sep {
+    border-top: 1px solid var(--border);
+    margin: 4px 0;
+    padding: 0;
+    height: 1px;
+  }
+  .app-menu-dropdown .kbd {
+    float: right; color: var(--text-faint); font-size: 11px; font-family: ui-monospace, monospace;
+  }
+
+  .tabs {
+    display: flex; align-items: center; gap: 2px;
+  }
+  .tab {
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .tab:hover { color: var(--text); background: var(--bg-2); }
+  .tab.is-active {
+    color: var(--text);
+    background: var(--card-2);
+    border-color: var(--border);
+  }
+  .tab .icon { display: none; }
+  .tab .label { display: inline; }
+
+  .status {
+    display: flex; gap: 4px; align-items: center; padding-right: 4px;
+  }
+  .status .pill {
+    display: inline-grid; place-items: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    position: relative;
+    font-size: 9px;
+    color: var(--text-faint);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .status .pill::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; right: -1px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-faint);
+    border: 1.5px solid #07070a;
+  }
+  .status .pill.is-on::after { background: var(--good); box-shadow: 0 0 4px var(--good); }
+  .status .pill.is-warn::after { background: var(--warn); }
+  .status .pill.is-off::after { background: var(--text-faint); }
+  .status .pill.is-bad::after { background: var(--live); }
+
+  /* ====== MAIN ====== */
+  .main {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    overflow: hidden;
+  }
+
+  /* ====== OUTPUTS SIDEBAR ====== */
+  .outputs {
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .output-card {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 0;
+    overflow: hidden;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .output-card:hover { border-color: var(--border-strong); }
+
+  .output-card.is-selected {
+    border-color: var(--select);
+    background: var(--select-bg);
+    box-shadow: 0 0 0 1px var(--select), 0 6px 20px rgba(255,179,71,0.15);
+  }
+  .output-card.is-live { /* живой статус — отдельная сигнализация на бейдже, не граница */
+  }
+
+  /* Header строка: NAME + state badge */
+  .oc-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px 8px;
+    cursor: pointer;
+  }
+  .oc-head .name {
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+  .oc-head .state {
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    border: 1px solid var(--border-strong);
+    color: var(--text-dim);
+    background: var(--bg-2);
+    line-height: 1;
+  }
+  .output-card.is-live .oc-head .state {
+    background: var(--live); border-color: var(--live); color: #fff;
+    box-shadow: 0 0 8px rgba(249,50,50,0.5);
+  }
+
+  /* Multiview thumb */
+  .oc-thumb {
+    position: relative;
+    margin: 0 12px;
+    height: 80px;
+    border-radius: 6px;
+    background:
+      repeating-linear-gradient(45deg, #0c0c10 0 6px, #10101a 6px 12px);
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .oc-thumb.has-content {
+    background: linear-gradient(135deg, #1a1a2a 0%, #06060a 100%);
+    display: grid; place-items: center;
+    color: var(--text);
+    font-weight: 700;
+    font-size: 13px;
+    padding: 6px 10px;
+    text-align: center;
+  }
+  .oc-thumb .expand {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 22px; height: 22px;
+    display: grid; place-items: center;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.5);
+    color: var(--text);
+    border: none;
+    font-size: 11px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .oc-thumb:hover .expand { opacity: 1; }
+
+  .output-card.is-live .oc-thumb::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--live);
+    border-radius: 6px;
+    pointer-events: none;
+    animation: pulse-live 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse-live {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* Meta: file/input info + current row */
+  .oc-meta {
+    padding: 8px 12px 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .oc-meta .type-row {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px;
+  }
+  .oc-meta .badge-type {
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    font-size: 9px;
+  }
+  .oc-meta .badge-type.is-local {
+    background: rgba(138,138,153,0.15);
+    color: var(--text-dim);
+  }
+  .oc-meta .badge-type.is-vmix {
+    background: rgba(106,163,255,0.15);
+    color: var(--vmix);
+  }
+  .oc-meta .title-file {
+    color: var(--text);
+    font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    cursor: pointer;
+  }
+  .oc-meta .title-file:hover { color: var(--select); }
+  .oc-meta .title-file::after { content: ' ▾'; color: var(--text-faint); font-size: 10px; }
+  .oc-meta .res {
+    color: var(--text-faint);
+    font-size: 10px;
+  }
+  .oc-meta .current-data {
+    color: var(--text-dim);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    margin-top: 4px;
+    font-size: 11px;
+  }
+  .oc-meta .current-data::before { content: '→ '; color: var(--text-faint); }
+  .oc-meta .current-data.is-none {
+    color: var(--text-faint); font-style: italic;
+  }
+
+  /* Controls */
+  .oc-controls {
+    display: flex; gap: 6px;
+    padding: 8px 12px 12px;
+    align-items: center;
+  }
+  .oc-controls .play, .oc-controls .stop {
+    flex: 1;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-2);
+    color: var(--text);
+    display: grid; place-items: center;
+    transition: background 0.1s, transform 0.05s, border-color 0.15s;
+  }
+  .oc-controls .play:hover { background: var(--live); border-color: var(--live); color: #fff; }
+  .oc-controls .stop:hover { background: var(--card-2); border-color: var(--text-dim); }
+  .oc-controls .play:active, .oc-controls .stop:active { transform: scale(0.97); }
+  .oc-controls .play svg, .oc-controls .stop svg { width: 14px; height: 14px; }
+  .oc-controls .play { color: var(--live); }
+  .output-card.is-live .oc-controls .play {
+    background: var(--live); border-color: var(--live); color: #fff;
+  }
+  .oc-controls .timer-chip {
+    font-size: 10px;
+    padding: 3px 7px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .oc-controls .timer-chip.is-running { color: var(--good); border-color: rgba(0,184,107,0.4); }
+
+  /* ====== RIGHT CONTENT ====== */
+  .content {
+    overflow: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .content-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .content-head .breadcrumb {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); font-weight: 700;
+  }
+  .content-head .breadcrumb strong { color: var(--text); font-weight: 700; }
+  .content-head .breadcrumb .selected-output {
+    color: var(--select); font-weight: 700;
+  }
+  .content-head .tools { display: flex; gap: 6px; align-items: center; }
+
+  .ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 12px;
+  }
+  .ghost:hover { background: var(--bg-2); border-color: var(--border-strong); }
+  .primary {
+    background: var(--text);
+    color: var(--bg);
+    border: 1px solid var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .primary:hover { background: #fff; }
+
+  .field {
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .field > span {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text-dim); font-weight: 700;
+  }
+  .field select {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 8px;
+    border-radius: 5px;
+    font: inherit;
+    font-size: 12px;
+    min-width: 120px;
+  }
+
+  /* Source table — занимает всё пространство */
+  .source-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    flex: 1;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .source-card-head {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+  }
+  .source-card-head .title-block {
+    display: flex; flex-direction: column; gap: 2px;
+    min-width: 0;
+  }
+  .source-card-head .kicker {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--text-dim); font-weight: 700;
+  }
+  .source-card-head h3 {
+    margin: 0; font-size: 16px; font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .source-card-head .tools { display: flex; gap: 8px; align-items: center; }
+
+  .table-wrap { overflow: auto; }
+  table.source { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.source th, table.source td {
+    padding: 8px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  table.source th {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    position: sticky; top: 0;
+    background: var(--card);
+  }
+  table.source th small {
+    display: block;
+    font-size: 9px;
+    color: var(--text-faint);
+    font-weight: 500;
+    margin-top: 2px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  table.source tr { cursor: pointer; }
+  table.source tr:hover td { background: var(--bg-2); }
+  table.source tr.is-applied td {
+    background: var(--select-bg);
+    border-left: 3px solid var(--select);
+    padding-left: 11px;
+  }
+  table.source tr.is-applied td:first-child { color: var(--select); font-weight: 700; }
+  table.source td.idx { color: var(--text-faint); font-weight: 700; width: 36px; }
+
+  /* ====== TAB CONTENT ====== */
+  .tab-content { display: none; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
+  .tab-content.is-active { display: flex; }
+
+  /* ====== CONFIG TAB ====== */
+  .config-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    flex: 1;
+    min-height: 0;
+  }
+  .config-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+    overflow: hidden;
+  }
+  .config-card h3 {
+    margin: 0;
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .config-card h3 small {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+  .config-list { display: flex; flex-direction: column; gap: 6px; overflow: auto; }
+  .config-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .config-item .grip { color: var(--text-faint); cursor: grab; font-size: 14px; }
+  .config-item .main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .config-item .main strong { font-weight: 600; }
+  .config-item .main span { color: var(--text-dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .config-item .actions { display: flex; gap: 4px; }
+  .config-item .actions button {
+    width: 26px; height: 26px;
+    display: grid; place-items: center;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .config-item .actions button:hover { background: var(--card); color: var(--text); }
+  .config-item .actions button.danger:hover { color: var(--live); border-color: rgba(249,50,50,0.5); }
+
+  /* Mapping inspector inside config */
+  .mapping-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    align-items: center;
+  }
+  .mapping-row .from strong { display: block; }
+  .mapping-row .from span { font-size: 11px; color: var(--text-dim); }
+  .mapping-row select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 8px;
+    border-radius: 5px;
+    font: inherit;
+  }
+
+  /* ====== RESPONSIVE ====== */
+  @media (max-width: 1100px) {
+    .status .pill { width: 18px; height: 18px; }
+    .config-layout { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 200px 1fr; }
+    .oc-thumb { height: 56px; }
+    .oc-meta .res, .oc-meta .current-data { font-size: 10px; }
+    .tab .label { display: none; }
+    .tab .icon { display: inline; font-size: 14px; }
+    .app-menu .project { display: none; }
+  }
+  @media (max-width: 720px) {
+    .shell { min-width: 0; }
+    .main { grid-template-columns: 160px 1fr; }
+    .oc-thumb { display: none; }
+    .oc-meta .res { display: none; }
+    .status { display: none; }
+  }
+
+  /* Edit mode helper for output card (file picker dropdown) */
+  .picker-dropdown {
+    position: absolute;
+    background: #0e0e14;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    z-index: 50;
+    min-width: 220px;
+    display: none;
+  }
+  .picker-dropdown.is-open { display: block; }
+  .picker-dropdown button {
+    display: block; width: 100%;
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    text-align: left;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .picker-dropdown button:hover { background: var(--bg-2); }
+  .picker-dropdown button.is-current { color: var(--select); }
+  .picker-dropdown .label {
+    font-size: 9px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.1em; padding: 6px 12px 3px;
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ====== TOP BAR (всё в одну строку) ====== -->
+  <header class="topbar">
+    <button class="app-menu" id="appMenu" onclick="document.getElementById('fileMenu').classList.toggle('is-open')">
+      <span class="burger">☰</span>
+      <span class="project"><strong>khural_proj</strong><span class="dirty">●</span></span>
+    </button>
+
+    <nav class="tabs">
+      <button class="tab is-active" data-tab="live"><span class="icon">▶</span><span class="label">Live</span></button>
+      <button class="tab" data-tab="data"><span class="icon">⊞</span><span class="label">Data</span></button>
+      <button class="tab" data-tab="timers"><span class="icon">⏱</span><span class="label">Timers</span></button>
+      <button class="tab" data-tab="config"><span class="icon">⚙</span><span class="label">Config</span></button>
+      <button class="tab" data-tab="settings"><span class="icon">⚒</span><span class="label">Settings</span></button>
+    </nav>
+
+    <div></div>
+
+    <div class="status">
+      <span class="pill is-on" title="WebSocket: connected">WS</span>
+      <span class="pill is-on" title="vMix: connected">vM</span>
+      <span class="pill is-warn" title="MIDI: idle">M</span>
+      <span class="pill is-off" title="Yandex: not connected">Y</span>
+    </div>
+
+    <!-- File dropdown (открывается по клику на ☰) -->
+    <div class="app-menu-dropdown" id="fileMenu">
+      <button>New project <span class="kbd">Ctrl+N</span></button>
+      <button>Open... <span class="kbd">Ctrl+O</span></button>
+      <button>Save <span class="kbd">Ctrl+S</span></button>
+      <button>Save as... <span class="kbd">Ctrl+Shift+S</span></button>
+      <span class="sep"></span>
+      <div style="padding: 6px 14px 2px; font-size: 9px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.1em;">Recent</div>
+      <button style="padding: 4px 14px; font-size: 12px; color: var(--text-dim);">khural_proj.wtp</button>
+      <button style="padding: 4px 14px; font-size: 12px; color: var(--text-dim);">test-show.wtp</button>
+      <span class="sep"></span>
+      <button>Open templates folder</button>
+      <button>About Web Title Pro</button>
+    </div>
+  </header>
+
+  <!-- ====== MAIN ====== -->
+  <div class="main">
+
+    <!-- LEFT: OUTPUTS -->
+    <aside class="outputs">
+
+      <!-- Card: TITLE LEFT — SELECTED -->
+      <div class="output-card is-selected" data-output="left">
+        <div class="oc-head">
+          <span class="name">Title Left</span>
+          <span class="state">OFF</span>
+        </div>
+        <div class="oc-thumb has-content" style="background: linear-gradient(120deg, #2a1a3a 0%, #0a0410 100%);">
+          Настя Пастухова
+          <button class="expand" title="Открыть большое превью">⛶</button>
+        </div>
+        <div class="oc-meta">
+          <div class="type-row">
+            <span class="badge-type is-local">LOCAL</span>
+            <span class="res">1920×1080</span>
+          </div>
+          <div class="title-file" onclick="event.stopPropagation(); togglePicker(this)">titlekural_white.gtzip</div>
+          <div class="current-data">Настя Пастухова</div>
+          <!-- Picker dropdown for choosing which title goes in this output -->
+          <div class="picker-dropdown" style="top: 100%; left: 12px;">
+            <div class="label">Available titles</div>
+            <button class="is-current">titlekural_white.gtzip</button>
+            <button>titlekural_white_reversed.gtzip</button>
+            <button>titlekural_plashka123.gtzip</button>
+            <button>example-title</button>
+          </div>
+        </div>
+        <div class="oc-controls">
+          <button class="play" title="Title in">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"/></svg>
+          </button>
+          <button class="stop" title="Title out">
+            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Card: TITLE RIGHT — LIVE -->
+      <div class="output-card is-live" data-output="right">
+        <div class="oc-head">
+          <span class="name">Title Right</span>
+          <span class="state">ON AIR</span>
+        </div>
+        <div class="oc-thumb has-content" style="background: linear-gradient(120deg, #1a2a3a 0%, #04060a 100%);">
+          Аня Гаевская
+          <button class="expand">⛶</button>
+        </div>
+        <div class="oc-meta">
+          <div class="type-row">
+            <span class="badge-type is-local">LOCAL</span>
+            <span class="res">1920×1080</span>
+          </div>
+          <div class="title-file">titlekural_white_reversed.gtzip</div>
+          <div class="current-data">Аня Гаевская · HRD Доставки</div>
+        </div>
+        <div class="oc-controls">
+          <button class="play">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"/></svg>
+          </button>
+          <button class="stop">
+            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Card: TITLE OVERLAY — LIVE / vMix -->
+      <div class="output-card is-live" data-output="overlay">
+        <div class="oc-head">
+          <span class="name">Title Overlay</span>
+          <span class="state">ON AIR</span>
+        </div>
+        <div class="oc-thumb">
+          <div style="position:absolute; inset:0; display:grid; place-items:center; color: var(--text-faint); font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em;">vMix External</div>
+          <button class="expand">⛶</button>
+        </div>
+        <div class="oc-meta">
+          <div class="type-row">
+            <span class="badge-type is-vmix">VMIX</span>
+            <span class="res">Input #7</span>
+          </div>
+          <div class="title-file">«Plashka Lower Third»</div>
+          <div class="current-data">HRD Доставки и Экспериментов</div>
+        </div>
+        <div class="oc-controls">
+          <span class="timer-chip is-running">⏱ 02:14</span>
+          <button class="play">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"/></svg>
+          </button>
+          <button class="stop">
+            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT: CONTENT -->
+    <div class="content">
+
+      <!-- ============ LIVE TAB ============ -->
+      <div class="tab-content is-active" data-tab-content="live">
+        <div class="content-head">
+          <div class="breadcrumb">
+            Live data for <span class="selected-output">«Title Left»</span>
+          </div>
+          <div class="tools">
+            <div class="field">
+              <span>Source</span>
+              <select><option>Титарс</option><option>Спикеры</option></select>
+            </div>
+            <div class="field">
+              <span>Linked timer</span>
+              <select><option>None</option><option>Main timer</option></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="source-card">
+          <div class="source-card-head">
+            <div class="title-block">
+              <span class="kicker">Live data source</span>
+              <h3>Титарс — 8 rows</h3>
+            </div>
+            <div class="tools">
+              <button class="ghost" title="Mapping inspector">⇄ Mapping</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="source">
+              <thead>
+                <tr>
+                  <th style="width: 50px;">#</th>
+                  <th>Name.Text<small>Name2.Text</small></th>
+                  <th>Description1.Text<small>Description2.Text</small></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="is-applied"><td class="idx">1</td><td>Настя Пастухова</td><td></td></tr>
+                <tr><td class="idx">2</td><td>Аня Гаевская</td><td>HRD Доставки и Экспериментов</td></tr>
+                <tr><td class="idx">3</td><td>Таня Приказчикова</td><td></td></tr>
+                <tr><td class="idx">4</td><td>Кристина Юхневич</td><td></td></tr>
+                <tr><td class="idx">5</td><td>Саша Курлович</td><td></td></tr>
+                <tr><td class="idx">6</td><td>Андрей Шишин</td><td></td></tr>
+                <tr><td class="idx">7</td><td>Лилит Миракян</td><td></td></tr>
+                <tr><td class="idx">8</td><td>Камилла Юлдашева</td><td></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ DATA TAB ============ -->
+      <div class="tab-content" data-tab-content="data">
+        <div class="content-head">
+          <div class="breadcrumb"><strong>Data Sources</strong></div>
+          <div class="tools">
+            <button class="primary">+ Import Source</button>
+          </div>
+        </div>
+        <div class="source-card" style="padding: 30px; text-align: center; color: var(--text-dim);">
+          Sources library / Add Source / Mapping inspector.<br>Здесь же редактируется привязка колонок источника к полям титра.
+        </div>
+      </div>
+
+      <!-- ============ TIMERS TAB ============ -->
+      <div class="tab-content" data-tab-content="timers">
+        <div class="content-head">
+          <div class="breadcrumb"><strong>Timers</strong></div>
+          <div class="tools">
+            <button class="ghost">+ Add Timer</button>
+          </div>
+        </div>
+        <div class="source-card" style="padding: 30px; text-align: center; color: var(--text-dim);">
+          Здесь только таймеры. <br>vMix Connection переехал в Settings → Integrations.
+        </div>
+      </div>
+
+      <!-- ============ CONFIG TAB — главный экран "подготовки" ============ -->
+      <div class="tab-content" data-tab-content="config">
+        <div class="content-head">
+          <div class="breadcrumb"><strong>Project setup</strong> — outputs, titles, mapping</div>
+          <div class="tools">
+            <button class="primary">+ Add Title</button>
+            <button class="ghost">+ Add Output</button>
+          </div>
+        </div>
+
+        <div class="config-layout">
+          <div class="config-card">
+            <h3>
+              Outputs
+              <small>каналы вывода</small>
+            </h3>
+            <div class="config-list">
+              <div class="config-item">
+                <span class="grip">⋮⋮</span>
+                <div class="main">
+                  <strong>Title Left</strong>
+                  <span>LOCAL · 1920×1080 · /render/left</span>
+                </div>
+                <div class="actions">
+                  <button title="Edit">✎</button>
+                  <button class="danger" title="Delete">×</button>
+                </div>
+              </div>
+              <div class="config-item">
+                <span class="grip">⋮⋮</span>
+                <div class="main">
+                  <strong>Title Right</strong>
+                  <span>LOCAL · 1920×1080 · /render/right</span>
+                </div>
+                <div class="actions">
+                  <button title="Edit">✎</button>
+                  <button class="danger">×</button>
+                </div>
+              </div>
+              <div class="config-item">
+                <span class="grip">⋮⋮</span>
+                <div class="main">
+                  <strong>Title Overlay</strong>
+                  <span>VMIX · Input #7 · «Plashka Lower Third»</span>
+                </div>
+                <div class="actions">
+                  <button title="Edit">✎</button>
+                  <button class="danger">×</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="config-card">
+            <h3>
+              Titles
+              <small>файлы и vMix-инпуты</small>
+            </h3>
+            <div class="config-list">
+              <div class="config-item">
+                <span class="grip">⋮⋮</span>
+                <div class="main">
+                  <strong>titlekural_white.gtzip</strong>
+                  <span>LOCAL · → Title Left</span>
+                </div>
+                <div class="actions"><button>✎</button><button class="danger">×</button></div>
+              </div>
+              <div class="config-item">
+                <span class="grip">⋮⋮</span>
+                <div class="main">
+                  <strong>titlekural_white_reversed.gtzip</strong>
+                  <span>LOCAL · → Title Right</span>
+                </div>
+                <div class="actions"><button>✎</button><button class="danger">×</button></div>
+              </div>
+              <div class="config-item">
+                <span class="grip">⋮⋮</span>
+                <div class="main">
+                  <strong>Plashka Lower Third</strong>
+                  <span>VMIX Input #7 · → Title Overlay</span>
+                </div>
+                <div class="actions"><button>✎</button><button class="danger">×</button></div>
+              </div>
+              <div class="config-item">
+                <span class="grip">⋮⋮</span>
+                <div class="main">
+                  <strong>example-title</strong>
+                  <span>LOCAL · not assigned</span>
+                </div>
+                <div class="actions"><button>✎</button><button class="danger">×</button></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="config-card" style="grid-column: 1 / -1;">
+            <h3>
+              Mapping inspector — Title Left
+              <small>колонка источника → поле титра</small>
+            </h3>
+            <div class="mapping-row">
+              <div class="from">
+                <strong>Name (text)</strong>
+                <span>основной заголовок плашки</span>
+              </div>
+              <select><option>Column 1 — Name.Text</option></select>
+            </div>
+            <div class="mapping-row">
+              <div class="from">
+                <strong>Description (text)</strong>
+                <span>подзаголовок</span>
+              </div>
+              <select><option>Column 2 — Description1.Text</option></select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ SETTINGS TAB ============ -->
+      <div class="tab-content" data-tab-content="settings">
+        <div class="content-head">
+          <div class="breadcrumb"><strong>Settings</strong></div>
+        </div>
+        <div class="source-card" style="padding: 30px; text-align: center; color: var(--text-dim);">
+          Outputs URL · Controls (Keyboard+MIDI+HTTP) · Integrations (vMix, Yandex) · Behaviors · System
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Tabs
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const id = tab.dataset.tab;
+      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('is-active', t === tab));
+      document.querySelectorAll('.tab-content').forEach((c) => {
+        c.classList.toggle('is-active', c.dataset.tabContent === id);
+      });
+    });
+  });
+
+  // Output card focus
+  document.querySelectorAll('.output-card').forEach((card) => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      document.querySelectorAll('.output-card').forEach((c) => c.classList.toggle('is-selected', c === card));
+      // Update breadcrumb
+      const name = card.querySelector('.name').textContent;
+      const crumb = document.querySelector('[data-tab-content="live"] .selected-output');
+      if (crumb) crumb.textContent = '«' + name + '»';
+    });
+  });
+
+  // Title picker on output card
+  function togglePicker(el) {
+    const dd = el.parentElement.querySelector('.picker-dropdown');
+    document.querySelectorAll('.picker-dropdown.is-open').forEach((d) => { if (d !== dd) d.classList.remove('is-open'); });
+    dd.classList.toggle('is-open');
+  }
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.picker-dropdown') && !e.target.closest('.title-file')) {
+      document.querySelectorAll('.picker-dropdown.is-open').forEach((d) => d.classList.remove('is-open'));
+    }
+    if (!e.target.closest('#appMenu') && !e.target.closest('#fileMenu')) {
+      document.getElementById('fileMenu').classList.remove('is-open');
+    }
+  });
+</script>
+
+</body>
+</html>

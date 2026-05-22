@@ -1,0 +1,1227 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>Web Title Pro — Redesign Mockup v3</title>
+<style>
+  :root {
+    --bg: #0a0a0c;
+    --bg-2: #131319;
+    --card: #181820;
+    --card-2: #1f1f29;
+    --border: #2a2a36;
+    --border-strong: #404055;
+    --text: #ebebf0;
+    --text-dim: #8a8a99;
+    --text-faint: #5c5c6a;
+
+    --select: #ebebf0;          /* белая рамка для selected, спокойно */
+    --select-bg: #21212c;
+    --select-accent: #8b9eff;   /* мягкий индиго для левой полоски selected */
+
+    --live: #f93232;
+    --live-bg: rgba(249,50,50,0.14);
+    --good: #00b86b;
+    --good-bg: rgba(0,184,107,0.15);
+    --warn: #ffb84d;
+    --warn-bg: rgba(255,184,77,0.13);
+    --vmix: #6aa3ff;
+    --vmix-bg: rgba(106,163,255,0.13);
+
+    --font: "Segoe UI", "YS Text", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; -webkit-font-smoothing: antialiased; overflow: hidden; }
+  body { min-height: 100vh; }
+  button { font: inherit; cursor: pointer; }
+
+  .shell {
+    display: grid;
+    grid-template-rows: 40px 1fr;
+    height: 100vh;
+    min-width: 720px;
+  }
+
+  /* ====== TOP BAR ====== */
+  .topbar {
+    display: grid;
+    grid-template-columns: auto auto 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 0 12px;
+    background: #07070a;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .app-menu {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text);
+  }
+  .app-menu:hover { background: var(--bg-2); border-color: var(--border); }
+  .app-menu .burger { font-size: 14px; line-height: 1; }
+  .app-menu .project { font-size: 12px; color: var(--text-dim); }
+  .app-menu .project strong { color: var(--text); font-weight: 600; }
+  .app-menu .dirty { color: var(--warn); margin-left: 4px; }
+
+  .app-menu-dropdown {
+    position: absolute;
+    top: 38px; left: 8px;
+    min-width: 240px;
+    background: #0e0e14;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    z-index: 100;
+    display: none;
+  }
+  .app-menu-dropdown.is-open { display: block; }
+  .app-menu-dropdown button, .app-menu-dropdown .sep {
+    display: block; width: 100%;
+    text-align: left;
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .app-menu-dropdown button:hover { background: var(--bg-2); }
+  .app-menu-dropdown .sep {
+    border-top: 1px solid var(--border);
+    margin: 4px 0; padding: 0; height: 1px;
+  }
+  .app-menu-dropdown .kbd {
+    float: right; color: var(--text-faint); font-size: 11px; font-family: ui-monospace, monospace;
+  }
+
+  .tabs { display: flex; align-items: center; gap: 2px; }
+  .tab {
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .tab:hover { color: var(--text); background: var(--bg-2); }
+  .tab.is-active {
+    color: var(--text);
+    background: var(--card-2);
+    border-color: var(--border);
+  }
+  .tab .icon { display: none; }
+
+  /* === STATUS BADGES — крупные, с текстом, как в v1 === */
+  .status { display: flex; gap: 6px; align-items: center; padding-right: 4px; }
+  .badge-status {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    color: var(--text-dim);
+    line-height: 1;
+  }
+  .badge-status .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text-faint);
+  }
+  .badge-status.is-on {
+    color: var(--good);
+    background: var(--good-bg);
+    border-color: rgba(0,184,107,0.35);
+  }
+  .badge-status.is-on .dot { background: var(--good); box-shadow: 0 0 6px var(--good); }
+  .badge-status.is-warn {
+    color: var(--warn);
+    background: var(--warn-bg);
+    border-color: rgba(255,184,77,0.35);
+  }
+  .badge-status.is-warn .dot { background: var(--warn); }
+  .badge-status.is-off { color: var(--text-faint); }
+
+  /* ====== MAIN ====== */
+  .main {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    overflow: hidden;
+  }
+
+  /* ====== OUTPUTS SIDEBAR (без превью на карточках) ====== */
+  .outputs {
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .output-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .output-card:hover { border-color: var(--border-strong); }
+
+  /* Selected — спокойная белая рамка + лёгкий тинт */
+  .output-card.is-selected {
+    border-color: var(--select);
+    background: var(--select-bg);
+  }
+
+  /* Header */
+  .oc-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px 6px;
+    cursor: pointer;
+  }
+  .oc-head .name {
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+  .oc-head .state {
+    padding: 3px 9px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    border: 1px solid var(--border-strong);
+    color: var(--text-dim);
+    background: var(--bg-2);
+    line-height: 1;
+  }
+  .output-card.is-live .oc-head .state {
+    background: var(--live); border-color: var(--live); color: #fff;
+    box-shadow: 0 0 6px rgba(249,50,50,0.45);
+  }
+
+  /* Meta */
+  .oc-meta {
+    padding: 4px 12px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+  .oc-meta .type-row {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px;
+    margin-bottom: 2px;
+  }
+  .oc-meta .badge-type {
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    font-size: 9px;
+  }
+  .oc-meta .badge-type.is-local {
+    background: rgba(138,138,153,0.18);
+    color: var(--text-dim);
+  }
+  .oc-meta .badge-type.is-vmix {
+    background: var(--vmix-bg);
+    color: var(--vmix);
+  }
+  /* Главная строка — то что сейчас в эфире (белый, крупный) */
+  .oc-meta .current-data {
+    color: var(--text);
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.25;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .oc-meta .current-data.is-none {
+    color: var(--text-faint); font-style: italic; font-weight: 400;
+  }
+  /* Под ним — имя файла / титра (серое, мелкое, кликабельно для смены) */
+  .oc-meta .title-file {
+    color: var(--text-dim);
+    font-weight: 400;
+    font-size: 11px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    cursor: pointer;
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border);
+  }
+  .oc-meta .title-file:hover { color: var(--vmix); }
+  .oc-meta .title-file::after { content: ' ▾'; color: var(--text-faint); font-size: 10px; }
+  .oc-meta .input-info {
+    color: var(--vmix);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+  /* Controls */
+  .oc-controls {
+    display: flex; gap: 6px;
+    padding: 0 12px 12px;
+    align-items: center;
+  }
+  .oc-controls .play, .oc-controls .stop {
+    flex: 1;
+    height: 34px;
+    border-radius: 6px;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-2);
+    color: var(--text);
+    display: grid; place-items: center;
+    transition: background 0.1s, transform 0.05s, border-color 0.15s;
+  }
+  .oc-controls .play { color: var(--live); }
+  .oc-controls .play:hover { background: var(--live); border-color: var(--live); color: #fff; }
+  .oc-controls .stop:hover { background: var(--card-2); border-color: var(--text-dim); }
+  .oc-controls .play:active, .oc-controls .stop:active { transform: scale(0.97); }
+  .oc-controls .play svg, .oc-controls .stop svg { width: 14px; height: 14px; }
+  .output-card.is-live .oc-controls .play {
+    background: var(--live); border-color: var(--live); color: #fff;
+  }
+  .oc-controls .timer-chip {
+    font-size: 10px;
+    padding: 3px 7px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--bg-2);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .oc-controls .timer-chip.is-running { color: var(--good); border-color: rgba(0,184,107,0.4); }
+
+  /* ====== RIGHT CONTENT ====== */
+  .content {
+    overflow: hidden;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .content-inner {
+    padding: 12px 16px;
+    display: flex; flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* === PREVIEW OVERLAY === */
+  .preview-overlay {
+    height: 0;
+    overflow: hidden;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    transition: height 0.25s ease;
+  }
+  .preview-overlay.is-open {
+    height: 270px;
+  }
+  .preview-overlay-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-2);
+  }
+  .preview-overlay-head .title-block {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .preview-overlay-head .kicker {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--text-dim); font-weight: 700;
+  }
+  .preview-overlay-head .mode-toggle {
+    display: inline-flex; background: var(--card-2); border-radius: 6px; padding: 2px;
+  }
+  .preview-overlay-head .mode-toggle button {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .preview-overlay-head .mode-toggle button.is-active {
+    background: var(--card);
+    color: var(--text);
+  }
+  .preview-overlay-head .close {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+  }
+  .preview-overlay-head .close:hover { color: var(--text); border-color: var(--border-strong); }
+
+  .preview-grid {
+    padding: 12px 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    height: calc(100% - 41px);
+  }
+  .preview-grid.is-multiview {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-auto-rows: 1fr;
+  }
+  .preview-frame {
+    background:
+      repeating-linear-gradient(45deg, #0c0c10 0 6px, #10101a 6px 12px);
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    display: flex; flex-direction: column;
+    border: 1px solid var(--border);
+  }
+  .preview-frame .pf-head {
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .preview-frame .pf-state {
+    padding: 2px 7px; border-radius: 3px;
+  }
+  .preview-frame .pf-state.on { background: var(--live); color: #fff; }
+  .preview-frame .pf-state.off { background: var(--bg-2); color: var(--text-dim); }
+  .preview-frame .pf-name { color: var(--text); font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 11px; }
+  .preview-frame .pf-body {
+    flex: 1;
+    display: grid; place-items: center;
+    color: var(--text);
+    font-weight: 600;
+    font-size: 16px;
+    padding: 8px;
+    text-align: center;
+  }
+  .preview-frame.has-content .pf-body {
+    background: linear-gradient(135deg, #1a1a2a 0%, #06060a 100%);
+  }
+  .preview-frame.is-vmix .pf-body {
+    color: var(--text-faint);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-weight: 600;
+  }
+
+  /* === content head — фиксированная высота для одинаковых отступов между табами === */
+  .content-head {
+    display: flex; align-items: center; justify-content: space-between;
+    min-height: 32px;
+    flex-shrink: 0;
+  }
+  .breadcrumb {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); font-weight: 700;
+  }
+  .breadcrumb strong { color: var(--text); font-weight: 700; }
+  .breadcrumb .selected-output {
+    color: var(--select-accent); font-weight: 700;
+  }
+
+  /* Compact controls для source-card-head */
+  .compact-select, .compact-btn {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 12px;
+    height: 30px;
+    line-height: 1;
+  }
+  .compact-select:hover, .compact-btn:hover { border-color: var(--border-strong); background: var(--card-2); }
+  .compact-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-weight: 600;
+  }
+
+  /* Sync кнопка + поповер */
+  .sync-wrap { position: relative; }
+  .sync-wrap .compact-btn .chain { font-size: 11px; filter: grayscale(0.4); }
+  .sync-wrap .compact-btn .count { font-size: 11px; color: var(--text); font-weight: 700; }
+  .sync-wrap .compact-btn.is-active {
+    border-color: var(--select-accent);
+    color: var(--select-accent);
+    background: rgba(139,158,255,0.08);
+  }
+  .sync-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 240px;
+    background: #0e0e14;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    z-index: 60;
+    display: none;
+  }
+  .sync-popover.is-open { display: block; }
+  .sync-popover-label {
+    font-size: 9px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.1em; padding: 6px 10px 8px;
+    font-weight: 700;
+  }
+  .sync-chip {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  .sync-chip:hover { background: var(--bg-2); }
+  .sync-chip input { margin: 0; cursor: pointer; }
+  .sync-chip input:disabled { cursor: default; }
+  .sync-chip .main { font-weight: 600; font-size: 13px; flex: 1; }
+  .sync-chip .hint { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* Preview toggle — особенный (с chevron) */
+  .preview-toggle-btn { text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; }
+  .preview-toggle-btn .chev { transition: transform 0.2s; font-size: 11px; }
+  .preview-toggle-btn.is-open .chev { transform: rotate(180deg); }
+  .preview-toggle-btn.is-open { color: var(--select-accent); border-color: rgba(139,158,255,0.5); }
+
+  .ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 12px;
+  }
+  .ghost:hover { background: var(--bg-2); border-color: var(--border-strong); }
+  .primary {
+    background: var(--text);
+    color: var(--bg);
+    border: 1px solid var(--text);
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 12px;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 3px; }
+  .field > span {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text-dim); font-weight: 700;
+  }
+  .field select {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 8px;
+    border-radius: 5px;
+    font: inherit;
+    font-size: 12px;
+    min-width: 120px;
+  }
+
+  /* Source table */
+  .source-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    flex: 1;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .source-card-head {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+  }
+  .source-card-head .title-block {
+    display: flex; flex-direction: column; gap: 2px;
+    min-width: 0;
+  }
+  .source-card-head .kicker {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--text-dim); font-weight: 700;
+  }
+  .source-card-head h3 {
+    margin: 0; font-size: 16px; font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .source-card-head .tools { display: flex; gap: 8px; align-items: center; }
+
+  .table-wrap { overflow: auto; flex: 1; }
+  table.source { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.source th, table.source td {
+    padding: 8px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  table.source th {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    position: sticky; top: 0;
+    background: var(--card);
+    z-index: 1;
+  }
+  table.source th small {
+    display: block;
+    font-size: 9px;
+    color: var(--text-faint);
+    font-weight: 500;
+    margin-top: 2px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  table.source tr { cursor: pointer; }
+  table.source tr:hover td { background: var(--bg-2); }
+  table.source tr.is-applied td {
+    background: rgba(139,158,255,0.06);
+    border-left: 3px solid var(--select-accent);
+    padding-left: 11px;
+  }
+  table.source tr.is-applied td:first-child { color: var(--select-accent); font-weight: 700; }
+  table.source td.idx { color: var(--text-faint); font-weight: 700; width: 36px; }
+
+  /* === TAB CONTENT === */
+  .tab-content { display: none; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
+  .tab-content.is-active { display: flex; }
+
+  /* ====== CONFIG TAB ====== */
+  .config-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    flex: 1;
+    min-height: 0;
+  }
+  .config-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+    overflow: hidden;
+  }
+  .config-card h3 {
+    margin: 0;
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .config-card h3 small {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+  .config-list { display: flex; flex-direction: column; gap: 6px; overflow: auto; }
+  .config-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .config-item .grip { color: var(--text-faint); cursor: grab; font-size: 14px; }
+  .config-item .main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .config-item .main strong { font-weight: 600; }
+  .config-item .main span { color: var(--text-dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .config-item .actions { display: flex; gap: 4px; }
+  .config-item .actions button {
+    width: 26px; height: 26px;
+    display: grid; place-items: center;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+  .config-item .actions button:hover { background: var(--card); color: var(--text); }
+  .config-item .actions button.danger:hover { color: var(--live); border-color: rgba(249,50,50,0.5); }
+
+  .mapping-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    align-items: center;
+  }
+  .mapping-row .from strong { display: block; }
+  .mapping-row .from span { font-size: 11px; color: var(--text-dim); }
+  .mapping-row select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 8px;
+    border-radius: 5px;
+    font: inherit;
+  }
+
+  /* Picker dropdown */
+  .picker-dropdown {
+    position: absolute;
+    background: #0e0e14;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    z-index: 50;
+    min-width: 220px;
+    display: none;
+  }
+  .picker-dropdown.is-open { display: block; }
+  .picker-dropdown button {
+    display: block; width: 100%;
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    text-align: left;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .picker-dropdown button:hover { background: var(--bg-2); }
+  .picker-dropdown button.is-current { color: var(--select-accent); font-weight: 600; }
+  .picker-dropdown .label {
+    font-size: 9px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.1em; padding: 6px 12px 3px;
+  }
+
+  /* ====== RESPONSIVE ====== */
+  @media (max-width: 1100px) {
+    .config-layout { grid-template-columns: 1fr; }
+    .badge-status { padding: 4px 8px; font-size: 10px; }
+  }
+  @media (max-width: 950px) {
+    .main { grid-template-columns: 220px 1fr; }
+    .badge-status span:not(.dot) { display: none; }
+    .badge-status { padding: 6px; width: 22px; height: 22px; border-radius: 50%; justify-content: center; }
+  }
+  @media (max-width: 800px) {
+    .main { grid-template-columns: 180px 1fr; }
+    .tab .label { display: none; }
+    .tab .icon { display: inline; font-size: 14px; }
+    .tab { padding: 6px 10px; }
+    .app-menu .project { display: none; }
+  }
+  @media (max-width: 720px) {
+    .shell { min-width: 0; }
+    .main { grid-template-columns: 160px 1fr; }
+    .status { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ====== TOP BAR ====== -->
+  <header class="topbar">
+    <button class="app-menu" onclick="document.getElementById('fileMenu').classList.toggle('is-open')">
+      <span class="burger">☰</span>
+      <span class="project"><strong>khural_proj</strong><span class="dirty">●</span></span>
+    </button>
+
+    <nav class="tabs">
+      <!-- Порядок: Live | Config | Data | Timers | Settings -->
+      <button class="tab is-active" data-tab="live"><span class="icon">▶</span><span class="label">Live</span></button>
+      <button class="tab" data-tab="config"><span class="icon">⚙</span><span class="label">Config</span></button>
+      <button class="tab" data-tab="data"><span class="icon">⊞</span><span class="label">Data</span></button>
+      <button class="tab" data-tab="timers"><span class="icon">⏱</span><span class="label">Timers</span></button>
+      <button class="tab" data-tab="settings"><span class="icon">⚒</span><span class="label">Settings</span></button>
+    </nav>
+
+    <div></div>
+
+    <!-- Статусы — крупные с текстом, как в v1 / в вашем скриншоте -->
+    <div class="status">
+      <span class="badge-status is-on" title="WebSocket"><span class="dot"></span><span>Connected</span></span>
+      <span class="badge-status is-on" title="vMix"><span class="dot"></span><span>vMix</span></span>
+      <span class="badge-status is-warn" title="MIDI"><span class="dot"></span><span>MIDI</span></span>
+      <span class="badge-status is-off" title="Yandex"><span class="dot"></span><span>Yandex</span></span>
+    </div>
+
+    <div class="app-menu-dropdown" id="fileMenu">
+      <button>New project <span class="kbd">Ctrl+N</span></button>
+      <button>Open... <span class="kbd">Ctrl+O</span></button>
+      <button>Save <span class="kbd">Ctrl+S</span></button>
+      <button>Save as... <span class="kbd">Ctrl+Shift+S</span></button>
+      <span class="sep"></span>
+      <div style="padding: 6px 14px 2px; font-size: 9px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.1em;">Recent</div>
+      <button style="padding: 4px 14px; font-size: 12px; color: var(--text-dim);">khural_proj.wtp</button>
+      <button style="padding: 4px 14px; font-size: 12px; color: var(--text-dim);">test-show.wtp</button>
+      <span class="sep"></span>
+      <button>Open templates folder</button>
+      <button>About Web Title Pro</button>
+    </div>
+  </header>
+
+  <div class="main">
+
+    <!-- LEFT: OUTPUTS (без превью-картинок) -->
+    <aside class="outputs">
+
+      <div class="output-card is-selected" data-output="left">
+        <div class="oc-head">
+          <span class="name">Title Left</span>
+          <span class="state">OFF</span>
+        </div>
+        <div class="oc-meta">
+          <div class="type-row">
+            <span class="badge-type is-local">LOCAL</span>
+          </div>
+          <div class="current-data">Настя Пастухова</div>
+          <div class="title-file" onclick="event.stopPropagation(); togglePicker(this)">titlekural_white.gtzip</div>
+          <div class="picker-dropdown" style="top: 100%; left: 12px;">
+            <div class="label">Available titles</div>
+            <button class="is-current">titlekural_white.gtzip</button>
+            <button>titlekural_white_reversed.gtzip</button>
+            <button>titlekural_plashka123.gtzip</button>
+            <button>example-title</button>
+          </div>
+        </div>
+        <div class="oc-controls">
+          <button class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"/></svg></button>
+          <button class="stop"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg></button>
+        </div>
+      </div>
+
+      <div class="output-card is-live" data-output="right">
+        <div class="oc-head">
+          <span class="name">Title Right</span>
+          <span class="state">ON AIR</span>
+        </div>
+        <div class="oc-meta">
+          <div class="type-row">
+            <span class="badge-type is-local">LOCAL</span>
+          </div>
+          <div class="current-data">Аня Гаевская · HRD Доставки</div>
+          <div class="title-file">titlekural_white_reversed.gtzip</div>
+        </div>
+        <div class="oc-controls">
+          <button class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"/></svg></button>
+          <button class="stop"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg></button>
+        </div>
+      </div>
+
+      <div class="output-card is-live" data-output="overlay">
+        <div class="oc-head">
+          <span class="name">Title Overlay</span>
+          <span class="state">ON AIR</span>
+        </div>
+        <div class="oc-meta">
+          <div class="type-row">
+            <span class="badge-type is-vmix">VMIX</span>
+            <span class="input-info">Input #7</span>
+          </div>
+          <div class="current-data">HRD Доставки и Экспериментов</div>
+          <div class="title-file">Plashka Lower Third</div>
+        </div>
+        <div class="oc-controls">
+          <button class="play"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"/></svg></button>
+          <button class="stop"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg></button>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- RIGHT -->
+    <div class="content">
+
+      <!-- ПРЕВЬЮ-ОВЕРЛЕЙ (сверху, под top-bar). По умолчанию скрыт. -->
+      <div class="preview-overlay" id="previewOverlay">
+        <div class="preview-overlay-head">
+          <div class="title-block">
+            <span class="kicker">Preview</span>
+            <div class="mode-toggle" id="previewModeToggle">
+              <button class="is-active" data-mode="selected">Selected output</button>
+              <button data-mode="all">All outputs</button>
+            </div>
+          </div>
+          <button class="close" onclick="togglePreviewOverlay()">Close ✕</button>
+        </div>
+
+        <!-- Selected mode -->
+        <div class="preview-grid" id="previewGrid">
+          <div class="preview-frame has-content">
+            <div class="pf-head"><span class="pf-state off">PREVIEW</span><span class="pf-name">Title Left</span></div>
+            <div class="pf-body" style="background: linear-gradient(135deg, #1a0e2e 0%, #06030d 100%);">Настя Пастухова</div>
+          </div>
+          <div class="preview-frame has-content">
+            <div class="pf-head"><span class="pf-state off">LIVE</span><span class="pf-name">Title Left · OFF</span></div>
+            <div class="pf-body" style="background: linear-gradient(135deg, #0d0d18 0%, #03040a 100%); color: var(--text-faint);">no live output</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content-inner">
+
+        <!-- LIVE TAB -->
+        <div class="tab-content is-active" data-tab-content="live">
+          <div class="source-card">
+            <div class="source-card-head">
+              <div class="title-block">
+                <span class="kicker">Live data source</span>
+                <h3 class="selected-output">Title Left</h3>
+              </div>
+              <div class="tools">
+                <select class="compact-select" title="Data source">
+                  <option>Титарс</option>
+                  <option>Спикеры</option>
+                </select>
+                <select class="compact-select" title="Linked timer">
+                  <option>No timer</option>
+                  <option>Main timer</option>
+                </select>
+                <div class="sync-wrap">
+                  <button class="compact-btn" id="syncBtn" onclick="toggleSyncPopover()" title="Sync this source across outputs">
+                    <span class="chain">🔗</span>
+                    <span class="count">1<span style="color: var(--text-faint);">/3</span></span>
+                  </button>
+                  <div class="sync-popover" id="syncPopover">
+                    <div class="sync-popover-label">Sync source across outputs</div>
+                    <label class="sync-chip">
+                      <input type="checkbox" checked disabled />
+                      <span class="main">Title Left</span>
+                      <span class="hint">current</span>
+                    </label>
+                    <label class="sync-chip">
+                      <input type="checkbox" />
+                      <span class="main">Title Right</span>
+                    </label>
+                    <label class="sync-chip">
+                      <input type="checkbox" />
+                      <span class="main">Title Overlay</span>
+                    </label>
+                  </div>
+                </div>
+                <button class="compact-btn preview-toggle-btn" id="previewToggleBtn" onclick="togglePreviewOverlay()">
+                  <span>Preview</span>
+                  <span class="chev">▾</span>
+                </button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="source">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">#</th>
+                    <th>Name.Text<small>Name2.Text</small></th>
+                    <th>Description1.Text<small>Description2.Text</small></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="is-applied"><td class="idx">1</td><td>Настя Пастухова</td><td></td></tr>
+                  <tr><td class="idx">2</td><td>Аня Гаевская</td><td>HRD Доставки и Экспериментов</td></tr>
+                  <tr><td class="idx">3</td><td>Таня Приказчикова</td><td></td></tr>
+                  <tr><td class="idx">4</td><td>Кристина Юхневич</td><td></td></tr>
+                  <tr><td class="idx">5</td><td>Саша Курлович</td><td></td></tr>
+                  <tr><td class="idx">6</td><td>Андрей Шишин</td><td></td></tr>
+                  <tr><td class="idx">7</td><td>Лилит Миракян</td><td></td></tr>
+                  <tr><td class="idx">8</td><td>Камилла Юлдашева</td><td></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONFIG TAB -->
+        <div class="tab-content" data-tab-content="config">
+          <div class="content-head">
+            <div class="breadcrumb"><strong>Project setup</strong> — outputs, titles, mapping</div>
+            <div style="display: flex; gap: 8px;">
+              <button class="primary">+ Add Title</button>
+              <button class="ghost">+ Add Output</button>
+            </div>
+          </div>
+
+          <div class="config-layout">
+            <div class="config-card">
+              <h3>Outputs <small>каналы вывода</small></h3>
+              <div class="config-list">
+                <div class="config-item">
+                  <span class="grip">⋮⋮</span>
+                  <div class="main">
+                    <strong>Title Left</strong>
+                    <span>LOCAL · 1920×1080 · /render/left</span>
+                  </div>
+                  <div class="actions"><button>✎</button><button class="danger">×</button></div>
+                </div>
+                <div class="config-item">
+                  <span class="grip">⋮⋮</span>
+                  <div class="main">
+                    <strong>Title Right</strong>
+                    <span>LOCAL · 1920×1080 · /render/right</span>
+                  </div>
+                  <div class="actions"><button>✎</button><button class="danger">×</button></div>
+                </div>
+                <div class="config-item">
+                  <span class="grip">⋮⋮</span>
+                  <div class="main">
+                    <strong>Title Overlay</strong>
+                    <span>VMIX · Input #7 · «Plashka Lower Third»</span>
+                  </div>
+                  <div class="actions"><button>✎</button><button class="danger">×</button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="config-card">
+              <h3>Titles <small>файлы и vMix-инпуты</small></h3>
+              <div class="config-list">
+                <div class="config-item">
+                  <span class="grip">⋮⋮</span>
+                  <div class="main">
+                    <strong>titlekural_white.gtzip</strong>
+                    <span>LOCAL · → Title Left</span>
+                  </div>
+                  <div class="actions"><button>✎</button><button class="danger">×</button></div>
+                </div>
+                <div class="config-item">
+                  <span class="grip">⋮⋮</span>
+                  <div class="main">
+                    <strong>titlekural_white_reversed.gtzip</strong>
+                    <span>LOCAL · → Title Right</span>
+                  </div>
+                  <div class="actions"><button>✎</button><button class="danger">×</button></div>
+                </div>
+                <div class="config-item">
+                  <span class="grip">⋮⋮</span>
+                  <div class="main">
+                    <strong>Plashka Lower Third</strong>
+                    <span>VMIX Input #7 · → Title Overlay</span>
+                  </div>
+                  <div class="actions"><button>✎</button><button class="danger">×</button></div>
+                </div>
+                <div class="config-item">
+                  <span class="grip">⋮⋮</span>
+                  <div class="main">
+                    <strong>example-title</strong>
+                    <span>LOCAL · not assigned</span>
+                  </div>
+                  <div class="actions"><button>✎</button><button class="danger">×</button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="config-card" style="grid-column: 1 / -1;">
+              <h3>Mapping inspector — Title Left <small>колонка источника → поле титра</small></h3>
+              <div class="mapping-row">
+                <div class="from"><strong>Name (text)</strong><span>основной заголовок плашки</span></div>
+                <select><option>Column 1 — Name.Text</option></select>
+              </div>
+              <div class="mapping-row">
+                <div class="from"><strong>Description (text)</strong><span>подзаголовок</span></div>
+                <select><option>Column 2 — Description1.Text</option></select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DATA TAB -->
+        <div class="tab-content" data-tab-content="data">
+          <div class="content-head">
+            <div class="breadcrumb"><strong>Data Sources</strong></div>
+            <button class="primary">+ Import Source</button>
+          </div>
+          <div class="source-card" style="padding: 30px; text-align: center; color: var(--text-dim);">
+            Sources library / Add Source / редактирование строк
+          </div>
+        </div>
+
+        <!-- TIMERS TAB -->
+        <div class="tab-content" data-tab-content="timers">
+          <div class="content-head">
+            <div class="breadcrumb"><strong>Timers</strong></div>
+            <button class="ghost">+ Add Timer</button>
+          </div>
+          <div class="source-card" style="padding: 30px; text-align: center; color: var(--text-dim);">
+            Здесь только таймеры. vMix Connection → Settings → Integrations.
+          </div>
+        </div>
+
+        <!-- SETTINGS TAB -->
+        <div class="tab-content" data-tab-content="settings">
+          <div class="content-head"><div class="breadcrumb"><strong>Settings</strong></div></div>
+          <div class="source-card" style="padding: 30px; text-align: center; color: var(--text-dim);">
+            Outputs URL · Controls (Keyboard+MIDI+HTTP) · Integrations · Behaviors · System
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Tabs
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const id = tab.dataset.tab;
+      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('is-active', t === tab));
+      document.querySelectorAll('.tab-content').forEach((c) => c.classList.toggle('is-active', c.dataset.tabContent === id));
+    });
+  });
+
+  // Output card focus
+  document.querySelectorAll('.output-card').forEach((card) => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      document.querySelectorAll('.output-card').forEach((c) => c.classList.toggle('is-selected', c === card));
+      const name = card.querySelector('.name').textContent;
+      const titleEl = document.querySelector('[data-tab-content="live"] h3.selected-output');
+      if (titleEl) titleEl.textContent = name;
+      // Update sync popover labels
+      const chips = document.querySelectorAll('#syncPopover .sync-chip');
+      const allOutputs = Array.from(document.querySelectorAll('.output-card .name')).map((n) => n.textContent);
+      chips.forEach((chip, i) => {
+        const outName = allOutputs[i];
+        chip.querySelector('.main').textContent = outName;
+        const input = chip.querySelector('input');
+        const hint = chip.querySelector('.hint');
+        if (outName === name) {
+          input.checked = true; input.disabled = true;
+          if (!hint) {
+            const h = document.createElement('span');
+            h.className = 'hint'; h.textContent = 'current';
+            chip.appendChild(h);
+          }
+        } else {
+          input.disabled = false;
+          if (hint) hint.remove();
+        }
+      });
+      renderPreviewGrid();
+    });
+  });
+
+  // Title picker
+  function togglePicker(el) {
+    const dd = el.parentElement.querySelector('.picker-dropdown');
+    document.querySelectorAll('.picker-dropdown.is-open').forEach((d) => { if (d !== dd) d.classList.remove('is-open'); });
+    dd.classList.toggle('is-open');
+  }
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.picker-dropdown') && !e.target.closest('.title-file')) {
+      document.querySelectorAll('.picker-dropdown.is-open').forEach((d) => d.classList.remove('is-open'));
+    }
+    if (!e.target.closest('.app-menu') && !e.target.closest('#fileMenu')) {
+      document.getElementById('fileMenu').classList.remove('is-open');
+    }
+  });
+
+  // Sync popover
+  function toggleSyncPopover() {
+    const pop = document.getElementById('syncPopover');
+    const btn = document.getElementById('syncBtn');
+    pop.classList.toggle('is-open');
+    btn.classList.toggle('is-active', pop.classList.contains('is-open'));
+  }
+  // Sync chip toggle → update count
+  document.querySelectorAll('#syncPopover input').forEach((inp) => {
+    inp.addEventListener('change', () => {
+      const checked = document.querySelectorAll('#syncPopover input:checked').length;
+      const total = document.querySelectorAll('#syncPopover input').length;
+      const btn = document.getElementById('syncBtn');
+      btn.querySelector('.count').innerHTML = checked + '<span style="color: var(--text-faint);">/' + total + '</span>';
+      btn.classList.toggle('is-syncing', checked > 1);
+    });
+  });
+  // Close popovers on outside click
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.sync-wrap')) {
+      document.getElementById('syncPopover').classList.remove('is-open');
+      document.getElementById('syncBtn').classList.remove('is-active');
+    }
+  });
+
+  // Preview overlay
+  function togglePreviewOverlay() {
+    const ov = document.getElementById('previewOverlay');
+    const btn = document.getElementById('previewToggleBtn');
+    ov.classList.toggle('is-open');
+    btn.classList.toggle('is-open');
+  }
+
+  // Preview mode toggle (Selected / All)
+  document.querySelectorAll('#previewModeToggle button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#previewModeToggle button').forEach((b) => b.classList.toggle('is-active', b === btn));
+      renderPreviewGrid(btn.dataset.mode);
+    });
+  });
+
+  function renderPreviewGrid(mode) {
+    const grid = document.getElementById('previewGrid');
+    const activeMode = mode || document.querySelector('#previewModeToggle button.is-active').dataset.mode;
+    grid.classList.toggle('is-multiview', activeMode === 'all');
+
+    if (activeMode === 'selected') {
+      const selected = document.querySelector('.output-card.is-selected');
+      const name = selected?.querySelector('.name')?.textContent || 'Title';
+      const data = selected?.querySelector('.current-data')?.textContent?.replace('→ ', '') || '';
+      const isLive = selected?.classList.contains('is-live');
+      grid.innerHTML = `
+        <div class="preview-frame has-content">
+          <div class="pf-head"><span class="pf-state off">PREVIEW</span><span class="pf-name">${name}</span></div>
+          <div class="pf-body" style="background: linear-gradient(135deg, #1a0e2e 0%, #06030d 100%);">${data || '(empty)'}</div>
+        </div>
+        <div class="preview-frame ${isLive ? 'has-content' : ''}">
+          <div class="pf-head"><span class="pf-state ${isLive ? 'on' : 'off'}">LIVE</span><span class="pf-name">${name} · ${isLive ? 'ON AIR' : 'OFF'}</span></div>
+          <div class="pf-body" style="${isLive ? '' : 'color: var(--text-faint);'}">${isLive ? data : 'no live output'}</div>
+        </div>
+      `;
+    } else {
+      const cards = document.querySelectorAll('.output-card');
+      grid.innerHTML = Array.from(cards).map((card) => {
+        const name = card.querySelector('.name').textContent;
+        const data = card.querySelector('.current-data')?.textContent?.replace('→ ', '') || '';
+        const isLive = card.classList.contains('is-live');
+        const isVmix = !!card.querySelector('.badge-type.is-vmix');
+        return `
+          <div class="preview-frame ${isLive && !isVmix ? 'has-content' : ''} ${isVmix ? 'is-vmix' : ''}">
+            <div class="pf-head"><span class="pf-state ${isLive ? 'on' : 'off'}">${isLive ? 'ON AIR' : 'OFF'}</span><span class="pf-name">${name}</span></div>
+            <div class="pf-body" style="${isLive && !isVmix ? '' : 'color: var(--text-faint);'}">${isVmix ? 'external (vMix)' : (isLive ? data : '—')}</div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+</script>
+
+</body>
+</html>

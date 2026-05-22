@@ -1,0 +1,918 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>Web Title Pro — Redesign Mockup v1</title>
+<style>
+  :root {
+    --bg: #0b0b0d;
+    --bg-2: #131319;
+    --card: #181820;
+    --card-2: #1f1f29;
+    --border: #2a2a36;
+    --border-strong: #353548;
+    --text: #ebebf0;
+    --text-dim: #8a8a99;
+    --text-faint: #5c5c6a;
+    --accent: #d8d8e6;
+    --good: #00b86b;
+    --good-bg: rgba(0,184,107,0.12);
+    --live: #f93232;
+    --live-bg: rgba(249,50,50,0.12);
+    --warn: #ffb84d;
+    --warn-bg: rgba(255,184,77,0.12);
+    --muted: #3a3a4a;
+    --font: "Segoe UI", "YS Text", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; -webkit-font-smoothing: antialiased; }
+  body { min-height: 100vh; }
+
+  /* === APP SHELL =================================================== */
+  .shell {
+    display: grid;
+    grid-template-rows: 44px 56px 1fr;
+    height: 100vh;
+  }
+
+  /* === TITLE BAR =================================================== */
+  .titlebar {
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    background: #0a0a0c;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-dim);
+    gap: 16px;
+  }
+  .titlebar .app { color: var(--text); font-weight: 600; letter-spacing: 0.02em; }
+  .titlebar .project { color: var(--text); }
+  .titlebar .project::before { content: '·'; padding: 0 8px; color: var(--text-faint); }
+  .titlebar .dirty { color: var(--warn); margin-left: 6px; }
+  .titlebar .menu-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-dim);
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font: inherit;
+  }
+  .titlebar .menu-btn:hover { background: var(--bg-2); color: var(--text); }
+  .titlebar .spacer { flex: 1; }
+  .titlebar .status-pills { display: flex; gap: 6px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .pill .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text-faint);
+  }
+  .pill.is-on { color: var(--good); border-color: rgba(0,184,107,0.4); background: var(--good-bg); }
+  .pill.is-on .dot { background: var(--good); box-shadow: 0 0 6px var(--good); }
+  .pill.is-off { color: var(--text-faint); }
+  .pill.is-off .dot { background: var(--text-faint); }
+  .pill.is-warn { color: var(--warn); border-color: rgba(255,184,77,0.35); background: var(--warn-bg); }
+  .pill.is-warn .dot { background: var(--warn); }
+
+  /* === TAB BAR ====================================================== */
+  .tabbar {
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    gap: 6px;
+  }
+  .tab {
+    padding: 10px 16px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px 8px 0 0;
+    color: var(--text-dim);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.is-active {
+    color: var(--text);
+    background: var(--card);
+    border-color: var(--border);
+    border-bottom-color: var(--card);
+    margin-bottom: -1px;
+  }
+  .tabbar .spacer { flex: 1; }
+  .tabbar .toolbar { display: flex; gap: 6px; }
+  .ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 500;
+  }
+  .ghost:hover { border-color: var(--border-strong); background: var(--bg-2); }
+  .primary {
+    background: var(--text);
+    color: var(--bg);
+    border: 1px solid var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+  }
+  .primary:hover { background: #fff; }
+  .danger { color: var(--live); border-color: rgba(249,50,50,0.35); }
+
+  /* === MAIN AREA ==================================================== */
+  .main {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    overflow: hidden;
+  }
+
+  /* === LEFT: OUTPUTS SIDEBAR ======================================= */
+  .outputs {
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    padding: 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .outputs-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 4px 6px;
+  }
+  .outputs-head h4 {
+    margin: 0;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    font-weight: 700;
+  }
+
+  .output-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 12px 10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto auto;
+    gap: 8px 10px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .output-card:hover { border-color: var(--border-strong); }
+  .output-card.is-active {
+    border-color: var(--text);
+    background: var(--card-2);
+  }
+  .output-card.is-live {
+    border-color: rgba(249,50,50,0.45);
+  }
+  .output-card .name {
+    grid-column: 1;
+    grid-row: 1;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.1;
+  }
+  .output-card .current {
+    grid-column: 1;
+    grid-row: 2;
+    color: var(--text-dim);
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+  .output-card .current.is-none {
+    color: var(--text-faint);
+    font-style: italic;
+  }
+  .output-card .state-badge {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    border: 1px solid var(--border-strong);
+    color: var(--text-dim);
+    background: var(--bg-2);
+    height: fit-content;
+  }
+  .output-card.is-live .state-badge {
+    color: #fff;
+    background: var(--live);
+    border-color: var(--live);
+  }
+  .output-card .controls {
+    grid-column: 1 / span 2;
+    grid-row: 3;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .output-card .controls .meta {
+    flex: 1;
+    font-size: 10px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .icon-btn {
+    width: 32px;
+    height: 32px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s, transform 0.05s;
+  }
+  .icon-btn:hover { background: var(--bg-2); }
+  .icon-btn:active { transform: scale(0.95); }
+  .icon-btn.play { color: var(--live); }
+  .icon-btn.stop { color: var(--text-dim); }
+  .icon-btn.load { color: var(--text); font-size: 10px; font-weight: 700; }
+  .icon-btn svg { width: 14px; height: 14px; }
+
+  .add-output {
+    border: 2px dashed var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    padding: 18px;
+    border-radius: 10px;
+    font: inherit;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .add-output:hover { border-color: var(--text-dim); color: var(--text); }
+
+  /* === RIGHT: CONTENT ============================================== */
+  .content {
+    overflow: auto;
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .panel-head .title { display: flex; flex-direction: column; gap: 2px; }
+  .panel-head .kicker {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-dim);
+    font-weight: 700;
+  }
+  .panel-head h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  .panel-head .tools { display: flex; gap: 6px; align-items: center; }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 120px;
+  }
+  .field > span {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    font-weight: 700;
+  }
+  .field select, .field input {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font: inherit;
+    min-width: 140px;
+  }
+
+  /* Live grid: titles + source side by side, preview below */
+  .live-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 14px;
+    flex: 1;
+  }
+  .titles-list { display: flex; flex-direction: column; gap: 6px; }
+  .title-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 8px;
+    padding: 10px 12px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .title-item:hover { border-color: var(--border-strong); }
+  .title-item.is-selected { border-color: var(--text); background: var(--card-2); }
+  .title-item.is-live { border-color: rgba(249,50,50,0.5); }
+  .title-item .name { grid-row: 1; grid-column: 1; font-weight: 600; }
+  .title-item .meta {
+    grid-row: 2; grid-column: 1;
+    font-size: 11px; color: var(--text-dim);
+  }
+  .title-item .badge {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    align-self: center;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+  }
+  .title-item .badge.is-vmix { color: #6aa3ff; border-color: rgba(106,163,255,0.3); }
+  .title-item .badge.is-local { color: var(--text-dim); }
+
+  /* Source table */
+  .source-card { display: flex; flex-direction: column; }
+  .source-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .source-table th, .source-table td {
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .source-table th {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    font-weight: 700;
+  }
+  .source-table th small {
+    display: block;
+    font-size: 9px;
+    color: var(--text-faint);
+    font-weight: 500;
+    margin-top: 2px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .source-table tr { cursor: pointer; }
+  .source-table tr:hover td { background: var(--bg-2); }
+  .source-table tr.is-applied td {
+    background: rgba(249,50,50,0.08);
+    color: var(--text);
+  }
+  .source-table td.idx {
+    color: var(--text-faint);
+    font-weight: 700;
+    width: 36px;
+  }
+
+  /* Preview row */
+  .preview-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .preview-block { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .preview-block-head {
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .preview-block-head .state {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+    padding: 2px 8px; border-radius: 4px;
+  }
+  .preview-block-head .state.on { background: var(--live); color: #fff; }
+  .preview-block-head .state.off { background: var(--bg-2); color: var(--text-dim); }
+  .preview-block-head .name { font-weight: 600; }
+  .preview-block-head .spacer { flex: 1; }
+  .preview-frame {
+    height: 200px;
+    background:
+      repeating-linear-gradient(45deg, #0e0e14 0 8px, #11111a 8px 16px);
+    display: grid; place-items: center;
+    color: var(--text-faint);
+    font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .preview-frame.has-content {
+    background: linear-gradient(135deg, #1a1a2a 0%, #0a0a14 100%);
+    color: var(--text);
+    font-size: 22px;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+
+  /* Tab content visibility */
+  .tab-content { display: none; flex: 1; flex-direction: column; gap: 14px; min-height: 0; }
+  .tab-content.is-active { display: flex; }
+
+  /* === SETTINGS LAYOUT (proposed) ================================== */
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    flex: 1;
+  }
+  .settings-nav {
+    background: var(--bg-2);
+    border-right: 1px solid var(--border);
+    padding: 8px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .settings-nav button {
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+  }
+  .settings-nav button:hover { background: var(--card); color: var(--text); }
+  .settings-nav button.is-active { background: var(--card); color: var(--text); }
+  .settings-pane { padding: 18px 22px; background: var(--card); }
+
+  /* Bindings 3-column row (Controls tab) */
+  .bindings-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .bindings-table th, .bindings-table td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .bindings-table th {
+    font-size: 10px; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.1em;
+  }
+  .bindings-table code {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    color: var(--text);
+  }
+  .bindings-table code.unset {
+    color: var(--text-faint);
+    border-style: dashed;
+    font-style: italic;
+  }
+
+  /* Empty hint card */
+  .hint-card {
+    background: var(--bg-2);
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    padding: 30px 22px;
+    text-align: center;
+    color: var(--text-dim);
+  }
+  .hint-card strong { color: var(--text); display: block; margin-bottom: 6px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ============== TITLE BAR (status everything) ============= -->
+  <header class="titlebar">
+    <span class="app">Web Title Pro</span>
+    <span class="project">khural_proj <span class="dirty">●</span></span>
+    <button class="menu-btn">File ▾</button>
+
+    <div class="spacer"></div>
+
+    <div class="status-pills">
+      <span class="pill is-on" title="Backend WebSocket"><span class="dot"></span>WS</span>
+      <span class="pill is-on" title="vMix connection"><span class="dot"></span>vMix</span>
+      <span class="pill is-warn" title="MIDI"><span class="dot"></span>MIDI</span>
+      <span class="pill is-off" title="Yandex"><span class="dot"></span>Yandex</span>
+    </div>
+  </header>
+
+  <!-- ============== TAB BAR =================================== -->
+  <nav class="tabbar">
+    <button class="tab is-active" data-tab="live">Live</button>
+    <button class="tab" data-tab="data">Data Source</button>
+    <button class="tab" data-tab="timers">Timers</button>
+    <button class="tab" data-tab="settings">Settings</button>
+
+    <div class="spacer"></div>
+
+    <div class="toolbar">
+      <button class="ghost">+ Add Title</button>
+    </div>
+  </nav>
+
+  <!-- ============== MAIN ====================================== -->
+  <div class="main">
+
+    <!-- LEFT: OUTPUTS SIDEBAR (your design) -->
+    <aside class="outputs">
+      <div class="outputs-head">
+        <h4>Outputs</h4>
+        <button class="ghost" style="padding: 4px 8px; font-size: 11px;">Manage</button>
+      </div>
+
+      <div class="output-card is-active" data-output="left">
+        <div class="name">Title Left</div>
+        <div class="current">titlekural_white.gtzip · Настя Пастухова</div>
+        <div class="state-badge">OFF</div>
+        <div class="controls">
+          <span class="meta">Local · 1920×1080</span>
+          <button class="icon-btn load" title="Prepare without showing">LOAD</button>
+          <button class="icon-btn play" title="Title in (live)">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"/></svg>
+          </button>
+          <button class="icon-btn stop" title="Title out">
+            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="output-card is-live" data-output="right">
+        <div class="name">Title Right</div>
+        <div class="current">titlekural_white_reversed · Аня Гаевская</div>
+        <div class="state-badge">ON AIR</div>
+        <div class="controls">
+          <span class="meta">Local · 1920×1080</span>
+          <button class="icon-btn load">LOAD</button>
+          <button class="icon-btn play">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"/></svg>
+          </button>
+          <button class="icon-btn stop">
+            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="output-card is-live" data-output="overlay">
+        <div class="name">Title Overlay</div>
+        <div class="current">titlekural_plashka123 · HRD Доставки и Эксперименты</div>
+        <div class="state-badge">ON AIR</div>
+        <div class="controls">
+          <span class="meta">vMix · Input 7</span>
+          <button class="icon-btn load">LOAD</button>
+          <button class="icon-btn play">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"/></svg>
+          </button>
+          <button class="icon-btn stop">
+            <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <button class="add-output">+ Add Output</button>
+
+      <!-- Subtle hint -->
+      <div style="margin-top: auto; padding: 10px 4px; font-size: 11px; color: var(--text-faint); line-height: 1.5;">
+        Tip: click an output card to focus it — Titles, Source and Mapping below will switch to that output's context.
+      </div>
+    </aside>
+
+    <!-- RIGHT: CONTENT (tab-switched) -->
+    <div class="content">
+
+      <!-- ============= LIVE TAB ============= -->
+      <div class="tab-content is-active" data-tab-content="live">
+
+        <div class="live-grid">
+
+          <!-- Titles rundown (moved here from "Mapping" -> visible on LIVE) -->
+          <section class="panel" style="padding: 12px;">
+            <div class="panel-head">
+              <div class="title">
+                <span class="kicker">Titles</span>
+                <h3 style="font-size: 14px;">8 entries</h3>
+              </div>
+              <div class="tools">
+                <button class="ghost" style="padding: 4px 8px; font-size: 11px;">⋯</button>
+              </div>
+            </div>
+            <div class="titles-list">
+              <div class="title-item is-selected">
+                <span class="name">Настя Пастухова</span>
+                <span class="meta">titlekural_white</span>
+                <span class="badge is-local">LOCAL</span>
+              </div>
+              <div class="title-item is-live">
+                <span class="name">Аня Гаевская</span>
+                <span class="meta">HRD Доставки</span>
+                <span class="badge is-local">LOCAL</span>
+              </div>
+              <div class="title-item">
+                <span class="name">Таня Приказчикова</span>
+                <span class="meta">titlekural_white</span>
+                <span class="badge is-local">LOCAL</span>
+              </div>
+              <div class="title-item">
+                <span class="name">Кристина Юхневич</span>
+                <span class="meta">titlekural_plashka</span>
+                <span class="badge is-vmix">VMIX</span>
+              </div>
+              <div class="title-item">
+                <span class="name">Саша Курлович</span>
+                <span class="meta">titlekural_white</span>
+                <span class="badge is-local">LOCAL</span>
+              </div>
+              <div class="title-item">
+                <span class="name">Андрей Шишин</span>
+                <span class="meta">titlekural_white</span>
+                <span class="badge is-local">LOCAL</span>
+              </div>
+              <div class="title-item">
+                <span class="name">Лилит Миракян</span>
+                <span class="meta">titlekural_white</span>
+                <span class="badge is-local">LOCAL</span>
+              </div>
+              <div class="title-item">
+                <span class="name">Камилла Юлдашева</span>
+                <span class="meta">titlekural_white</span>
+                <span class="badge is-local">LOCAL</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Source rows (live data source for selected output) -->
+          <section class="panel source-card">
+            <div class="panel-head">
+              <div class="title">
+                <span class="kicker">Live Data Source — for «Title Left»</span>
+                <h3>Титарс</h3>
+              </div>
+              <div class="tools">
+                <div class="field"><span>Source</span>
+                  <select><option>Титарс</option><option>Спикеры</option></select>
+                </div>
+                <div class="field"><span>Timer</span>
+                  <select><option>No timer link</option></select>
+                </div>
+                <button class="ghost" title="Mapping inspector">⇄ Mapping</button>
+              </div>
+            </div>
+            <table class="source-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Name.Text<small>Name2.Text</small></th>
+                  <th>Description1.Text<small>Description2.Text</small></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="is-applied"><td class="idx">1</td><td>Настя Пастухова</td><td></td></tr>
+                <tr><td class="idx">2</td><td>Аня Гаевская</td><td>HRD Доставки и Экспериментов</td></tr>
+                <tr><td class="idx">3</td><td>Таня Приказчикова</td><td></td></tr>
+                <tr><td class="idx">4</td><td>Кристина Юхневич</td><td></td></tr>
+                <tr><td class="idx">5</td><td>Саша Курлович</td><td></td></tr>
+                <tr><td class="idx">6</td><td>Андрей Шишин</td><td></td></tr>
+                <tr><td class="idx">7</td><td>Лилит Миракян</td><td></td></tr>
+                <tr><td class="idx">8</td><td>Камилла Юлдашева</td><td></td></tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+
+        <!-- Preview row (always visible on Live) -->
+        <div class="preview-row">
+          <div class="preview-block">
+            <div class="preview-block-head">
+              <span class="state off">PREVIEW</span>
+              <span class="name">Настя Пастухова</span>
+              <span class="spacer"></span>
+              <button class="ghost" style="padding: 4px 8px; font-size: 11px;">⛶</button>
+            </div>
+            <div class="preview-frame has-content" style="background: linear-gradient(120deg, #1a0e2e 0%, #06030d 100%);">
+              Настя Пастухова
+            </div>
+          </div>
+          <div class="preview-block">
+            <div class="preview-block-head">
+              <span class="state on">LIVE</span>
+              <span class="name">Title Left · Local · ON AIR</span>
+              <span class="spacer"></span>
+              <button class="ghost" style="padding: 4px 8px; font-size: 11px;">⛶</button>
+            </div>
+            <div class="preview-frame has-content">
+              Настя Пастухова
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============= DATA SOURCE TAB ============= -->
+      <div class="tab-content" data-tab-content="data">
+        <section class="panel">
+          <div class="panel-head">
+            <div class="title">
+              <span class="kicker">Data</span>
+              <h3>Sources &amp; Mapping</h3>
+            </div>
+            <div class="tools">
+              <button class="primary">+ Add Source</button>
+            </div>
+          </div>
+          <div class="hint-card">
+            <strong>Sources, Mapping и импорт переехали сюда.</strong>
+            Mapping был отдельной вкладкой, но в реальности это inspector, который зависит от выбранного титра и источника. Логичнее inline-панель здесь, чем top-tab «Mapping».
+          </div>
+        </section>
+      </div>
+
+      <!-- ============= TIMERS TAB ============= -->
+      <div class="tab-content" data-tab-content="timers">
+        <section class="panel">
+          <div class="panel-head">
+            <div class="title">
+              <span class="kicker">Timers</span>
+              <h3>3 timers</h3>
+            </div>
+            <div class="tools">
+              <button class="ghost">+ Add Timer</button>
+            </div>
+          </div>
+          <div class="hint-card">
+            <strong>Здесь только таймеры.</strong>
+            Карточка «vMix Connection» уехала в Settings → Integrations. «Reminder при выборе титра» уехал в Settings → Behaviors.
+          </div>
+        </section>
+      </div>
+
+      <!-- ============= SETTINGS TAB (4 subtabs) ============= -->
+      <div class="tab-content" data-tab-content="settings">
+        <div class="settings-grid">
+          <nav class="settings-nav">
+            <button class="is-active">Outputs</button>
+            <button>Controls</button>
+            <button>Integrations</button>
+            <button>Behaviors</button>
+            <button>System</button>
+          </nav>
+          <div class="settings-pane">
+            <div class="panel-head">
+              <div class="title">
+                <span class="kicker">Controls</span>
+                <h3>Bindings — Keyboard + MIDI + HTTP в одной таблице</h3>
+              </div>
+              <div class="tools">
+                <button class="ghost">Test all</button>
+              </div>
+            </div>
+            <table class="bindings-table">
+              <thead>
+                <tr>
+                  <th style="width: 36%;">Action</th>
+                  <th>Keyboard</th>
+                  <th>MIDI</th>
+                  <th>HTTP (Bitfocus)</th>
+                  <th style="width: 50px;">Global</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>TITLE IN</strong></td>
+                  <td><code>F1</code></td>
+                  <td><code>Note 60</code></td>
+                  <td><code class="unset">/api/program/show</code></td>
+                  <td>☑</td>
+                </tr>
+                <tr>
+                  <td><strong>LIVE / LOAD</strong></td>
+                  <td><code>F2</code></td>
+                  <td><code class="unset">Not assigned</code></td>
+                  <td><code class="unset">/api/program/update</code></td>
+                  <td>☑</td>
+                </tr>
+                <tr>
+                  <td><strong>TITLE OUT</strong></td>
+                  <td><code>F3</code></td>
+                  <td><code>Note 62</code></td>
+                  <td><code class="unset">/api/program/hide</code></td>
+                  <td>☑</td>
+                </tr>
+                <tr>
+                  <td><strong>PREVIOUS / NEXT TITLE</strong></td>
+                  <td><code>← / →</code></td>
+                  <td><code>CC 14</code></td>
+                  <td><code class="unset">/api/entries/prev|next</code></td>
+                  <td>☐</td>
+                </tr>
+                <tr>
+                  <td><strong>Select output → Title Left</strong></td>
+                  <td><code>Ctrl+1</code></td>
+                  <td><code class="unset">Not assigned</code></td>
+                  <td><code class="unset">/api/outputs/.../select</code></td>
+                  <td>☐</td>
+                </tr>
+                <tr>
+                  <td><strong>Timer «Main» — Start / Stop</strong></td>
+                  <td><code>Space</code></td>
+                  <td><code>Note 36</code></td>
+                  <td><code class="unset">/api/timers/.../toggle</code></td>
+                  <td>☑</td>
+                </tr>
+              </tbody>
+            </table>
+            <p style="margin-top: 18px; color: var(--text-dim); font-size: 12px;">
+              ← Слева 5 категорий настроек вместо текущих 8 субтабов.
+              <strong style="color: var(--text);">Test</strong>-вкладки нет (она dev-only — за флагом).
+              <strong style="color: var(--text);">About</strong> переехал в <code>File ▾</code>.
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // Simple tab switcher
+  document.querySelectorAll('.tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const id = tab.dataset.tab;
+      document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('is-active', t === tab));
+      document.querySelectorAll('.tab-content').forEach((c) => {
+        c.classList.toggle('is-active', c.dataset.tabContent === id);
+      });
+    });
+  });
+
+  // Output card focus
+  document.querySelectorAll('.output-card').forEach((card) => {
+    card.addEventListener('click', (event) => {
+      if (event.target.closest('button')) return;
+      document.querySelectorAll('.output-card').forEach((c) => c.classList.toggle('is-active', c === card));
+    });
+  });
+
+  // Settings sub-nav
+  document.querySelectorAll('.settings-nav button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.settings-nav button').forEach((b) => b.classList.toggle('is-active', b === btn));
+    });
+  });
+</script>
+
+</body>
+</html>

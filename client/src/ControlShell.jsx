@@ -18,14 +18,15 @@ import {
 } from './control-shell/source-service.js';
 import KhuralStyleEditorModal from './control-shell/KhuralStyleEditorModal.jsx';
 import { useMidiState, useRealtimeState, useSystemInfo, useVmixState } from './control-shell/hooks.js';
-import ProjectPanel from './control-shell/ProjectPanel.jsx';
-import PreviewTitlePanel from './control-shell/PreviewTitlePanel.jsx';
 import SettingsPanel from './control-shell/SettingsPanel.jsx';
-import TitlesPanel from './control-shell/TitlesPanel.jsx';
-import LiveTab from './control-shell/tabs/LiveTab.jsx';
-import MappingTab from './control-shell/tabs/MappingTab.jsx';
 import SourcesTab from './control-shell/tabs/SourcesTab.jsx';
 import TimersTab from './control-shell/tabs/TimersTab.jsx';
+import TopBar from './control-shell/v2/TopBar.jsx';
+import OutputsSidebar from './control-shell/v2/OutputsSidebar.jsx';
+import LiveTabV2 from './control-shell/v2/LiveTabV2.jsx';
+import ConfigTab from './control-shell/v2/ConfigTab.jsx';
+import PreviewOverlay from './control-shell/v2/PreviewOverlay.jsx';
+import { useResizableSidebar } from './control-shell/v2/useResizableSidebar.js';
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -517,7 +518,8 @@ function ControlShell() {
   const [appMeta, setAppMeta] = useState(null);
   const [draftName, setDraftName] = useState('');
   const [activeTab, setActiveTab] = useState('rundown');
-  const [settingsTab, setSettingsTab] = useState('output');
+  const [settingsTab, setSettingsTab] = useState('outputs');
+  const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
   const [draftFields, setDraftFields] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [templateValidationReport, setTemplateValidationReport] = useState(null);
@@ -534,7 +536,6 @@ function ControlShell() {
   const [autoUpdate, setAutoUpdate] = useState(true);
   const [uploadName, setUploadName] = useState('');
   const [uploadFiles, setUploadFiles] = useState([]);
-  const [uploadDirectoryPath, setUploadDirectoryPath] = useState('');
   const [busyAction, setBusyAction] = useState('');
   const [feedback, setFeedback] = useState('');
   const [localSelectedOutputId, setLocalSelectedOutputId] = useState(null);
@@ -579,7 +580,6 @@ function ControlShell() {
   const [vmixHostDraft, setVmixHostDraft] = useState('');
   const feedbackTimerRef = useRef(null);
   const saveTimerRef = useRef(null);
-  const folderInputRef = useRef(null);
   const [activeSourceRows, setActiveSourceRows] = useState({});
   const [activeTimerRows, setActiveTimerRows] = useState({});
   const [sourceRowTimers, setSourceRowTimers] = useState({});
@@ -895,12 +895,6 @@ function ControlShell() {
     () => timers.find((timer) => timerIdMatches(timer, reminderLinkedTimerId)) || null,
     [reminderLinkedTimerId, timers],
   );
-
-  useEffect(() => {
-    if (!folderInputRef.current) return;
-    folderInputRef.current.setAttribute('webkitdirectory', '');
-    folderInputRef.current.setAttribute('directory', '');
-  }, []);
 
   useEffect(() => {
     saveSourceLibrary(sourceLibrary);
@@ -1790,6 +1784,42 @@ function ControlShell() {
     }
   };
 
+  // Fire show/hide for an explicit output (used by per-output Play/Stop buttons on the OutputsSidebar v2).
+  const runProgramActionForOutput = async (outputId, action, entryId) => {
+    if (!outputId) return;
+    setLocalSelectedOutputId(outputId);
+    setBusyAction(action);
+    try {
+      await api(`/api/program/${action}`, {
+        method: 'POST',
+        body: { ...(entryId ? { entryId } : {}), outputId },
+      });
+      pushFeedback(`${action.toUpperCase()} sent`);
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    } finally {
+      setBusyAction('');
+    }
+  };
+
+  // Assign a title (entry) to a specific output — used by the OutputCard's title picker.
+  const assignEntryToOutput = async (outputId, entryId) => {
+    if (!outputId || !entryId) return;
+    setLocalSelectedOutputId(outputId);
+    setBusyAction(`select-${entryId}`);
+    try {
+      await api(`/api/entries/${entryId}/select`, {
+        method: 'POST',
+        body: { outputId },
+      });
+      pushFeedback('Title assigned');
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    } finally {
+      setBusyAction('');
+    }
+  };
+
   const createEntry = async () => {
     setBusyAction('create-entry');
 
@@ -1920,55 +1950,19 @@ function ControlShell() {
     }
   };
 
-  const pickTemplateFolder = async () => {
-    if (!desktopBridge?.pickTemplateFolder) {
-      pushFeedback('Folder import is available in the desktop app only');
-      return;
-    }
-
-    try {
-      const result = await desktopBridge.pickTemplateFolder();
-
-      if (result?.canceled || !result?.directoryPath) {
-        return;
-      }
-
-      setUploadDirectoryPath(result.directoryPath);
-      setUploadFiles([]);
-      if (!uploadName.trim()) {
-        const folderName = result.directoryPath.split(/[/\\]/).filter(Boolean).pop() || '';
-        setUploadName(folderName);
-      }
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    }
-  };
-
   const uploadTemplateFromSelection = async () => {
-    if (!uploadFiles.length && !uploadDirectoryPath) {
-      pushFeedback('Choose a ZIP file, template files, or a folder first');
+    if (!uploadFiles.length) {
+      pushFeedback('Choose a ZIP file or template files first');
       return;
     }
 
     setBusyAction('upload-template');
 
     try {
-      let importedTemplate = null;
-
-      if (uploadDirectoryPath) {
-        importedTemplate = await api('/api/templates/import-directory', {
-          method: 'POST',
-          body: {
-            directoryPath: uploadDirectoryPath,
-            name: uploadName,
-          },
-        });
-      } else {
-        importedTemplate = await api('/api/templates/upload', {
-          method: 'POST',
-          body: buildUploadFormData(uploadFiles, uploadName),
-        });
-      }
+      const importedTemplate = await api('/api/templates/upload', {
+        method: 'POST',
+        body: buildUploadFormData(uploadFiles, uploadName),
+      });
 
       if (importedTemplate?.id) {
         await api('/api/entries', {
@@ -1984,7 +1978,6 @@ function ControlShell() {
       }
 
       setUploadFiles([]);
-      setUploadDirectoryPath('');
       setUploadName('');
       setShowAddModal(false);
       setTemplateValidationReport(null);
@@ -2001,8 +1994,18 @@ function ControlShell() {
       return;
     }
 
+    const usedEntries = (snapshot?.entries || []).filter((entry) => entry.templateId === templateId);
+    if (usedEntries.length > 0) {
+      const confirmed = window.confirm(
+        `Delete this custom template and ${usedEntries.length} title(s) that use it? This cannot be undone.`,
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
     try {
-      await api(`/api/templates/${encodeURIComponent(templateId)}`, {
+      await api(`/api/templates/${encodeURIComponent(templateId)}?force=1`, {
         method: 'DELETE',
       });
 
@@ -3776,161 +3779,143 @@ function ControlShell() {
     commandTimer,
   ]);
 
+  const sidebarHook = useResizableSidebar();
+
   if (!snapshot || !program) {
     return <div className="loading-shell">Loading control surface...</div>;
   }
 
+  const effectiveTab = activeTab === 'mapping' ? 'config' : activeTab;
+  const sidebar = sidebarHook;
+
   return (
-    <div className="app-shell">
-      <ProjectPanel
-        isOpen={showProjectPanel}
+    <div
+      className="shell-v2"
+      style={{ '--sidebar-width': `${sidebar.width}px` }}
+    >
+      <TopBar
+        activeTab={effectiveTab}
+        onSetActiveTab={setActiveTab}
         currentProjectName={currentProjectDisplayName}
+        projectDirty={projectDirty}
         projectStatus={projectStatus}
-        onClose={() => setShowProjectPanel(false)}
-        onNew={createNewProject}
-        onOpen={openProject}
-        onSave={() => saveProject()}
-        onSaveAs={() => saveProject({ saveAs: true })}
-        onOpenRecent={openRecentProject}
+        connection={connection}
+        vmixState={vmixState}
+        midiState={midiState}
+        yandexAuthState={yandexAuthState}
+        onNewProject={createNewProject}
+        onOpenProject={openProject}
+        onSaveProject={() => saveProject()}
+        onSaveAsProject={() => saveProject({ saveAs: true })}
+        onOpenRecentProject={openRecentProject}
+        onOpenTemplateFolders={openTemplateFolders}
       />
 
-      <section className="tabs-card">
-        <div className="mode-toggle app-tab-toggle" role="tablist" aria-label="Primary workspace tabs">
-          <button type="button" className={`mode-toggle-button ${activeTab === 'rundown' ? 'is-active' : ''}`} onClick={() => setActiveTab('rundown')} title="Live"><span className="tab-label-full">Live</span><span className="tab-label-icon" aria-hidden="true">▶</span></button>
-          <button type="button" className={`mode-toggle-button ${activeTab === 'sources' ? 'is-active' : ''}`} onClick={() => setActiveTab('sources')} title="Data Source"><span className="tab-label-full">Data Source</span><span className="tab-label-icon" aria-hidden="true">☰</span></button>
-          <button type="button" className={`mode-toggle-button ${activeTab === 'mapping' ? 'is-active' : ''}`} onClick={() => setActiveTab('mapping')} title="Mapping"><span className="tab-label-full">Mapping</span><span className="tab-label-icon" aria-hidden="true">⇄</span></button>
-          <button type="button" className={`mode-toggle-button ${activeTab === 'timers' ? 'is-active' : ''}`} onClick={() => setActiveTab('timers')} title="Timers"><span className="tab-label-full">Timers</span><span className="tab-label-icon" aria-hidden="true">⏱</span></button>
-          <button type="button" className={`mode-toggle-button ${activeTab === 'settings' ? 'is-active' : ''}`} onClick={() => setActiveTab('settings')} title="Output & Settings"><span className="tab-label-full">Output & Settings</span><span className="tab-label-icon" aria-hidden="true">⚙</span></button>
-        </div>
-        <div className="tab-toolbar">
-          <span className={`connection-pill is-${connection}`}>{connection.toUpperCase()}</span>
-          <div className="tab-toolbar-actions">
-            <button className={`ghost-button compact-button ${showProjectPanel ? 'is-active-manage' : ''}`} onClick={() => setShowProjectPanel((current) => !current)}>
-              Project
-            </button>
-            <button className="primary-button compact-button" onClick={() => setShowAddModal(true)}>Add Title</button>
-          </div>
-          <div className="tab-toolbar-menu">
-            <button
-              type="button"
-              className={`ghost-button compact-button icon-button tab-burger-button ${showCompactMenu ? 'is-open' : ''}`}
-              onClick={() => setShowCompactMenu((current) => !current)}
-              aria-label="More actions"
-              aria-expanded={showCompactMenu}
-            >
-              <span aria-hidden="true">⋯</span>
-            </button>
-            {showCompactMenu && (
-              <div className="tab-burger-menu" role="menu" onClick={(event) => event.stopPropagation()}>
-                <button className="tab-burger-item" onClick={() => { setShowCompactMenu(false); setShowProjectPanel(true); }}>Project</button>
-                <button className="tab-burger-item is-primary" onClick={() => { setShowCompactMenu(false); setShowAddModal(true); }}>Add Title</button>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
+      <div className="main-v2">
+        <OutputsSidebar
+          outputs={outputs}
+          entries={snapshot?.entries || []}
+          selectedOutputId={selectedOutput?.id}
+          busyAction={busyAction}
+          onSelectOutput={selectOutput}
+          onAssignEntry={assignEntryToOutput}
+          onPlay={(outputId, entryId) => runProgramActionForOutput(outputId, 'show', entryId)}
+          onStop={(outputId) => runProgramActionForOutput(outputId, 'hide')}
+        />
 
-      <section className="outputs-card">
-        <div className="card-head">
-          <div>
-            <span className="panel-kicker">Outputs</span>
-            <h3>{selectedOutput?.name || 'No output selected'}</h3>
-          </div>
-          <div className="outputs-toolbar">
-            <div className="outputs-live-group">
-              <button className="top-air-button show" onClick={() => runProgramAction('show', selectedEntry?.id)} disabled={!selectedEntry || busyAction === 'show'}>TITLE IN</button>
-              <button className={`top-air-button set ${selectedEntry?.entryType === 'vmix' ? 'is-disabled-mode' : ''}`} onClick={() => runProgramAction('update', selectedEntry?.id)} disabled={!selectedEntry || selectedEntry?.entryType === 'vmix' || busyAction === 'update'} title="Prepare local title in live without showing it">LOAD</button>
-              <button className="top-air-button hide is-danger" onClick={() => runProgramAction('hide')} disabled={busyAction === 'hide'}>TITLE OUT</button>
-            </div>
-            <div className="outputs-status-group">
-              <span
-                className={`status-badge ${program.visible ? 'tone-on' : 'tone-off'}`}
-                title={`Last action from this app: ${program.lastAction || 'IDLE'}. Not synced from vMix.`}
-              >
-                {program.visible ? 'ON AIR' : 'OFF'}
-              </span>
-              <button className="ghost-button compact-button" onClick={createOutput}>+ Add Output</button>
-            </div>
-          </div>
-        </div>
-        <div className="output-chip-list">
-          {outputs.map((output) => (
-            <button
-              key={output.id}
-              className={`output-chip ${output.id === selectedOutput?.id ? 'is-active' : ''}`}
-              onClick={() => selectOutput(output.id)}
-              disabled={busyAction === `output-${output.id}`}
-            >
-              <strong>{output.name}</strong>
-              <span>{output.key}</span>
-            </button>
-          ))}
-        </div>
-        <div className="outputs-selector">
-          <button
-            type="button"
-            className="outputs-selector-trigger"
-            onClick={() => setShowOutputSelector((current) => !current)}
-            aria-expanded={showOutputSelector}
-          >
-            <span className="meta-label">Output</span>
-            <strong>{selectedOutput?.name || '—'}</strong>
-            <span aria-hidden="true">▾</span>
-          </button>
-          {showOutputSelector && (
-            <div className="outputs-selector-menu" role="menu" onClick={(event) => event.stopPropagation()}>
-              {outputs.map((output) => (
-                <button
-                  key={output.id}
-                  className={`outputs-selector-item ${output.id === selectedOutput?.id ? 'is-active' : ''}`}
-                  onClick={() => { selectOutput(output.id); setShowOutputSelector(false); }}
-                  disabled={busyAction === `output-${output.id}`}
-                >
-                  <strong>{output.name}</strong>
-                  <span>{output.key}</span>
-                </button>
-              ))}
-              <button className="outputs-selector-item is-create" onClick={() => { createOutput(); setShowOutputSelector(false); }}>+ Add Output</button>
-            </div>
-          )}
-        </div>
-        {activeTab !== 'settings' && (
-          <PreviewTitlePanel
-            showPreviewPanel={showPreviewPanel}
-            selectedEntry={selectedEntry}
-            selectedVmixInput={selectedVmixInput}
-            autoUpdate={autoUpdate}
-            draftName={draftName}
-            draftFields={draftFields}
-            selectedEntryFields={selectedEntryFields}
-            selectedOutput={selectedOutput}
-            program={program}
-            previewProgram={previewProgram}
-            embeddedPreviewUrl={embeddedPreviewUrl}
-            embeddedRenderUrl={embeddedRenderUrl}
-            feedback={feedback}
-            error={error}
-            vmixTitleActions={VMIX_TITLE_ACTIONS}
-            normalizeVmixTitleAction={normalizeVmixTitleAction}
-            onToggleShowPreviewPanel={() => setShowPreviewPanel((current) => !current)}
-            onRunPreviewAction={runPreviewAction}
-            onSetAutoUpdate={setAutoUpdate}
-            onUpdateSelectedVmixEntry={updateSelectedVmixEntry}
-            onDraftNameChange={(nextName) => {
-              setDraftName(nextName);
-              schedulePersist({ name: nextName, fields: latestDraftRef.current.fields });
-            }}
-            onDraftFieldChange={(fieldName, value) => {
-              const nextFields = { ...latestDraftRef.current.fields, [fieldName]: value };
-              setDraftFields(nextFields);
-              schedulePersist({ name: latestDraftRef.current.name, fields: nextFields });
-            }}
-            onSetExpandedRender={setExpandedRender}
+        <div
+          className={`splitter-v2 ${sidebar.dragging ? 'is-dragging' : ''}`}
+          onMouseDown={sidebar.beginDrag}
+          aria-label="Resize sidebar"
+        />
+
+        <div className="content-v2">
+          <PreviewOverlay
+            isOpen={showPreviewOverlay}
+            onClose={() => setShowPreviewOverlay(false)}
+            outputs={outputs}
+            entries={snapshot?.entries || []}
+            selectedOutputId={selectedOutput?.id}
           />
-        )}
-      </section>
 
-      {activeTab === 'settings' && (
+          <div className="content-v2-inner">
+
+      {effectiveTab === 'rundown' && (
+        <LiveTabV2
+          selectedOutput={selectedOutput}
+          selectedSource={selectedSource}
+          selectedSourceId={selectedSourceId}
+          sourceLibrary={sourceLibrary}
+          selectedLinkedTimerId={selectedLinkedTimerId}
+          timers={timers}
+          outputs={outputs}
+          syncedOutputIds={syncedOutputIds}
+          selectedSourceDisplayColumns={selectedSourceDisplayColumns}
+          activeSourceBinding={activeSourceBinding}
+          activeTimerBinding={activeTimerBinding}
+          linkedSourceTimer={linkedSourceTimer}
+          liveSourceColumnWidths={liveSourceColumnWidths}
+          normalizeLinkedTimerId={normalizeLinkedTimerId}
+          getSourceRowTimerState={getSourceRowTimerState}
+          getTimerSegments={getTimerSegments}
+          onSelectSource={setSelectedSourceId}
+          onSetSelectedSourceLinkedTimer={setSelectedSourceLinkedTimer}
+          onToggleSourceSyncOutput={toggleSourceSyncOutput}
+          onApplySourceRow={applySourceRow}
+          onControlSourceRowTimer={controlSourceRowTimer}
+          onAdjustSourceRowTimerSegment={adjustSourceRowTimerSegment}
+          onResizeSourceColumn={resizeLiveSourceColumn}
+          onTogglePreview={() => setShowPreviewOverlay((v) => !v)}
+          previewOpen={showPreviewOverlay}
+        />
+      )}
+
+      {effectiveTab === 'config' && (
+        <ConfigTab
+          outputs={outputs}
+          entries={snapshot?.entries || []}
+          selectedOutputId={selectedOutput?.id}
+          selectedEntry={selectedEntry}
+          selectedEntryFieldMap={effectiveSelectedEntryFieldMap}
+          sourceColumnChoices={sourceColumnChoices}
+          busyAction={busyAction}
+          onSelectOutput={selectOutput}
+          onSelectEntry={selectEntry}
+          onUpdateOutput={updateOutput}
+          onDeleteOutput={deleteOutput}
+          onRemoveEntry={removeEntry}
+          onManageEntryAppearance={openStyleEditor}
+          canManageEntryAppearance={canManageEntryAppearance}
+          onSourceColumnMappingChange={updateSelectedSourceColumnMapping}
+          onOpenAddTitle={() => setShowAddModal(true)}
+          onOpenAddOutput={createOutput}
+          onOpenTemplateFolders={openTemplateFolders}
+        />
+      )}
+
+      {effectiveTab === 'timers' && (
+        <TimersTab
+          timers={timers}
+          reminderEnabled={reminderEnabled}
+          reminderDelaySec={reminderDelaySec}
+          localTimerTemplateMap={localTimerTemplateMap}
+          localTimerTemplates={localTimerTemplates}
+          vmixState={vmixState}
+          vmixHostDraft={vmixHostDraft}
+          onSetReminderEnabled={setReminderEnabled}
+          onSetReminderDelaySec={setReminderDelaySec}
+          onCreateTimer={createTimer}
+          onUpdateTimer={updateTimer}
+          onShiftTimerFormat={shiftTimerFormat}
+          onRunTimerPanelCommand={runTimerPanelCommand}
+          onDeleteTimer={deleteTimer}
+          onSetVmixHostDraft={setVmixHostDraft}
+          onConnectVmix={connectVmix}
+          onRefreshVmixState={refreshVmixState}
+        />
+      )}
+
+      {effectiveTab === 'settings' && (
         <SettingsPanel
           settingsTab={settingsTab}
           currentProjectName={currentProjectDisplayName}
@@ -3999,109 +3984,7 @@ function ControlShell() {
         />
       )}
 
-      {(activeTab === 'rundown' || activeTab === 'mapping' || activeTab === 'timers') && <main className={
-        activeTab === 'timers'
-          ? 'timer-tab-grid'
-          : activeTab === 'mapping'
-            ? 'workspace-grid live-rundown-grid'
-            : 'workspace-grid live-only-grid'
-      }>
-        {activeTab === 'mapping' && (
-          <TitlesPanel
-            visibleEntries={visibleEntries}
-            selectedEntry={selectedEntry}
-            program={program}
-            templateMap={templateMap}
-            manageRundown={manageRundown}
-            showHiddenEntries={showHiddenEntries}
-            draggedRundownEntryId={draggedRundownEntryId}
-            busyAction={busyAction}
-            onToggleManage={() => setManageRundown((current) => !current)}
-            onToggleShowHidden={() => setShowHiddenEntries((current) => !current)}
-            onOpenTemplateFolders={openTemplateFolders}
-            onSelectEntry={selectEntry}
-            onDragStartEntry={setDraggedRundownEntryId}
-            onDropEntry={(targetEntryId) => void reorderEntriesToTarget(draggedRundownEntryId, targetEntryId)}
-            onDragEndEntry={() => setDraggedRundownEntryId(null)}
-            onToggleEntryHidden={setEntryHidden}
-            onRemoveEntry={removeEntry}
-            canManageEntryAppearance={canManageEntryAppearance}
-            onManageEntryAppearance={openStyleEditor}
-            getRundownPrimaryLabel={getRundownPrimaryLabel}
-            getRundownSecondaryLabel={getRundownSecondaryLabel}
-          />
-        )}
-
-        {activeTab === 'rundown' && (
-          <LiveTab
-            selectedSource={selectedSource}
-            selectedSourceId={selectedSourceId}
-            sourceLibrary={sourceLibrary}
-            selectedLinkedTimerId={selectedLinkedTimerId}
-            timers={timers}
-            showSourceSyncMenu={showSourceSyncMenu}
-            outputs={outputs}
-            selectedOutput={selectedOutput}
-            selectedSyncGroupId={selectedSyncGroupId}
-            syncedOutputIds={syncedOutputIds}
-            selectedSourceDisplayColumns={selectedSourceDisplayColumns}
-            activeSourceBinding={activeSourceBinding}
-            activeTimerBinding={activeTimerBinding}
-            linkedSourceTimer={linkedSourceTimer}
-            liveSourceColumnWidths={liveSourceColumnWidths}
-            normalizeLinkedTimerId={normalizeLinkedTimerId}
-            getSourceRowTimerState={getSourceRowTimerState}
-            getTimerSegments={getTimerSegments}
-            onSelectSource={setSelectedSourceId}
-            onSetSelectedSourceLinkedTimer={setSelectedSourceLinkedTimer}
-            onToggleShowSourceSyncMenu={() => setShowSourceSyncMenu((current) => !current)}
-            onToggleSourceSyncOutput={toggleSourceSyncOutput}
-            onApplySourceRow={applySourceRow}
-            onControlSourceRowTimer={controlSourceRowTimer}
-            onAdjustSourceRowTimerSegment={adjustSourceRowTimerSegment}
-            onResizeSourceColumn={resizeLiveSourceColumn}
-          />
-        )}
-
-        {activeTab === 'timers' && (
-          <TimersTab
-            timers={timers}
-            reminderEnabled={reminderEnabled}
-            reminderDelaySec={reminderDelaySec}
-            localTimerTemplateMap={localTimerTemplateMap}
-            localTimerTemplates={localTimerTemplates}
-            vmixState={vmixState}
-            vmixHostDraft={vmixHostDraft}
-            onSetReminderEnabled={setReminderEnabled}
-            onSetReminderDelaySec={setReminderDelaySec}
-            onCreateTimer={createTimer}
-            onUpdateTimer={updateTimer}
-            onShiftTimerFormat={shiftTimerFormat}
-            onRunTimerPanelCommand={runTimerPanelCommand}
-            onDeleteTimer={deleteTimer}
-            onSetVmixHostDraft={setVmixHostDraft}
-            onConnectVmix={connectVmix}
-            onRefreshVmixState={refreshVmixState}
-          />
-        )}
-        {activeTab === 'mapping' && (
-          <MappingTab
-            selectedEntry={selectedEntry}
-            selectedSource={selectedSource}
-            selectedTemplate={selectedTemplate}
-            selectedVmixInput={selectedVmixInput}
-            sourceColumnChoices={sourceColumnChoices}
-            selectedEntryFields={selectedEntryFields}
-            effectiveSelectedEntryFieldMap={effectiveSelectedEntryFieldMap}
-            showVmixFieldBinding={showVmixFieldBinding}
-            selectedVmixTextFields={selectedVmixTextFields}
-            onSourceColumnMappingChange={updateSelectedSourceColumnMapping}
-            onVmixFieldBindingChange={updateSelectedVmixFieldBinding}
-          />
-        )}
-      </main>}
-
-      {activeTab === 'sources' && (
+      {effectiveTab === 'sources' && (
         <SourcesTab
           sourceName={sourceName}
           sourceFileName={sourceFileName}
@@ -4157,6 +4040,10 @@ function ControlShell() {
           onAddManualSourceRow={addManualSourceRow}
         />
       )}
+
+          </div>
+        </div>
+      </div>
 
       {styleEditorEntry && (
         <KhuralStyleEditorModal
@@ -4400,24 +4287,9 @@ function ControlShell() {
                     multiple
                     onChange={(event) => {
                       setUploadFiles([...event.target.files]);
-                      setUploadDirectoryPath('');
                     }}
                   />
                 </label>
-                <label className="input-block">
-                  <span>Folder upload</span>
-                  <input
-                    ref={folderInputRef}
-                    type="file"
-                    multiple
-                    onChange={(event) => {
-                      setUploadFiles([...event.target.files]);
-                      setUploadDirectoryPath('');
-                    }}
-                  />
-                </label>
-                <button className="ghost-button full-width" onClick={pickTemplateFolder} type="button">Choose Folder</button>
-                {uploadDirectoryPath && <div className="file-chip">{uploadDirectoryPath}</div>}
                 <button className="primary-button full-width" onClick={uploadTemplateFromSelection} disabled={busyAction === 'upload-template'}>Upload Template</button>
               </div>
             </div>
@@ -4430,6 +4302,3 @@ function ControlShell() {
 }
 
 export default ControlShell;
-
-
-
