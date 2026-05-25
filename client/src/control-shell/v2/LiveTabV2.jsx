@@ -26,6 +26,26 @@ const textToNotesHtml = (value) => escapeHtml(value).replace(/\r?\n/g, '<br>');
 
 const clampNotesWidth = (value) => Math.min(NOTES_MAX_WIDTH, Math.max(NOTES_MIN_WIDTH, value));
 
+const stripNodeBackground = (node, { unwrapEmpty = false } = {}) => {
+  if (!node?.style) return;
+
+  node.style.background = '';
+  node.style.backgroundColor = '';
+  if (unwrapEmpty && !node.getAttribute('style')) {
+    node.replaceWith(...node.childNodes);
+  }
+};
+
+const stripBackgroundStyles = (root) => {
+  if (root?.matches?.('span[style], mark[style]')) {
+    stripNodeBackground(root, { unwrapEmpty: true });
+  }
+
+  root.querySelectorAll('span[style], mark[style]').forEach((node) => {
+    stripNodeBackground(node, { unwrapEmpty: true });
+  });
+};
+
 const loadStoredNotesWidth = () => {
   try {
     const value = Number(window.localStorage.getItem(NOTES_WIDTH_STORAGE_KEY));
@@ -39,9 +59,14 @@ function LiveNotesPanel({ storageKey }) {
   const editorRef = useRef(null);
   const textColorInputRef = useRef(null);
   const fillColorInputRef = useRef(null);
+  const fillMenuRef = useRef(null);
   const savedRangeRef = useRef(null);
+  const textColorApplyTimerRef = useRef(null);
+  const fillColorApplyTimerRef = useRef(null);
   const [textColor, setTextColor] = useState(NOTE_DEFAULT_TEXT_COLOR);
   const [fillColor, setFillColor] = useState('#ffd166');
+  const [fillMenuOpen, setFillMenuOpen] = useState(false);
+  const [formatState, setFormatState] = useState({ bold: false, italic: false });
 
   useEffect(() => {
     const editor = editorRef.current;
@@ -65,6 +90,17 @@ function LiveNotesPanel({ storageKey }) {
     }));
   };
 
+  const refreshFormatState = () => {
+    try {
+      setFormatState({
+        bold: document.queryCommandState('bold'),
+        italic: document.queryCommandState('italic'),
+      });
+    } catch {
+      setFormatState({ bold: false, italic: false });
+    }
+  };
+
   const saveSelection = () => {
     const editor = editorRef.current;
     const selection = window.getSelection();
@@ -73,63 +109,242 @@ function LiveNotesPanel({ storageKey }) {
     const range = selection.getRangeAt(0);
     if (editor.contains(range.commonAncestorContainer)) {
       savedRangeRef.current = range.cloneRange();
+      refreshFormatState();
     }
   };
 
   const restoreSelection = () => {
+    const editor = editorRef.current;
     const selection = window.getSelection();
     const range = savedRangeRef.current;
-    if (!selection || !range) return false;
-
-    selection.removeAllRanges();
-    selection.addRange(range);
-    return true;
-  };
-
-  const applyNoteStyle = (patch) => {
-    const editor = editorRef.current;
-    if (!editor || !restoreSelection()) return;
-
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-      editor.focus();
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
-    const wrapper = document.createElement('span');
-    Object.assign(wrapper.style, patch);
+    if (!editor || !selection || !range || !editor.contains(range.commonAncestorContainer)) return false;
 
     try {
-      range.surroundContents(wrapper);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return true;
     } catch {
-      const fragment = range.extractContents();
-      wrapper.appendChild(fragment);
-      range.insertNode(wrapper);
+      savedRangeRef.current = null;
+      return false;
+    }
+  };
+
+  const normalizeEditorNodes = ({ fontSize = null } = {}) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const selection = window.getSelection();
+    const activeRange = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    let selectedReplacement = null;
+
+    editor.querySelectorAll('font[size="7"], font[color]').forEach((fontNode) => {
+      const span = document.createElement('span');
+      if (fontSize && fontNode.getAttribute('size') === '7') {
+        span.style.fontSize = `${fontSize}px`;
+      }
+      const color = fontNode.getAttribute('color');
+      if (color) {
+        span.style.color = color;
+      }
+      while (fontNode.firstChild) {
+        span.appendChild(fontNode.firstChild);
+      }
+      if (activeRange?.intersectsNode?.(fontNode)) {
+        selectedReplacement = span;
+      }
+      fontNode.replaceWith(span);
+    });
+
+    if (selectedReplacement && selection) {
+      const nextRange = document.createRange();
+      nextRange.selectNodeContents(selectedReplacement);
+      selection.removeAllRanges();
+      selection.addRange(nextRange);
+    }
+  };
+
+  const extractSelectedHtml = () => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
+
+    const container = document.createElement('div');
+    container.appendChild(selection.getRangeAt(0).cloneContents());
+    return container.innerHTML;
+  };
+
+  const stripBackgroundStylesInRange = (range) => {
+    const editor = editorRef.current;
+    if (!editor || !range) return;
+
+    editor.querySelectorAll('span[style], mark[style]').forEach((node) => {
+      if (range.intersectsNode(node)) {
+        stripNodeBackground(node);
+      }
+    });
+  };
+
+  const runEditorCommand = (command, value = null, afterCommand = null) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    editor.focus();
+    restoreSelection();
+    document.execCommand(command, false, value);
+    afterCommand?.();
+    saveSelection();
+    saveNotes();
+  };
+
+  const clearSelectedBackground = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    editor.focus();
+    if (!restoreSelection()) return;
+    const selectedHtml = extractSelectedHtml();
+    if (!selectedHtml) return;
+
+    const wrapper = document.createElement('span');
+    wrapper.innerHTML = selectedHtml;
+    stripBackgroundStyles(wrapper);
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    stripBackgroundStylesInRange(range);
+    const fragment = document.createDocumentFragment();
+    while (wrapper.firstChild) {
+      fragment.appendChild(wrapper.firstChild);
     }
 
-    selection.removeAllRanges();
+    const firstNode = fragment.firstChild;
+    const lastNode = fragment.lastChild;
+    if (!firstNode || !lastNode) return;
+
+    range.deleteContents();
+    range.insertNode(fragment);
+
     const nextRange = document.createRange();
-    nextRange.selectNodeContents(wrapper);
+    nextRange.setStartBefore(firstNode);
+    nextRange.setEndAfter(lastNode);
+    selection.removeAllRanges();
     selection.addRange(nextRange);
     savedRangeRef.current = nextRange.cloneRange();
+    refreshFormatState();
     saveNotes();
-    editor.focus();
   };
+
+  const clearColorApplyTimer = (timerRef) => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
+  const scheduleColorCommand = (timerRef, applyCommand) => {
+    clearColorApplyTimer(timerRef);
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      applyCommand();
+    }, 120);
+  };
+
+  const flushColorCommand = (timerRef, applyCommand) => {
+    clearColorApplyTimer(timerRef);
+    applyCommand();
+  };
+
+  useEffect(() => {
+    const textInput = textColorInputRef.current;
+    if (!textInput) return undefined;
+
+    const applyTextColor = (value) => {
+      setTextColor(value);
+      runEditorCommand('foreColor', value, () => normalizeEditorNodes());
+    };
+    const scheduleTextColor = (event) => {
+      const value = event.target.value;
+      setTextColor(value);
+      scheduleColorCommand(textColorApplyTimerRef, () => applyTextColor(value));
+    };
+    const flushTextColor = (event) => {
+      flushColorCommand(textColorApplyTimerRef, () => applyTextColor(event.target.value));
+    };
+
+    textInput.addEventListener('input', scheduleTextColor);
+    textInput.addEventListener('change', flushTextColor);
+    return () => {
+      textInput.removeEventListener('input', scheduleTextColor);
+      textInput.removeEventListener('change', flushTextColor);
+    };
+  });
+
+  useEffect(() => {
+    const fillInput = fillColorInputRef.current;
+    if (!fillInput) return undefined;
+
+    const applyFillColor = (value) => {
+      setFillColor(value);
+      runEditorCommand('hiliteColor', value);
+    };
+    const scheduleFillColor = (event) => {
+      const value = event.target.value;
+      setFillColor(value);
+      scheduleColorCommand(fillColorApplyTimerRef, () => applyFillColor(value));
+    };
+    const flushFillColor = (event) => {
+      flushColorCommand(fillColorApplyTimerRef, () => applyFillColor(event.target.value));
+    };
+
+    fillInput.addEventListener('input', scheduleFillColor);
+    fillInput.addEventListener('change', flushFillColor);
+    return () => {
+      fillInput.removeEventListener('input', scheduleFillColor);
+      fillInput.removeEventListener('change', flushFillColor);
+    };
+  });
+
+  useEffect(() => () => {
+    clearColorApplyTimer(textColorApplyTimerRef);
+    clearColorApplyTimer(fillColorApplyTimerRef);
+  }, []);
 
   const openColorPicker = (inputRef) => {
     restoreSelection();
     inputRef.current?.click();
   };
 
+  useEffect(() => {
+    if (!fillMenuOpen) return undefined;
+
+    const closeOnOutside = (event) => {
+      if (!fillMenuRef.current?.contains(event.target)) {
+        setFillMenuOpen(false);
+      }
+    };
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') {
+        setFillMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', closeOnOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [fillMenuOpen]);
+
   return (
     <aside className="live-notes-v2" aria-label="Live notes">
       <div className="live-notes-toolbar">
         <button
           type="button"
-          className="note-tool-btn"
+          className={`note-tool-btn ${formatState.bold ? 'is-active' : ''}`}
           onMouseDown={(event) => event.preventDefault()}
-          onClick={() => applyNoteStyle({ fontWeight: '700' })}
+          onClick={() => runEditorCommand('bold')}
           title="Bold"
           aria-label="Bold"
         >
@@ -137,18 +352,21 @@ function LiveNotesPanel({ storageKey }) {
         </button>
         <button
           type="button"
-          className="note-tool-btn is-italic"
+          className={`note-tool-btn is-italic ${formatState.italic ? 'is-active' : ''}`}
           onMouseDown={(event) => event.preventDefault()}
-          onClick={() => applyNoteStyle({ fontStyle: 'italic' })}
+          onClick={() => runEditorCommand('italic')}
           title="Italic"
           aria-label="Italic"
         >
-          I
+          K
         </button>
         <select
           defaultValue={16}
           onMouseDown={saveSelection}
-          onChange={(event) => applyNoteStyle({ fontSize: `${Number(event.target.value)}px` })}
+          onChange={(event) => {
+            const fontSize = Number(event.target.value);
+            runEditorCommand('fontSize', '7', () => normalizeEditorNodes({ fontSize }));
+          }}
           title="Font size"
           aria-label="Font size"
         >
@@ -168,39 +386,55 @@ function LiveNotesPanel({ storageKey }) {
           <span className="note-color-chip" />
           <span>Text</span>
         </button>
-        <button
-          type="button"
-          className="note-color-btn"
-          style={{ '--swatch': fillColor }}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => openColorPicker(fillColorInputRef)}
-          title="Background color"
-          aria-label="Background color"
-        >
-          <span className="note-color-chip" />
-          <span>Fill</span>
-        </button>
+        <div ref={fillMenuRef} className="note-fill-control" aria-label="Fill controls">
+          <button
+            type="button"
+            className={`note-color-btn note-fill-trigger ${fillMenuOpen ? 'is-open' : ''}`}
+            style={{ '--swatch': fillColor }}
+            tabIndex={-1}
+            aria-hidden="true"
+            title="Background color"
+            aria-haspopup="menu"
+            aria-expanded={fillMenuOpen}
+          >
+            <span className="note-color-chip" />
+            <span>Fill</span>
+          </button>
+          <input
+            ref={fillColorInputRef}
+            className="note-fill-native-color"
+            type="color"
+            value={fillColor}
+            onMouseDown={saveSelection}
+            onClick={() => setFillMenuOpen(true)}
+            onChange={(event) => setFillColor(event.currentTarget.value)}
+            title="Background color"
+            aria-label="Background color"
+          />
+          {fillMenuOpen && (
+            <div className="note-fill-menu" role="menu" aria-label="Fill menu">
+              <button
+                type="button"
+                className="note-clear-fill-btn"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  clearSelectedBackground();
+                  setFillMenuOpen(false);
+                }}
+                title="Clear background"
+                aria-label="Clear background"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
         <input
           ref={textColorInputRef}
           className="note-hidden-color"
           type="color"
           value={textColor}
-          onChange={(event) => {
-            setTextColor(event.target.value);
-            applyNoteStyle({ color: event.target.value });
-          }}
-          aria-hidden="true"
-          tabIndex={-1}
-        />
-        <input
-          ref={fillColorInputRef}
-          className="note-hidden-color"
-          type="color"
-          value={fillColor}
-          onChange={(event) => {
-            setFillColor(event.target.value);
-            applyNoteStyle({ backgroundColor: event.target.value });
-          }}
+          onChange={(event) => setTextColor(event.currentTarget.value)}
           aria-hidden="true"
           tabIndex={-1}
         />
@@ -213,7 +447,10 @@ function LiveNotesPanel({ storageKey }) {
         aria-label="Notes editor"
         data-placeholder="Notes..."
         spellCheck
-        onInput={saveNotes}
+        onInput={() => {
+          saveNotes();
+          refreshFormatState();
+        }}
         onMouseUp={saveSelection}
         onKeyUp={saveSelection}
         onFocus={saveSelection}

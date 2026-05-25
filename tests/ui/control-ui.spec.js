@@ -70,30 +70,53 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
   const notes = page.getByRole('textbox', { name: 'Notes editor' });
   await expect(notes).toBeVisible();
   await expect(page.getByRole('button', { name: 'Text color' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Background color' })).toBeVisible();
+  await expect(page.getByLabel('Background color')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Clear background' })).toBeHidden();
+  await page.getByLabel('Background color').click();
+  await expect(page.getByRole('menu', { name: 'Fill menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Clear background' })).toBeVisible();
   await expect(page.getByRole('separator', { name: 'Resize notes' })).toBeVisible();
   await notes.fill('Director note');
   await expect(notes).toContainText('Director note');
 
-  await notes.evaluate((editor) => {
-    const textNode = editor.firstChild;
+  const selectText = async (text) => notes.evaluate((editor, selectedText) => {
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let textNode = walker.nextNode();
+    while (textNode && !textNode.nodeValue.includes(selectedText)) {
+      textNode = walker.nextNode();
+    }
+    if (!textNode) throw new Error(`Text not found: ${selectedText}`);
+    const start = textNode.nodeValue.indexOf(selectedText);
     const range = document.createRange();
-    range.setStart(textNode, 0);
-    range.setEnd(textNode, 'Director'.length);
+    range.setStart(textNode, start);
+    range.setEnd(textNode, start + selectedText.length);
     const selection = window.getSelection();
     selection.removeAllRanges();
     selection.addRange(range);
     editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
-  });
+  }, text);
 
+  await selectText('Director');
   const boldButton = page.getByRole('button', { name: 'Bold' });
+  const italicButton = page.getByRole('button', { name: 'Italic' });
   await boldButton.click();
-  await page.getByRole('button', { name: 'Italic' }).click();
+  await expect(boldButton).toHaveClass(/is-active/);
+  await italicButton.click();
+  await expect(italicButton).toHaveClass(/is-active/);
   await page.getByRole('combobox', { name: 'Font size' }).selectOption('22');
+
+  const htmlBeforeTextColorDrag = await notes.evaluate((editor) => editor.innerHTML);
+  await page.locator('.note-hidden-color').first().evaluate((input) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    for (const color of ['#ff0000', '#00ff00', '#0000ff', '#cc00ff', '#ffaa00']) {
+      setter.call(input, color);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+  expect(await notes.evaluate((editor) => editor.innerHTML)).toBe(htmlBeforeTextColorDrag);
   await page.locator('.note-hidden-color').first().evaluate((input) => {
     const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
     setter.call(input, '#ffd166');
-    input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
   });
 
@@ -101,6 +124,58 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
   await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('rgb(255, 209, 102)');
   await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('Director');
   await expect(notes).toContainText('note');
+
+  await selectText('Director');
+  await boldButton.click();
+  await italicButton.click();
+  await expect.poll(async () => notes.evaluate((editor) => {
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let textNode = walker.nextNode();
+    while (textNode && !textNode.nodeValue.includes('Director')) {
+      textNode = walker.nextNode();
+    }
+    const element = textNode?.parentElement;
+    if (!element) return null;
+    const computed = window.getComputedStyle(element);
+    return {
+      fontWeight: computed.fontWeight,
+      fontStyle: computed.fontStyle,
+      html: editor.innerHTML,
+    };
+  })).toMatchObject({ fontStyle: 'normal' });
+
+  await notes.evaluate((editor) => {
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  });
+  const htmlBeforeFillColorDrag = await notes.evaluate((editor) => editor.innerHTML);
+  await page.getByLabel('Background color').click();
+  await expect(page.getByRole('menu', { name: 'Fill menu' })).toBeVisible();
+  await page.locator('.note-fill-native-color').evaluate((input) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    for (const color of ['#111111', '#223344', '#334455', '#445566', '#556677']) {
+      setter.call(input, color);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+  expect(await notes.evaluate((editor) => editor.innerHTML)).toBe(htmlBeforeFillColorDrag);
+  await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('Director');
+  await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('note');
+  await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('rgb(85, 102, 119)');
+  await page.getByRole('button', { name: 'Clear background' }).click();
+  await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).not.toContain('rgb(85, 102, 119)');
+  await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('Director');
+  await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('rgb(255, 209, 102)');
+  await page.locator('.note-hidden-color').first().evaluate((input) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    setter.call(input, '#6aa3ff');
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('rgb(106, 163, 255)');
 
   const widthBefore = await page.locator('.live-notes-v2').evaluate((panel) => panel.getBoundingClientRect().width);
   const splitterBox = await page.getByRole('separator', { name: 'Resize notes' }).boundingBox();
@@ -129,4 +204,32 @@ test('Controls exposes MIDI status, refresh, and Learn button', async ({ page, r
   const titleInRow = page.locator('.ctl-row').filter({ has: page.locator('.ctl-row-name', { hasText: 'Title In' }) });
   await titleInRow.locator('.ctl-row-label').click();
   await expect(titleInRow.getByRole('button', { name: 'Learn' }).first()).toBeVisible();
+});
+
+test('Add Title modal uses app-styled mode and upload controls', async ({ page, request }) => {
+  await seedSourceLibrary(page);
+  await waitForBackend(request);
+  await page.goto('/');
+
+  await page.getByRole('button', { name: /CONFIG/i }).click();
+  await page.getByRole('button', { name: '+ Add Title' }).click();
+
+  const modal = page.locator('.modal-card').filter({ hasText: 'Add Title' });
+  await expect(modal).toBeVisible();
+
+  const modeControl = modal.locator('.seg-control-v3');
+  await expect(modeControl).toBeVisible();
+  await expect(modeControl.locator('.seg-button-v3.is-active')).toHaveText('Local');
+  await expect(modeControl).toHaveCSS('border-radius', '6px');
+  await expect(modeControl.locator('.seg-button-v3.is-active')).toHaveCSS('background-color', 'rgb(32, 32, 42)');
+
+  await modeControl.getByRole('button', { name: 'vMix Title' }).click();
+  await expect(modeControl.locator('.seg-button-v3.is-active')).toHaveText('vMix Title');
+  await expect(modeControl.locator('.seg-button-v3.is-active')).toHaveCSS('color', 'rgb(106, 163, 255)');
+
+  const dropZone = modal.locator('.template-drop-zone');
+  await expect(dropZone.locator('.add-title-file-picker')).toBeVisible();
+  await expect(dropZone.locator('.add-title-file-button')).toHaveText('Choose files');
+  await expect(dropZone.locator('.add-title-file-name')).toHaveText('No file selected');
+  await expect(dropZone.locator('.add-title-file-input')).toHaveCSS('opacity', '0');
 });

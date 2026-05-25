@@ -80,6 +80,51 @@
 
 .shell-v2 .modal-section h4 { margin: 0; }
 
+.shell-v2 .modal-card .seg-control-v3 {
+  display: inline-flex;
+  width: fit-content;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 6px;
+}
+
+.shell-v2 .modal-card .seg-control-v3 button,
+.shell-v2 .modal-card .seg-button-v3 {
+  min-height: 28px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-dim-v2);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.shell-v2 .modal-card .seg-control-v3 button:hover,
+.shell-v2 .modal-card .seg-button-v3:hover {
+  color: var(--text-v2);
+  background: var(--card-v2);
+}
+
+.shell-v2 .modal-card .seg-control-v3 button.is-active,
+.shell-v2 .modal-card .seg-button-v3.is-active {
+  background: var(--select-bg-v2);
+  color: var(--select-accent-v2);
+  border-color: var(--select-accent-v2);
+  box-shadow: 0 0 0 1px var(--select-accent-v2);
+}
+
+.shell-v2 .modal-card .add-title-section .seg-button-v3.is-active:nth-child(2) {
+  color: var(--vmix-v2);
+  border-color: var(--vmix-v2);
+  background: var(--vmix-bg-v2);
+  box-shadow: 0 0 0 1px var(--vmix-v2);
+}
+
 .shell-v2 .field-chip-row {
   display: grid;
   gap: 10px;
@@ -316,6 +361,50 @@
   font-size: 11px;
   color: var(--text-dim-v2);
   word-break: break-word;
+}
+.shell-v2 .modal-card .template-drop-zone .add-title-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.shell-v2 .modal-card .add-title-file-picker {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+.shell-v2 .modal-card .add-title-file-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-v2);
+  border-radius: 6px;
+  background: var(--card-v2);
+  color: var(--text-v2);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.shell-v2 .modal-card .template-drop-zone:hover .add-title-file-button,
+.shell-v2 .modal-card .template-drop-zone.is-dragover .add-title-file-button {
+  border-color: var(--select-accent-v2);
+}
+.shell-v2 .modal-card .add-title-file-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-dim-v2);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
 .shell-v2 .template-manage-row {
   display: flex;

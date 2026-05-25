@@ -3285,6 +3285,7 @@ function ControlShell() {
                 >
                   <span>ZIP file or loose files</span>
                   <input
+                    className="add-title-file-input"
                     type="file"
                     accept=".zip,.html,.css,.js,.json,.png,.jpg,.jpeg,.webp,.svg,.woff,.woff2,.ttf,.otf,.mp4,.webm"
                     multiple
@@ -3292,6 +3293,14 @@ function ControlShell() {
                       setUploadFiles([...event.target.files]);
                     }}
                   />
+                  <span className="add-title-file-picker" aria-hidden="true">
+                    <span className="add-title-file-button">Choose files</span>
+                    <span className="add-title-file-name">
+                      {uploadFiles?.length
+                        ? uploadFiles.map((file) => file.name).join(', ')
+                        : 'No file selected'}
+                    </span>
+                  </span>
                   <span className="note-v3">
                     {uploadFiles?.length
                       ? `${uploadFiles.length} file${uploadFiles.length === 1 ? '' : 's'} queued: ${uploadFiles.map((f) => f.name).join(', ')}`
