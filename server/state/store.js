@@ -355,6 +355,8 @@ export class TitleStore extends EventEmitter {
     this.templateService = templateService;
     this.state = createDefaultState();
     this.persistTimer = null;
+    this.persistInFlight = null;
+    this.persistPending = false;
     this.isClosing = false;
   }
 
@@ -396,8 +398,35 @@ export class TitleStore extends EventEmitter {
     clearTimeout(this.persistTimer);
     this.persistTimer = setTimeout(() => {
       this.persistTimer = null;
-      this.persist().catch((error) => console.error('Persist failed:', error));
+      this.triggerPersist();
     }, 120);
+  }
+
+  // Persist coalescing: if a write is already in flight, just flag that
+  // another one is needed when the current one finishes. Without this,
+  // a burst of mutations that completes faster than fs.writeJson + fs.move
+  // would launch parallel writes against the same .tmp file and could
+  // truncate it mid-stream — state.json on disk stays valid (atomic move),
+  // but the in-flight tmp file gets corrupted.
+  triggerPersist() {
+    if (this.persistInFlight) {
+      this.persistPending = true;
+      return;
+    }
+
+    this.persistInFlight = (async () => {
+      try {
+        await this.persist();
+      } catch (error) {
+        console.error('Persist failed:', error);
+      } finally {
+        this.persistInFlight = null;
+        if (this.persistPending) {
+          this.persistPending = false;
+          this.triggerPersist();
+        }
+      }
+    })();
   }
 
   async persist() {
@@ -412,6 +441,12 @@ export class TitleStore extends EventEmitter {
     if (this.persistTimer) {
       clearTimeout(this.persistTimer);
       this.persistTimer = null;
+    }
+
+    // Wait for any in-flight persist to settle before doing the final one,
+    // otherwise we could race the closing write against the deferred one.
+    if (this.persistInFlight) {
+      try { await this.persistInFlight; } catch {}
     }
 
     await this.persist();

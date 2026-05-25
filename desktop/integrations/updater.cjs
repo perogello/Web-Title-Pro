@@ -105,31 +105,53 @@ const createUpdaterIntegration = ({
     }
   };
 
+  /**
+   * Update target should ALWAYS be the stable launcher (`WebTitlePro.exe`),
+   * regardless of which file the operator actually clicked to launch.
+   *
+   * Previously this function returned `PORTABLE_EXECUTABLE_FILE` directly,
+   * which made the updater replace whatever versioned launcher the
+   * operator started — `WebTitlePro-0.4.0.exe` got rewritten to the new
+   * payload but kept the old filename, while the stable
+   * `WebTitlePro.exe` sitting in the same folder stayed frozen at the
+   * old version. The next click on the stable shortcut then launched
+   * the OLD app, producing the "update didn't apply" report.
+   *
+   * Now we resolve the *directory* and always target `WebTitlePro.exe`
+   * inside it. Resolution order:
+   *   1. PORTABLE_EXECUTABLE_DIR — set by electron-builder portable target
+   *      to the folder containing the launcher.
+   *   2. dirname(PORTABLE_EXECUTABLE_FILE) — fallback for builds that
+   *      only expose the full path.
+   *   3. dirname(process.execPath) when the running exe matches our
+   *      portable naming pattern (dev / unpackaged).
+   *   4. process.execPath as a final fallback (untested platforms,
+   *      `npm run desktop`, etc.).
+   */
   const resolveStablePortableExePath = () => {
-    const portableExecutableFile =
-      typeof process.env.PORTABLE_EXECUTABLE_FILE === 'string'
-        ? process.env.PORTABLE_EXECUTABLE_FILE.trim()
-        : '';
-
-    if (portableExecutableFile && /\.exe$/i.test(portableExecutableFile)) {
-      return path.normalize(portableExecutableFile);
-    }
-
-    const portableExecutableDir =
+    const dirFromEnv =
       typeof process.env.PORTABLE_EXECUTABLE_DIR === 'string'
         ? process.env.PORTABLE_EXECUTABLE_DIR.trim()
         : '';
 
-    if (portableExecutableDir) {
-      const stablePortablePath = path.join(portableExecutableDir, stablePortableExeName);
-      return path.normalize(stablePortablePath);
+    if (dirFromEnv) {
+      return path.normalize(path.join(dirFromEnv, stablePortableExeName));
+    }
+
+    const fileFromEnv =
+      typeof process.env.PORTABLE_EXECUTABLE_FILE === 'string'
+        ? process.env.PORTABLE_EXECUTABLE_FILE.trim()
+        : '';
+
+    if (fileFromEnv && /\.exe$/i.test(fileFromEnv)) {
+      return path.normalize(path.join(path.dirname(fileFromEnv), stablePortableExeName));
     }
 
     const currentPath = process.execPath;
     const currentDir = path.dirname(currentPath);
     const currentBase = path.basename(currentPath);
 
-    if (/^WebTitlePro-\d+\.\d+\.\d+\.exe$/i.test(currentBase)) {
+    if (/^WebTitlePro(-\d+\.\d+\.\d+)?\.exe$/i.test(currentBase)) {
       return path.join(currentDir, stablePortableExeName);
     }
 
@@ -234,17 +256,20 @@ const createUpdaterIntegration = ({
       '$form.MaximizeBox = $false',
       '$form.MinimizeBox = $false',
       '$form.ControlBox = $false',
-      "$form.BackColor = [System.Drawing.Color]::FromArgb(9, 10, 13)",
+      // Palette matches client/src/styles/01-base.css :shell-v2 — neutral
+      // black canvas (#050507) with soft #f2f3f5 text. Keeps the helper
+      // visually consistent with the rest of the app's new palette.
+      "$form.BackColor = [System.Drawing.Color]::FromArgb(5, 5, 7)",
       '$title = New-Object System.Windows.Forms.Label',
       "$title.Text = 'Web Title Pro update'",
-      "$title.ForeColor = [System.Drawing.Color]::FromArgb(245, 247, 251)",
+      "$title.ForeColor = [System.Drawing.Color]::FromArgb(242, 243, 245)",
       "$title.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 16)",
       '$title.AutoSize = $true',
       '$title.Location = New-Object System.Drawing.Point(22, 18)',
       '$form.Controls.Add($title)',
       '$status = New-Object System.Windows.Forms.Label',
       "$status.Text = 'Preparing the update...'",
-      "$status.ForeColor = [System.Drawing.Color]::FromArgb(198, 205, 216)",
+      "$status.ForeColor = [System.Drawing.Color]::FromArgb(200, 202, 210)",
       "$status.Font = New-Object System.Drawing.Font('Segoe UI', 10)",
       '$status.AutoSize = $false',
       '$status.Size = New-Object System.Drawing.Size(382, 38)',
@@ -260,7 +285,7 @@ const createUpdaterIntegration = ({
       '$form.Controls.Add($progress)',
       '$meta = New-Object System.Windows.Forms.Label',
       "$meta.Text = 'Web Title Pro will restart automatically.'",
-      "$meta.ForeColor = [System.Drawing.Color]::FromArgb(158, 167, 182)",
+      "$meta.ForeColor = [System.Drawing.Color]::FromArgb(154, 154, 160)",
       "$meta.Font = New-Object System.Drawing.Font('Segoe UI', 8.75)",
       '$meta.AutoSize = $false',
       '$meta.Size = New-Object System.Drawing.Size(382, 18)',
@@ -476,6 +501,20 @@ const createUpdaterIntegration = ({
     const updatesDir = path.join(app.getPath('userData'), 'updates');
     const tempDownloadPath = path.join(updatesDir, `${updateState.assetName}.download`);
 
+    // Clear stale .download files from previous aborted attempts before
+    // starting a new one. Without this, every cancelled / network-failed
+    // update leaves a ~91 MB orphan in userData/updates/ forever.
+    try {
+      const existing = await fsp.readdir(updatesDir).catch(() => []);
+      await Promise.all(
+        existing
+          .filter((name) => name.endsWith('.download'))
+          .map((name) => fsp.unlink(path.join(updatesDir, name)).catch(() => {})),
+      );
+    } catch {
+      // ignore: directory may not exist yet, download step recreates it
+    }
+
     try {
       await downloadFileWithProgress(updateState.assetUrl, tempDownloadPath, ({ percent }) => {
         const safePercent = percent === null ? 50 : Math.max(12, Math.min(92, percent));
@@ -486,6 +525,10 @@ const createUpdaterIntegration = ({
       await setWindowProgress(progressWindow, 'Closing Web Title Pro to finish the update...', 99);
       await applyDownloadedUpdate(tempDownloadPath);
     } catch (error) {
+      // Drop the half-written .download so the next attempt starts clean
+      // (downloadFileWithProgress opens the file with mode 'w' but a
+      // network-aborted write can still leave a partial truncated file).
+      await fsp.unlink(tempDownloadPath).catch(() => {});
       closeUpdateWindow();
       await dialog.showMessageBox(getMainWindow(), {
         type: 'error',

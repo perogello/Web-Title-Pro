@@ -48,6 +48,24 @@ const extractInputTextFields = (node) =>
     value: extractText(textNode),
   }));
 
+/**
+ * fetch wrapper with a hard timeout — vMix is typically on the same LAN
+ * but operators sometimes pull cables mid-show; without a timeout one
+ * one-shot call (SetText, SetTextColour, TransitionIn, …) can stall the
+ * whole sync loop until the OS TCP keepalive kicks in minutes later.
+ * The 2 s budget is enough for a healthy vMix on the same machine while
+ * still freeing the loop quickly when the host is unreachable.
+ */
+const fetchWithTimeout = async (url, options = {}, timeoutMs = 2000) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 export class VmixService extends EventEmitter {
   constructor(store) {
     super();
@@ -81,7 +99,7 @@ export class VmixService extends EventEmitter {
     url.searchParams.set('Input', inputKey);
     url.searchParams.set('SelectedName', fieldName || 'Text');
     url.searchParams.set('Value', color);
-    const response = await fetch(url, { method: 'GET' });
+    const response = await fetchWithTimeout(url, { method: 'GET' });
 
     if (!response.ok) {
       throw new Error(`vMix text colour update failed with ${response.status}`);
@@ -244,7 +262,7 @@ export class VmixService extends EventEmitter {
     const url = new URL(`${host}/api/`);
     url.searchParams.set('Function', functionName);
     url.searchParams.set('Input', resolvedInputKey);
-    const response = await fetch(url, { method: 'GET' });
+    const response = await fetchWithTimeout(url, { method: 'GET' });
 
     if (!response.ok) {
       throw new Error(`vMix action failed with ${response.status}`);
@@ -266,7 +284,7 @@ export class VmixService extends EventEmitter {
     url.searchParams.set('Input', inputKey);
     url.searchParams.set('SelectedName', fieldName || 'Text');
     url.searchParams.set('Value', value ?? '');
-    const response = await fetch(url, { method: 'GET' });
+    const response = await fetchWithTimeout(url, { method: 'GET' });
 
     if (!response.ok) {
       throw new Error(`vMix text update failed with ${response.status}`);
@@ -289,7 +307,7 @@ export class VmixService extends EventEmitter {
       url.searchParams.set(key, value);
     }
 
-    const response = await fetch(url, { method: 'GET' });
+    const response = await fetchWithTimeout(url, { method: 'GET' });
 
     if (!response.ok) {
       throw new Error(`vMix ${functionName} failed with ${response.status}`);

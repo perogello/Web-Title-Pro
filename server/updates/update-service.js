@@ -109,12 +109,18 @@ export class UpdateService {
       });
     }
 
+    // 15s is generous for the GitHub API; without a timeout a hung fetch
+    // would silently stall the Settings → Updates check forever.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
     try {
       const response = await fetch(`https://api.github.com/repos/${repo.owner}/${repo.repo}/releases`, {
         headers: {
           Accept: 'application/vnd.github+json',
           'User-Agent': 'Web-Title-Pro-Updater',
         },
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -163,16 +169,19 @@ export class UpdateService {
         assetSize: portableAsset?.size || null,
       });
     } catch (error) {
+      const isAbort = error?.name === 'AbortError';
       return this.updateConfig({
         lastCheckAt: checkedAt,
         latestVersion: null,
         available: false,
         status: 'error',
-        notes: error.message || 'Update check failed.',
+        notes: isAbort ? 'Update check timed out.' : (error.message || 'Update check failed.'),
         releaseUrl: null,
         assetName: null,
         assetUrl: null,
       });
+    } finally {
+      clearTimeout(timeout);
     }
   }
 }
