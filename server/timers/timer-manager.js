@@ -18,7 +18,7 @@ export class TimerManager extends EventEmitter {
       }
 
       this.store.normalizeRunningTimers();
-      this.emit('tick', this.store.getSnapshot());
+      this.emit('tick', this.store.getTimerUpdate());
     }, 100);
   }
 

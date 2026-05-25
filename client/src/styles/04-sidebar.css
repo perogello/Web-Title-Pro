@@ -1,0 +1,183 @@
+/* ====== OUTPUTS SIDEBAR ====== */
+.outputs-v2 {
+  background: var(--bg-v2);
+  padding: 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.output-card-v2 {
+  background: var(--card-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  transition: border-color 0.15s, background 0.15s;
+  cursor: pointer;
+}
+.output-card-v2:hover { border-color: var(--border-strong-v2); }
+.output-card-v2.is-selected {
+  border-color: var(--select-v2);
+  background: var(--select-bg-v2);
+}
+
+.oc-v2-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px 6px;
+  gap: 8px;
+  min-width: 0;
+}
+.oc-v2-head .name {
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.oc-v2-head .state {
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--border-strong-v2);
+  color: var(--text-dim-v2);
+  background: var(--bg-2-v2);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.output-card-v2.is-live .oc-v2-head .state {
+  background: var(--live-v2); border-color: var(--live-v2); color: #fff;
+  box-shadow: 0 0 6px rgba(249,50,50,0.45);
+}
+
+.oc-v2-meta {
+  padding: 4px 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1.35;
+  min-width: 0;
+}
+.oc-v2-meta .type-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+.oc-v2-meta .badge-type {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  font-size: 9px;
+}
+.oc-v2-meta .badge-type.is-local {
+  background: rgba(138,138,153,0.18);
+  color: var(--text-dim-v2);
+}
+.oc-v2-meta .badge-type.is-vmix {
+  background: rgba(106,163,255,0.13);
+  color: var(--vmix-v2);
+}
+.oc-v2-meta .input-info {
+  color: var(--vmix-v2);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.oc-v2-meta .current-data {
+  color: var(--text-v2);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.25;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.oc-v2-meta .current-data.is-none {
+  color: var(--text-faint-v2); font-style: italic; font-weight: 400;
+}
+.oc-v2-meta .title-file {
+  color: var(--text-dim-v2);
+  font-weight: 400;
+  font-size: 11px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  cursor: pointer;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-v2);
+  position: relative;
+  background: transparent;
+  border-left: 0; border-right: 0; border-bottom: 0;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+}
+.oc-v2-meta .title-file:hover { color: var(--vmix-v2); }
+.oc-v2-meta .title-file::after { content: ' \25BE'; color: var(--text-faint-v2); font-size: 10px; }
+.oc-v2-meta .title-file.is-empty { color: var(--text-faint-v2); font-style: italic; }
+
+.oc-v2-controls {
+  display: flex; gap: 6px;
+  padding: 0 12px 12px;
+  align-items: center;
+}
+.oc-v2-controls .play, .oc-v2-controls .stop {
+  flex: 1;
+  height: 34px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong-v2);
+  background: var(--bg-2-v2);
+  color: var(--text-v2);
+  display: grid; place-items: center;
+  cursor: pointer;
+  transition: background 0.1s, transform 0.05s, border-color 0.15s;
+  font: inherit;
+}
+.oc-v2-controls .play { color: var(--live-v2); }
+.oc-v2-controls .play:hover:not(:disabled) { background: var(--live-v2); border-color: var(--live-v2); color: #fff; }
+.oc-v2-controls .stop:hover:not(:disabled) { background: var(--card-2-v2); border-color: var(--text-dim-v2); }
+.oc-v2-controls .play:disabled, .oc-v2-controls .stop:disabled { opacity: 0.35; cursor: not-allowed; }
+.oc-v2-controls .play:active, .oc-v2-controls .stop:active { transform: scale(0.97); }
+.oc-v2-controls .play svg, .oc-v2-controls .stop svg { width: 14px; height: 14px; }
+.output-card-v2.is-live .oc-v2-controls .play {
+  background: var(--live-v2); border-color: var(--live-v2); color: #fff;
+}
+
+/* Title picker dropdown on output card */
+.title-picker-v2 {
+  position: absolute;
+  top: 100%; left: 0; right: 0;
+  margin-top: 4px;
+  background: #131316;
+  border: 1px solid var(--border-strong-v2);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  z-index: 50;
+  max-height: 280px;
+  overflow: auto;
+}
+.title-picker-v2 .label {
+  font-size: 9px; color: var(--text-dim-v2); text-transform: uppercase;
+  letter-spacing: 0.1em; padding: 6px 12px 3px;
+}
+.title-picker-v2 button {
+  display: block; width: 100%;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-v2);
+  text-align: left;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  font: inherit;
+}
+.title-picker-v2 button:hover { background: var(--bg-2-v2); }
+.title-picker-v2 button.is-current { color: var(--select-accent-v2); font-weight: 600; }
+.title-picker-v2 button .row-meta { display: block; font-size: 10px; color: var(--text-dim-v2); }
+

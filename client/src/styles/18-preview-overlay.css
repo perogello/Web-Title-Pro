@@ -1,0 +1,55 @@
+/* ===================================================================
+   CONFIG — output URL chips (revealed when output is selected)
+   ================================================================= */
+.shell-v2 .config-item-v2.has-urls {
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
+  row-gap: 8px;
+}
+.shell-v2 .config-item-urls {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-v2);
+}
+.shell-v2 .config-item-urls .url-chip {
+  display: grid;
+  grid-template-columns: 70px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 11px;
+}
+.shell-v2 .config-item-urls .url-label {
+  color: var(--text-dim-v2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  font-size: 10px;
+}
+.shell-v2 .config-item-urls code {
+  background: var(--card-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: var(--text-v2);
+  font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.shell-v2 .config-item-urls button {
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  height: 26px;
+  background: var(--bg-2-v2) !important;
+  border: 1px solid var(--border-v2) !important;
+}
+.shell-v2 .config-item-urls button:hover {
+  background: var(--card-2-v2) !important;
+  border-color: var(--select-accent-v2) !important;
+  color: var(--select-accent-v2) !important;
+}

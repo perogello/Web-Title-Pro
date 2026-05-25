@@ -1,0 +1,96 @@
+/* ---- Tables ---- */
+.shell-v2 .content-v2-inner .source-table-wrapper {
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 6px;
+  overflow: auto;
+  /* Constrain so the table itself scrolls (vertically) instead of pushing
+     the whole page. ~60vh leaves room for the header and footer rails. */
+  max-height: 60vh;
+  min-width: 0;
+}
+.shell-v2 .content-v2-inner .source-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  color: var(--text-v2);
+  table-layout: fixed;
+}
+.shell-v2 .content-v2-inner .source-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--card-v2);
+}
+/* Each column gets a reasonable default width so wide tables (Yandex
+   sheets etc.) actually overflow and trigger the wrapper's horizontal
+   scroll instead of squishing everything. */
+.shell-v2 .content-v2-inner .source-table th,
+.shell-v2 .content-v2-inner .source-table td {
+  min-width: 140px;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shell-v2 .content-v2-inner .source-table th:first-child,
+.shell-v2 .content-v2-inner .source-table td:first-child {
+  min-width: 56px;
+  max-width: 80px;
+}
+.shell-v2 .content-v2-inner .source-table th,
+.shell-v2 .content-v2-inner .source-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-v2);
+  text-align: left;
+}
+.shell-v2 .content-v2-inner .source-table th {
+  background: var(--card-v2);
+  color: var(--text-dim-v2);
+  font-weight: 500;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.shell-v2 .content-v2-inner .source-table-input,
+.shell-v2 .content-v2-inner .source-column-name-input {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-v2);
+  padding: 4px 6px;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+}
+.shell-v2 .content-v2-inner .source-table-input:focus,
+.shell-v2 .content-v2-inner .source-column-name-input:focus {
+  background: var(--bg-2-v2);
+  border-color: var(--select-accent-v2);
+}
+
+/* ---- Empty states / hints ---- */
+.shell-v2 .content-v2-inner .empty-v3,
+.shell-v2 .content-v2-inner .source-empty {
+  background: var(--bg-2-v2);
+  border: 1px dashed var(--border-v2);
+  border-radius: 8px;
+  padding: 24px;
+  color: var(--text-dim-v2);
+  text-align: center;
+  font-size: 13px;
+}
+.shell-v2 .content-v2-inner .danger-note {
+  color: var(--live-v2);
+  font-size: 12px;
+  background: rgba(249,50,50,0.08);
+  border: 1px solid rgba(249,50,50,0.3);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.shell-v2 .content-v2-inner .source-loading-note {
+  color: var(--text-dim-v2);
+  font-size: 12px;
+  font-style: italic;
+}

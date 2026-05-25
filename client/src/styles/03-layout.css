@@ -1,0 +1,27 @@
+/* ====== MAIN GRID with resizable splitter ====== */
+.main-v2 {
+  display: grid;
+  grid-template-columns: var(--sidebar-width, 280px) 4px 1fr;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.splitter-v2 {
+  background: transparent;
+  cursor: col-resize;
+  position: relative;
+  z-index: 10;
+}
+.splitter-v2::before {
+  content: '';
+  position: absolute;
+  left: 1px; top: 0; bottom: 0;
+  width: 1px;
+  background: var(--border-v2);
+  transition: background 0.15s;
+}
+.splitter-v2:hover::before, .splitter-v2.is-dragging::before {
+  background: var(--select-accent-v2);
+  width: 2px;
+}
+

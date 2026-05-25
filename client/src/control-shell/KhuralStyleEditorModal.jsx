@@ -22,23 +22,23 @@ export default function KhuralStyleEditorModal({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="card modal-card modal-card--narrow" onClick={(event) => event.stopPropagation()}>
-        <div className="card-head">
+      <div className="modal-card modal-card--narrow" onClick={(event) => event.stopPropagation()}>
+        <div className="panel-head-v3">
           <div>
-            <span className="panel-kicker">Manage</span>
+            <span className="kicker-v3">Manage</span>
             <h3>Title Text Styles</h3>
           </div>
           <div className="topbar-actions">
-            <button className="ghost-button compact-button" onClick={onClose}>Cancel</button>
-            <button className="primary-button compact-button" onClick={onSave}>Save</button>
+            <button className="btn-v3-ghost btn-v3-sm" onClick={onClose}>Cancel</button>
+            <button className="btn-v3-primary btn-v3-sm" onClick={onSave}>Save</button>
           </div>
         </div>
         <div className="khural-style-editor">
-          <div className="meta-card">
-            <span className="meta-label">Title</span>
+          <div className="info-card-v3">
+            <span className="info-label-v3">Title</span>
             <strong>{entry.name}</strong>
-            <span className="output-note">Change font family, font size and color for each text field.</span>
-            <span className="output-note">
+            <span className="note-v3">Change font family, font size and color for each text field.</span>
+            <span className="note-v3">
               {systemFontsLoading
                 ? 'Loading installed system fonts...'
                 : fontsReady
@@ -54,11 +54,11 @@ export default function KhuralStyleEditorModal({
             return (
               <div key={field.name} className="output-settings-card khural-style-card">
                 <div className="khural-style-field-head">
-                  <span className="meta-label">{field.name}</span>
+                  <span className="info-label-v3">{field.name}</span>
                   <strong>{field.label || field.name}</strong>
                 </div>
                 <div className="output-settings-fields khural-style-grid">
-                  <label className="input-block compact">
+                  <label className="field-v3 field-v3-compact">
                     <span>Font Family</span>
                     <select
                       value={style.fontFamily || ''}
@@ -73,7 +73,7 @@ export default function KhuralStyleEditorModal({
                       ))}
                     </select>
                   </label>
-                  <label className="input-block compact">
+                  <label className="field-v3 field-v3-compact">
                     <span>Font Size</span>
                     <input
                       type="number"
@@ -84,7 +84,7 @@ export default function KhuralStyleEditorModal({
                       placeholder="32"
                     />
                   </label>
-                  <label className="input-block compact">
+                  <label className="field-v3 field-v3-compact">
                     <span>Color</span>
                     <div className="khural-color-row">
                       <input

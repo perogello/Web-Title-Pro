@@ -1,0 +1,63 @@
+
+/* ---- Buttons ----
+   Apply shared action styling to:
+   (a) plain unbranded buttons (no themed class),
+   (b) ANY element carrying a `btn-v3-*` modifier (ghost / primary /
+       danger / sm / icon / full).
+   The second selector uses `[class*="btn-v3-"]` WITHOUT the `button`
+   element prefix on purpose — keeping specificity at (0,3,0) so that
+   `.btn-v3-primary` / `.btn-v3-danger` modifiers can win the cascade
+   for their colors. Adding `button` would push us to (0,3,1) and
+   silently override the primary white background. */
+.shell-v2 .content-v2-inner button:not([class*="-v2"]):not([class*="-v3"]):not([class*="row-timer"]):not([class*="seg-timer"]):not(.brand-dot):not(.title-file),
+.shell-v2 .content-v2-inner [class*="btn-v3-"] {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  background: transparent;
+  border: 1px solid var(--border-v2);
+  color: var(--text-v2);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+.shell-v2 .content-v2-inner button:not([class*="-v2"]):not([class*="-v3"]):not([class*="row-timer"]):not([class*="seg-timer"]):not(.brand-dot):not(.title-file):hover,
+.shell-v2 .content-v2-inner [class*="btn-v3-"]:hover {
+  background: var(--bg-2-v2);
+  border-color: var(--border-strong-v2);
+}
+.shell-v2 .content-v2-inner button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.shell-v2 .content-v2-inner .btn-v3-primary {
+  background: var(--text-v2);
+  color: var(--bg-v2);
+  border-color: var(--text-v2);
+  font-weight: 600;
+}
+.shell-v2 .content-v2-inner .btn-v3-primary:hover { background: #fff; border-color: #fff; }
+.shell-v2 .content-v2-inner .btn-v3-primary.btn-v3-full { width: 100%; }
+.shell-v2 .content-v2-inner .btn-v3-sm {
+  padding: 5px 10px;
+  font-size: 11px;
+}
+.shell-v2 .content-v2-inner .btn-v3-danger {
+  color: var(--live-v2);
+  border-color: rgba(249, 50, 50, 0.45);
+}
+.shell-v2 .content-v2-inner .btn-v3-danger:hover {
+  background: rgba(249, 50, 50, 0.12);
+  border-color: var(--live-v2);
+}
+.shell-v2 .content-v2-inner .btn-v3-icon {
+  width: 28px; height: 28px;
+  padding: 0;
+  display: inline-grid; place-items: center;
+}
+.shell-v2 .content-v2-inner .is-cancel-learn {
+  border-color: var(--warn-v2);
+  color: var(--warn-v2);
+}
+

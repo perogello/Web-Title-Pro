@@ -1,0 +1,136 @@
+/* ===================================================================
+   Timer action buttons — colored outlined squares (TimersTab).
+   ================================================================= */
+.shell-v2 .content-v2-inner .timer-state-btn-v2 {
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 6px;
+  border: 1px solid var(--border-v2);
+  background: var(--bg-2-v2);
+  color: var(--text-v2);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+.shell-v2 .content-v2-inner .timer-state-btn-v2 svg { width: 16px; height: 16px; }
+.shell-v2 .content-v2-inner .timer-state-btn-v2:hover {
+  border-color: var(--border-strong-v2);
+}
+.shell-v2 .content-v2-inner .timer-state-btn-v2.is-idle {
+  color: #4cd58c;
+  border-color: rgba(76, 213, 140, 0.45);
+}
+.shell-v2 .content-v2-inner .timer-state-btn-v2.is-idle:hover    { background: rgba(76, 213, 140, 0.12); }
+.shell-v2 .content-v2-inner .timer-state-btn-v2.is-running {
+  color: #f5b942;
+  border-color: rgba(245, 185, 66, 0.55);
+  background: rgba(245, 185, 66, 0.08);
+}
+.shell-v2 .content-v2-inner .timer-state-btn-v2.is-running:hover { background: rgba(245, 185, 66, 0.18); }
+.shell-v2 .content-v2-inner .timer-state-btn-v2.is-paused {
+  color: #4cd58c;
+  border-color: rgba(76, 213, 140, 0.55);
+}
+.shell-v2 .content-v2-inner .timer-state-btn-v2.is-finished {
+  color: var(--live-v2);
+  border-color: rgba(249, 50, 50, 0.6);
+  background: rgba(249, 50, 50, 0.12);
+  animation: timer-state-pulse 1.6s ease-in-out infinite;
+}
+@keyframes timer-state-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(249, 50, 50, 0.0); }
+  50%      { box-shadow: 0 0 0 4px rgba(249, 50, 50, 0.18); }
+}
+.shell-v2 .content-v2-inner .timer-state-btn-v2.is-reset {
+  color: #6ba4ff;
+  border-color: rgba(107, 164, 255, 0.45);
+}
+.shell-v2 .content-v2-inner .timer-state-btn-v2.is-reset:hover    { background: rgba(107, 164, 255, 0.12); }
+.shell-v2 .content-v2-inner .timer-state-btn-v2.is-palette {
+  color: var(--text-dim-v2);
+}
+.shell-v2 .content-v2-inner .timer-state-btn-v2.is-palette:hover  { color: var(--text-v2); background: rgba(255, 255, 255, 0.06); }
+.shell-v2 .content-v2-inner .timer-state-btn-v2.is-danger {
+  color: var(--live-v2);
+  border-color: rgba(249, 50, 50, 0.45);
+}
+.shell-v2 .content-v2-inner .timer-state-btn-v2.is-danger:hover   { background: rgba(249, 50, 50, 0.12); border-color: var(--live-v2); }
+.shell-v2 .content-v2-inner .timer-command-row {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 4px;
+  align-items: center;
+}
+.shell-v2 .content-v2-inner .field-v3 {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* Field labels — ONLY the <span> inside a .field-v3 wrapper.
+   Do NOT apply to bare <label> elements — that propagates uppercase
+   to toggles like .toggle-pill-v3 and any modal labels. */
+.shell-v2 .content-v2-inner .field-v3 > span {
+  color: var(--text-dim-v2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+.shell-v2 .content-v2-inner .field-v3.field-v3-compact { gap: 3px; }
+.shell-v2 .content-v2-inner .field-v3.field-v3-inline {
+  flex-direction: row; align-items: center; gap: 8px;
+}
+
+/* ---- Toggles / mode buttons ---- */
+.shell-v2 .content-v2-inner .seg-control-v3 {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 6px;
+}
+.shell-v2 .content-v2-inner .seg-control-v3 button,
+.shell-v2 .content-v2-inner .seg-button-v3 {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim-v2);
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.shell-v2 .content-v2-inner .seg-control-v3 button:hover,
+.shell-v2 .content-v2-inner .seg-button-v3:hover {
+  color: var(--text-v2);
+  background: var(--card-v2);
+}
+.shell-v2 .content-v2-inner .seg-control-v3 button.is-active,
+.shell-v2 .content-v2-inner .seg-button-v3.is-active {
+  background: var(--select-bg-v2);
+  color: var(--select-accent-v2);
+  border-color: var(--select-accent-v2);
+  font-weight: 700;
+  box-shadow: 0 0 0 1px var(--select-accent-v2);
+}
+/* vMix mode toggle — when vMix is active, use vMix blue */
+.shell-v2 .content-v2-inner .timer-source-head .seg-button-v3.is-active:nth-child(2) {
+  color: var(--vmix-v2);
+  border-color: var(--vmix-v2);
+  background: var(--vmix-bg-v2);
+  box-shadow: 0 0 0 1px var(--vmix-v2);
+}
+.shell-v2 .content-v2-inner .settings-tab-toggle { margin-bottom: 14px; }
+
+.shell-v2 .content-v2-inner .toggle-pill-v3 {
+  display: inline-flex; align-items: center; gap: 8px;
+  color: var(--text-dim-v2);
+  font-size: 12px;
+  cursor: pointer;
+}
+.shell-v2 .content-v2-inner .toggle-pill-v3 input { accent-color: var(--select-accent-v2); }
+

@@ -40,6 +40,7 @@ Web Title Pro объединяет:
 - **MIDI**: Learn / Clear bindings для MIDI-контроллеров, включая note и CC-сообщения.
 - **Bitfocus / HTTP API**: управление из Companion через Generic HTTP module.
 - **Projects**: New / Open / Save / Save As / Recent.
+- **Project Bundle (`.wtpkg`)**: экспорт/импорт проекта вместе с custom-шаблонами в один ZIP-архив — удобно перенести постановку на другой ПК.
 - **Portable Windows build**: запуск без установки через `.exe`.
 
 ### Быстрый старт из исходников
@@ -145,15 +146,37 @@ Backend по умолчанию доступен в локальной сети 
 ### Структура проекта
 
 ```text
-client/       React control panel
-server/       Express + WebSocket backend
-renderer/     Browser renderer
-desktop/      Electron desktop shell
-templates/    Built-in local templates
-scripts/      Build and helper scripts
-docs/         Product and integration docs
-tests/        Node test suite
+client/
+  src/
+    ControlShell.jsx                    # главный контейнер (постепенно декомпозится)
+    control-shell/
+      v2/                               # текущая UI: Live, Config, OutputsSidebar, TopBar, PreviewOverlay
+      tabs/                             # Sources, Timers
+      settings/                         # Outputs, Shortcuts, Vmix, Yandex, Updates, About
+      lib/                              # чистые helpers (timer, entry, dirty, feedback, project actions)
+      hooks.js                          # WS / vMix / MIDI хуки
+    styles/                             # 23 CSS-модуля (палитра, top bar, sidebar, content, modals и т.д.)
+server/                                 # Express + WebSocket backend
+renderer/                               # Browser renderer для vMix / OBS
+desktop/                                # Electron shell
+templates/                              # built-in HTML шаблоны
+scripts/                                # Build and helper scripts
+docs/                                   # Product and integration docs
+tests/                                  # Node test suite
 ```
+
+### UI после v0.4.0
+
+- **Тонкий top-bar** с табами LIVE / CONFIG / DATA / TIMERS / SETTINGS и статус-чипами OFFLINE/VMIX/MIDI/YANDEX справа.
+- **OutputsSidebar** слева на всех вкладках кроме SETTINGS — карточки outputs с ON AIR-индикаторами и кнопками play/stop, ширина регулируется ресайзером.
+- **LIVE** — Live Data Source с ресайзящимися колонками и таймерами на строках, кнопки play/pause/reset с цветовыми состояниями.
+- **CONFIG** — outputs, titles и mapping в одном экране, render/preview URL прячутся под выбранный output.
+- **DATA** — источники данных (Text / TXT / CSV URL / Google Sheets / Yandex Disk) с маппингом колонок и Auto-refresh.
+- **TIMERS** — локальные таймеры и vMix-таймеры с цветовыми триггерами и vmix/local индикацией.
+- **SETTINGS** — вертикальный sub-nav (Outputs / Controls / Integrations / System) с красной полосой и фоном на активной секции.
+  - **Controls** — единый редактор биндингов: поиск, секции (Commands / Outputs / Title entries / Timers), на каждый action три пилюли (⌨ Keyboard / 🎹 MIDI / 🔗 Companion) с inline Learn/Clear.
+  - **Integrations** — карточка vMix (host + статус) и Yandex OAuth.
+  - **System** — обновления + about + Control UI URL.
 
 ---
 
@@ -197,6 +220,7 @@ Web Title Pro combines:
 - **MIDI**: Learn / Clear bindings for MIDI controllers, including note and CC messages.
 - **Bitfocus / HTTP API**: control through Companion using the Generic HTTP module.
 - **Projects**: New / Open / Save / Save As / Recent.
+- **Project Bundle (`.wtpkg`)**: export/import a project together with its custom templates as a single ZIP — convenient for moving a show between machines.
 - **Portable Windows build**: run the app from a standalone `.exe`.
 
 ### Quick Start From Source
@@ -302,12 +326,34 @@ The backend is available on the local network on port `4000` by default. This is
 ### Project Structure
 
 ```text
-client/       React control panel
-server/       Express + WebSocket backend
-renderer/     Browser renderer
-desktop/      Electron desktop shell
-templates/    Built-in local templates
-scripts/      Build and helper scripts
-docs/         Product and integration docs
-tests/        Node test suite
+client/
+  src/
+    ControlShell.jsx                    # main container (incrementally decomposed)
+    control-shell/
+      v2/                               # current UI: Live, Config, OutputsSidebar, TopBar, PreviewOverlay
+      tabs/                             # Sources, Timers
+      settings/                         # Outputs, Shortcuts, Vmix, Yandex, Updates, About
+      lib/                              # pure helpers (timer, entry, dirty, feedback, project actions)
+      hooks.js                          # WS / vMix / MIDI hooks
+    styles/                             # 23 CSS modules (palette, top bar, sidebar, content, modals, etc.)
+server/                                 # Express + WebSocket backend
+renderer/                               # Browser renderer for vMix / OBS
+desktop/                                # Electron shell
+templates/                              # Built-in HTML templates
+scripts/                                # Build and helper scripts
+docs/                                   # Product and integration docs
+tests/                                  # Node test suite
 ```
+
+### UI After v0.4.0
+
+- **Thin top bar** with LIVE / CONFIG / DATA / TIMERS / SETTINGS tabs and OFFLINE/VMIX/MIDI/YANDEX status chips on the right.
+- **OutputsSidebar** on the left on every tab except SETTINGS — output cards with ON AIR markers and play/stop buttons, resizable width.
+- **LIVE** — Live Data Source with resizable columns and per-row timers, play/pause/reset buttons with state colors.
+- **CONFIG** — outputs, titles, and mapping on one screen; render/preview URL chips reveal under the selected output.
+- **DATA** — data sources (Text / TXT / CSV URL / Google Sheets / Yandex Disk) with column mapping and Auto-refresh.
+- **TIMERS** — local and vMix-bound timers with color triggers and vmix/local indication.
+- **SETTINGS** — vertical sub-nav (Outputs / Controls / Integrations / System) with a red accent bar and tint on the active section.
+  - **Controls** — unified binding editor: search box, collapsible sections (Commands / Outputs / Title entries / Timers), and per-action pills (⌨ Keyboard / 🎹 MIDI / 🔗 Companion) with inline Learn/Clear.
+  - **Integrations** — vMix card (host + status) and Yandex OAuth.
+  - **System** — updates + about + Control UI URL.

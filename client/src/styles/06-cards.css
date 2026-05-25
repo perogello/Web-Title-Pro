@@ -1,0 +1,143 @@
+/* ===================================================================
+   Shared v3 component classes
+   Data / Timers / Settings still use these common semantic class names.
+   ================================================================= */
+
+.shell-v2,
+.shell-v2 *,
+.shell-v2 *::before,
+.shell-v2 *::after {
+  font-family: "Segoe UI", "YS Text", system-ui, sans-serif;
+}
+.shell-v2 code,
+.shell-v2 pre,
+.shell-v2 .output-url-copy,
+.shell-v2 .midi-monitor-row {
+  font-family: "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  font-size: 11px;
+}
+.shell-v2 .timer-readout,
+.shell-v2 .vmix-readout {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* Cards inside content stack vertically, controlled by content-v2-inner gap */
+.shell-v2 .content-v2-inner > section,
+.shell-v2 .content-v2-inner > div > section {
+  width: 100%;
+}
+
+/* ---- Cards / sections ---- */
+.shell-v2 .content-v2-inner .output-card,
+.shell-v2 .content-v2-inner .timer-card,
+.shell-v2 .content-v2-inner .vmix-card,
+.shell-v2 .content-v2-inner .timer-reminder-card,
+.shell-v2 .content-v2-inner .timer-panel,
+.shell-v2 .content-v2-inner .source-import-card,
+.shell-v2 .content-v2-inner .source-replace-card,
+.shell-v2 .content-v2-inner .source-yandex-connect-card,
+.shell-v2 .content-v2-inner .source-table-card,
+.shell-v2 .content-v2-inner .shortcut-entry-card,
+.shell-v2 .content-v2-inner .output-settings-card {
+  background: var(--card-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: var(--text-v2);
+  box-shadow: none;
+}
+/* Source-table card must let its inner wrapper own the horizontal scroll.
+   We DON'T clip the card itself — anything below the wrapper (Add Row,
+   manual fields) needs to flow naturally so the outer page scroll picks
+   them up. Only the wrapper itself owns max-height + scroll. */
+.shell-v2 .content-v2-inner .source-table-card {
+  min-width: 0;
+  overflow: visible;
+}
+.shell-v2 .content-v2-inner .source-table-card.inner-source-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  /* DO NOT set min-height: 0 here — that lets the parent flex collapse
+     this card and clip its bottom-of-card content (Add Row form).
+     min-height: max-content guarantees the card grows to fit ALL its
+     children (table-wrapper + manual-row-card + …). */
+  flex: 0 0 auto;
+  align-self: stretch;
+  min-height: max-content;
+  overflow: visible;
+}
+/* The Sources tab outer column (which holds the source-list on the
+   left and the inner card on the right) also needs to grow with its
+   tallest column. Otherwise a tall manual-row card on the right gets
+   clipped by the section. */
+.shell-v2 .content-v2-inner .source-table-card.standalone-tab {
+  flex: 0 0 auto;
+  min-height: max-content;
+}
+
+/* Canonical info-card-v3 — sole definition. Don't add overrides for
+   padding/background elsewhere; this one block owns all of it. */
+.shell-v2 .content-v2-inner .info-card-v3 {
+  background: var(--card-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 8px;
+  padding: 14px;
+  color: var(--text-v2);
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.shell-v2 .content-v2-inner .info-label-v3,
+.shell-v2 .content-v2-inner .kicker-v3 {
+  color: var(--text-dim-v2);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.shell-v2 .content-v2-inner .info-card-v3 strong { color: var(--text-v2); font-weight: 600; font-size: 14px; }
+.shell-v2 .content-v2-inner .info-card-v3 code {
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  color: var(--text-dim-v2);
+  display: inline-block;
+}
+.shell-v2 .content-v2-inner .note-v3 {
+  color: var(--text-dim-v2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* ---- Headings ---- */
+.shell-v2 .content-v2-inner h1,
+.shell-v2 .content-v2-inner h2,
+.shell-v2 .content-v2-inner h3,
+.shell-v2 .content-v2-inner h4 { color: var(--text-v2); margin: 0 0 8px; font-weight: 600; }
+.shell-v2 .content-v2-inner h1 { font-size: 20px; }
+.shell-v2 .content-v2-inner h2 { font-size: 18px; }
+.shell-v2 .content-v2-inner h3 { font-size: 16px; }
+.shell-v2 .content-v2-inner h4 { font-size: 13px; }
+.shell-v2 .content-v2-inner .panel-head-v3 {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; margin-bottom: 12px;
+}
+.shell-v2 .content-v2-inner .panel-head-v3 h3 { margin: 0; }
+
+/* ---- Layout grids ---- */
+.shell-v2 .content-v2-inner .integration-grid,
+.shell-v2 .content-v2-inner .output-settings-grid,
+.shell-v2 .content-v2-inner .timer-grid,
+.shell-v2 .content-v2-inner .vmix-grid,
+.shell-v2 .content-v2-inner .shortcut-action-grid,
+.shell-v2 .content-v2-inner .output-settings-fields {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}

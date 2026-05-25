@@ -99,3 +99,63 @@ test('program state: local entry SHOW / HIDE still works after the fix', async (
     await fs.remove(dir);
   }
 });
+
+test('program state: entry order survives project reload', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    const firstEntry = store.getEntries()[0];
+    const secondEntry = store.addEntry({ templateId: 'builtin:test', name: 'Second' });
+    const exported = store.exportProjectState();
+    const firstPersisted = exported.entries.find((entry) => entry.id === firstEntry.id);
+    const secondPersisted = exported.entries.find((entry) => entry.id === secondEntry.id);
+
+    await store.loadProjectState({
+      ...exported,
+      entries: [
+        { ...secondPersisted, createdAt: '2026-01-02T00:00:00.000Z' },
+        { ...firstPersisted, createdAt: '2026-01-01T00:00:00.000Z' },
+      ],
+    });
+
+    assert.deepEqual(
+      store.getEntries().map((entry) => entry.id).slice(0, 2),
+      [secondEntry.id, firstEntry.id],
+    );
+  } finally {
+    await store.close();
+    await fs.remove(dir);
+  }
+});
+
+test('program state: hidden entry flag is ignored and not persisted', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    const firstEntry = store.getEntries()[0];
+    const secondEntry = store.addEntry({ templateId: 'builtin:test', name: 'Second' });
+
+    store.updateEntry(secondEntry.id, { hidden: true });
+    store.selectEntry(firstEntry.id);
+    store.selectAdjacentEntry('next');
+
+    assert.equal(store.getSelectedEntry().id, secondEntry.id);
+
+    const exported = store.exportProjectState();
+    assert.equal(
+      Object.hasOwn(exported.entries.find((entry) => entry.id === secondEntry.id), 'hidden'),
+      false,
+    );
+
+    await store.loadProjectState({
+      ...exported,
+      entries: exported.entries.map((entry) => ({ ...entry, hidden: true })),
+    });
+
+    assert.equal(
+      store.getEntries().some((entry) => Object.hasOwn(entry, 'hidden')),
+      false,
+    );
+  } finally {
+    await store.close();
+    await fs.remove(dir);
+  }
+});

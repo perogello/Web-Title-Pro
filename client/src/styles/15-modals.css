@@ -1,0 +1,308 @@
+/* ===================================================================
+   Overlays and modals
+   ================================================================= */
+.shell-v2 .modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.68);
+  z-index: 2000;
+}
+
+.shell-v2 .modal-card {
+  width: min(960px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  background: var(--card-v2);
+  border: 1px solid var(--border-strong-v2);
+  border-radius: 8px;
+  color: var(--text-v2);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+
+.shell-v2 .modal-card--narrow { width: min(720px, 100%); }
+.shell-v2 .modal-card--wide { width: min(1360px, calc(100% - 32px)); }
+
+.shell-v2 .modal-card .panel-head-v3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-v2);
+}
+
+.shell-v2 .modal-card .panel-head-v3 h3 {
+  margin: 2px 0 0;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.shell-v2 .modal-card .topbar-actions,
+.shell-v2 .modal-card .timer-command-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.shell-v2 .modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 16px;
+}
+
+.shell-v2 .modal-section,
+.shell-v2 .field-chip,
+.shell-v2 .modal-card .info-card-v3,
+.shell-v2 .modal-card .output-settings-card {
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.shell-v2 .modal-section {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+}
+
+.shell-v2 .modal-section h4 { margin: 0; }
+
+.shell-v2 .field-chip-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.shell-v2 .field-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.shell-v2 .field-chip span,
+.shell-v2 .field-chip strong {
+  overflow-wrap: anywhere;
+}
+
+.shell-v2 .modal-card .field-v3 {
+  display: grid;
+  gap: 6px;
+}
+
+.shell-v2 .modal-card .field-v3 > span,
+.shell-v2 .modal-card label,
+.shell-v2 .modal-card .info-label-v3,
+.shell-v2 .modal-card .kicker-v3 {
+  color: var(--text-dim-v2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Modal inputs — same `input:not([type])` catch-all as the global
+   form-input rule (forms.css). Without it, <input value={...}> without
+   an explicit type attribute falls back to the browser default look. */
+.shell-v2 .modal-card input[type="text"],
+.shell-v2 .modal-card input[type="number"],
+.shell-v2 .modal-card input:not([type]),
+.shell-v2 .modal-card select,
+.shell-v2 .modal-card textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-v2);
+  background: var(--bg-2-v2);
+  color: var(--text-v2);
+}
+
+.shell-v2 .modal-card input:focus,
+.shell-v2 .modal-card select:focus,
+.shell-v2 .modal-card textarea:focus {
+  outline: none;
+  border-color: var(--select-accent-v2);
+  box-shadow: 0 0 0 2px rgba(139, 158, 255, 0.18);
+}
+
+.shell-v2 .modal-card .btn-v3-primary,
+.shell-v2 .modal-card .btn-v3-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-v2);
+  font-weight: 700;
+  color: var(--text-v2);
+  cursor: pointer;
+}
+
+.shell-v2 .modal-card .btn-v3-primary {
+  background: var(--text-v2);
+  border-color: var(--text-v2);
+  color: var(--bg-v2);
+}
+
+.shell-v2 .modal-card .btn-v3-ghost {
+  background: var(--bg-2-v2);
+}
+
+.shell-v2 .modal-card .btn-v3-ghost:hover {
+  border-color: var(--border-strong-v2);
+  background: var(--card-2-v2);
+}
+
+.shell-v2 .modal-card .btn-v3-danger {
+  color: #ff6b6b;
+  border-color: rgba(249, 50, 50, 0.34);
+}
+
+.shell-v2 .modal-card .btn-v3-sm {
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 12px;
+}
+
+.shell-v2 .modal-card .btn-v3-icon {
+  min-width: 34px;
+  padding: 7px;
+}
+
+.shell-v2 .modal-card .btn-v3-full {
+  width: 100%;
+}
+
+.shell-v2 .khural-style-editor,
+.shell-v2 .timer-color-editor {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.shell-v2 .khural-style-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.shell-v2 .khural-style-field-head {
+  display: grid;
+  gap: 4px;
+}
+
+.shell-v2 .khural-color-row,
+.shell-v2 .timer-color-editor .color-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.shell-v2 .khural-color-picker,
+.shell-v2 .timer-color-editor input[type="color"],
+.shell-v2 .trigger-row input[type="color"] {
+  width: 52px;
+  min-width: 52px;
+  height: 36px;
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid var(--border-v2);
+  background: var(--bg-2-v2);
+  cursor: pointer;
+}
+
+.shell-v2 .khural-color-picker::-webkit-color-swatch-wrapper { padding: 0; }
+.shell-v2 .khural-color-picker::-webkit-color-swatch,
+.shell-v2 .khural-color-picker::-moz-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+
+.shell-v2 .timer-color-preview {
+  display: grid;
+  gap: 4px;
+  border-width: 2px;
+}
+
+.shell-v2 .timer-color-preview .timer-readout {
+  font-size: 32px;
+}
+
+.shell-v2 .trigger-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.shell-v2 .trigger-list {
+  display: grid;
+  gap: 6px;
+}
+
+.shell-v2 .trigger-row {
+  display: grid;
+  grid-template-columns: 110px 52px minmax(0, 1fr) 36px;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--bg-2-v2);
+}
+
+.shell-v2 .trigger-row .trigger-time-input,
+.shell-v2 .trigger-row .trigger-hex-input,
+.shell-v2 .timer-color-editor .color-row input[type="text"] {
+  min-width: 0;
+  font-family: "Cascadia Mono", "Consolas", ui-monospace, monospace;
+}
+
+/* Template upload drop-zone — wraps the file input + name preview. The
+   <input> is still inside so click opens the native picker. is-dragover
+   highlights the box; has-files swaps the empty-state copy for a list. */
+.shell-v2 .modal-card .template-drop-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px dashed var(--border-strong-v2);
+  border-radius: 8px;
+  background: var(--bg-2-v2);
+  transition: border-color 120ms, background 120ms;
+  cursor: pointer;
+}
+.shell-v2 .modal-card .template-drop-zone.is-dragover {
+  border-color: var(--select-accent-v2);
+  background: rgba(139, 158, 255, 0.08);
+}
+.shell-v2 .modal-card .template-drop-zone.has-files {
+  border-style: solid;
+}
+.shell-v2 .modal-card .template-drop-zone .note-v3 {
+  font-size: 11px;
+  color: var(--text-dim-v2);
+  word-break: break-word;
+}
+
+@media (max-width: 760px) {
+  .shell-v2 .modal-backdrop {
+    padding: 12px;
+  }
+
+  .shell-v2 .modal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

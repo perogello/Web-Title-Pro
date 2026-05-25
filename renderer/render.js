@@ -302,6 +302,24 @@ const applySnapshot = async (snapshot) => {
   currentTemplateApi?.update?.(createContext());
 };
 
+const applyTimerTick = (payload) => {
+  if (!currentSnapshot || !Array.isArray(payload?.timers)) {
+    return;
+  }
+
+  currentSnapshot = {
+    ...currentSnapshot,
+    serverTime: payload.serverTime || currentSnapshot.serverTime,
+    timers: payload.timers,
+  };
+
+  const output = resolveOutput(currentSnapshot);
+  const program = resolveProgram(currentSnapshot);
+  const template = currentSnapshot.templates.find((item) => item.id === program?.templateId);
+  applyTimers(template, output, currentSnapshot.timers);
+  currentTemplateApi?.update?.(createContext());
+};
+
 const fetchInitialState = async () => {
   const response = await fetch('/api/render/state');
   const snapshot = await response.json();
@@ -315,6 +333,12 @@ const connect = () => {
   socket.addEventListener('open', () => setConnection('CONNECTED'));
   socket.addEventListener('message', async (event) => {
     const message = JSON.parse(event.data);
+
+    if (message?.type === 'timer-tick') {
+      applyTimerTick(message.payload);
+      return;
+    }
+
     if (message?.payload) {
       await applySnapshot(message.payload);
     }

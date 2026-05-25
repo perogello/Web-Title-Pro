@@ -2,7 +2,6 @@
 import {
   createRemoteSourceConfig,
   loadSourceLibrary,
-  normalizeSourceLibrary,
   parseSourceText,
   saveSourceLibrary,
 } from './source-library.js';
@@ -26,488 +25,48 @@ import OutputsSidebar from './control-shell/v2/OutputsSidebar.jsx';
 import LiveTabV2 from './control-shell/v2/LiveTabV2.jsx';
 import ConfigTab from './control-shell/v2/ConfigTab.jsx';
 import PreviewOverlay from './control-shell/v2/PreviewOverlay.jsx';
+import SegmentedTimerInput from './control-shell/v2/SegmentedTimerInput.jsx';
 import { useResizableSidebar } from './control-shell/v2/useResizableSidebar.js';
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-} from './control-shell/icons.jsx';
 import { useGlobalShortcuts } from './control-shell/use-global-shortcuts.js';
-
-const createClientId = (prefix = 'item') => {
-  if (window.crypto?.randomUUID) {
-    return `${prefix}-${window.crypto.randomUUID()}`;
-  }
-
-  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-};
-
-const slugFieldKey = (value = '') =>
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '') || `field_${Math.random().toString(16).slice(2, 6)}`;
-
-const getSourceRowEditKey = (sourceId, rowId) => `${sourceId}:${rowId}`;
-const LINKED_TIMER_OVERRIDE_MS = 1800;
-const TIMER_MAX_MS = (99 * 3600 + 59 * 60 + 59) * 1000;
-const TIMER_SEGMENT_STEP_MS = {
-  hours: 3600000,
-  minutes: 60000,
-  seconds: 1000,
-};
-const LIVE_SOURCE_COLUMN_WIDTHS_KEY = 'web-title-pro.liveSourceColumnWidths';
-const loadLiveSourceColumnWidths = () => {
-  try {
-    const raw = window.localStorage.getItem(LIVE_SOURCE_COLUMN_WIDTHS_KEY);
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-};
-const saveLiveSourceColumnWidths = (widths) => {
-  try {
-    window.localStorage.setItem(LIVE_SOURCE_COLUMN_WIDTHS_KEY, JSON.stringify(widths || {}));
-  } catch {}
-};
-const normalizeLinkedTimerId = (value) => {
-  if (value === undefined || value === null) {
-    return null;
-  }
-
-  const normalized = String(value).trim();
-  return normalized || null;
-};
-const timerIdMatches = (timer, linkedTimerId) => normalizeLinkedTimerId(timer?.id) === normalizeLinkedTimerId(linkedTimerId);
-const getSourceLinkedTimerId = (source, outputId = null) => {
-  if (!source) {
-    return null;
-  }
-
-  const normalizedOutputId = outputId ? String(outputId).trim() : '';
-  if (normalizedOutputId && source.linkedTimerByOutput?.[normalizedOutputId]) {
-    return normalizeLinkedTimerId(source.linkedTimerByOutput[normalizedOutputId]);
-  }
-
-  return normalizeLinkedTimerId(source.linkedTimerId);
-};
-const getLinkedTimerStatus = (timer, fallbackBaseMs = 0) => {
-  if (!timer) {
-    return 'idle';
-  }
-
-  const currentMs = Number(timer.currentMs ?? timer.valueMs ?? 0);
-  const referenceMs = Number(
-    timer.mode === 'countup'
-      ? timer.valueMs ?? fallbackBaseMs
-      : timer.durationMs ?? fallbackBaseMs,
-  );
-
-  if (timer.running) {
-    return 'running';
-  }
-
-  if (currentMs === 0 && timer.mode !== 'countup') {
-    return 'finished';
-  }
-
-  if (timer.mode === 'countup') {
-    return currentMs > 0 ? 'paused' : 'idle';
-  }
-
-  return currentMs !== referenceMs ? 'paused' : 'idle';
-};
-
-const TIMER_FORMATS = ['hh:mm:ss', 'mm:ss', 'ss'];
-const VMIX_TITLE_ACTIONS = [
-  { value: 'TransitionIn', label: 'TransitionIn' },
-  { value: 'TransitionOut', label: 'TransitionOut' },
-  { value: 'none', label: 'No Action' },
-];
-const normalizeVmixTitleAction = (value, fallback) => {
-  const normalizedValue = value === 'TitleBeginAnimation' ? 'TransitionIn' : value === 'TitleEndAnimation' ? 'TransitionOut' : value;
-  const normalizedFallback = fallback === 'TitleBeginAnimation' ? 'TransitionIn' : fallback === 'TitleEndAnimation' ? 'TransitionOut' : fallback;
-  return VMIX_TITLE_ACTIONS.some((action) => action.value === normalizedValue) ? normalizedValue : normalizedFallback;
-};
-
-const formatStatusTime = (value) =>
-  new Intl.DateTimeFormat('ru-RU', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(new Date(value));
-
-const buildWindowTitle = (projectName, dirty) => {
-  const cleanProjectName = projectName && projectName !== 'Unsaved Project' ? projectName : null;
-  const dirtyMarker = dirty ? ' *' : '';
-  return cleanProjectName ? `${cleanProjectName}${dirtyMarker} - Web Title Pro` : `Web Title Pro${dirtyMarker}`;
-};
-
-const formatCompactTimer = (milliseconds, format = 'mm:ss') => {
-  const safeMilliseconds = Math.max(0, milliseconds);
-  const totalSeconds = Math.floor(safeMilliseconds / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const fullMinutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-
-  if (format === 'hh:mm:ss') {
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  }
-
-  if (format === 'ss') {
-    return String(totalSeconds).padStart(2, '0');
-  }
-
-  return `${String(fullMinutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-};
-
-const changeTimerSegment = (milliseconds, segment, delta) => {
-  const stepMs = TIMER_SEGMENT_STEP_MS[segment] || 0;
-  const currentMs = Math.max(0, Number(milliseconds || 0));
-
-  if (!stepMs) {
-    return Math.min(TIMER_MAX_MS, currentMs);
-  }
-
-  return Math.max(0, Math.min(TIMER_MAX_MS, currentMs + delta * stepMs));
-};
-
-const getTimerSegments = (milliseconds, format = 'mm:ss') => {
-  const safeMilliseconds = Math.max(0, milliseconds);
-  const totalSeconds = Math.floor(safeMilliseconds / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const fullMinutes = Math.floor(totalSeconds / 60);
-  const normalizedMinutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (format === 'hh:mm:ss') {
-    return [
-      { key: 'hours', value: String(hours).padStart(2, '0') },
-      { key: 'minutes', value: String(normalizedMinutes).padStart(2, '0') },
-      { key: 'seconds', value: String(seconds).padStart(2, '0') },
-    ];
-  }
-
-  if (format === 'ss') {
-    return [{ key: 'seconds', value: String(totalSeconds).padStart(2, '0') }];
-  }
-
-  return [
-    { key: 'minutes', value: String(fullMinutes).padStart(2, '0') },
-    { key: 'seconds', value: String(seconds).padStart(2, '0') },
-  ];
-};
-
-const buildEffectiveLocalFieldMap = (entry, templateFields = []) => {
-  const existing = Array.isArray(entry?.localFieldMap) ? entry.localFieldMap : [];
-  const mapByName = new Map(existing.filter((item) => item?.name).map((item) => [item.name, item]));
-
-  return templateFields.map((field, index) => {
-    const mapped = mapByName.get(field.name);
-    const sourceColumnIndex = Number.isInteger(mapped?.sourceColumnIndex)
-      ? mapped.sourceColumnIndex
-      : Number.parseInt(mapped?.sourceColumnIndex ?? '', 10);
-
-    return {
-      name: field.name,
-      label: field.label || field.name,
-      sourceColumnIndex: Number.isFinite(sourceColumnIndex) ? sourceColumnIndex : index,
-    };
-  });
-};
-
-const buildEffectiveVmixFieldMap = (entry, templateFields = []) => {
-  const existing = Array.isArray(entry?.vmixFieldMap) ? entry.vmixFieldMap : [];
-  const mapByName = new Map(existing.filter((item) => item?.name).map((item) => [item.name, item]));
-
-  return templateFields.map((field, index) => {
-    const mapped = mapByName.get(field.name);
-    const sourceColumnIndex = Number.isInteger(mapped?.sourceColumnIndex)
-      ? mapped.sourceColumnIndex
-      : Number.parseInt(mapped?.sourceColumnIndex ?? '', 10);
-
-    return {
-      name: field.name,
-      label: field.label || field.name,
-      vmixFieldName: mapped?.vmixFieldName || field.label || field.name,
-      sourceColumnIndex: Number.isFinite(sourceColumnIndex) ? sourceColumnIndex : index,
-    };
-  });
-};
-
-const buildEffectiveEntryFieldMap = (entry, templateFields = []) =>
-  entry?.entryType === 'vmix'
-    ? buildEffectiveVmixFieldMap(entry, templateFields)
-    : buildEffectiveLocalFieldMap(entry, templateFields);
-
-const buildFieldMapSignature = (fieldMap = []) =>
-  JSON.stringify(
-    (Array.isArray(fieldMap) ? fieldMap : []).map((field) => ({
-      name: field?.name || '',
-      sourceColumnIndex: Number.isFinite(Number(field?.sourceColumnIndex))
-        ? Number(field.sourceColumnIndex)
-        : null,
-      vmixFieldName: field?.vmixFieldName || '',
-    })),
-  );
-
-const applyRowToFields = (templateFields, rowValues, currentFields, fieldMap = null) => {
-  const nextFields = { ...currentFields };
-  const mapByName = new Map(
-    Array.isArray(fieldMap)
-      ? fieldMap.filter((item) => item?.name).map((item) => [item.name, item])
-      : [],
-  );
-
-  templateFields.forEach((field, index) => {
-    const mapped = mapByName.get(field.name);
-    const sourceColumnIndex = Number.isInteger(mapped?.sourceColumnIndex)
-      ? mapped.sourceColumnIndex
-      : Number.parseInt(mapped?.sourceColumnIndex ?? '', 10);
-    const resolvedIndex = Number.isFinite(sourceColumnIndex) && sourceColumnIndex >= 0 ? sourceColumnIndex : null;
-    nextFields[field.name] = resolvedIndex === null ? '' : rowValues[resolvedIndex] ?? '';
-  });
-
-  return nextFields;
-};
-
-const getEntryDataPreview = (entry) => {
-  const values = Object.values(entry?.fields || {})
-    .map((value) => String(value ?? '').trim())
-    .filter(Boolean);
-  return values.slice(0, 2).join(' В· ');
-};
-
-const getRundownPrimaryLabel = (entry) =>
-  entry?.entryType === 'vmix'
-    ? entry?.vmixInputTitle || entry?.templateName || entry?.name || 'vMix Title'
-    : entry?.templateName || entry?.name || 'Local Title';
-
-const getRundownSecondaryLabel = (entry) => {
-  const preview = getEntryDataPreview(entry);
-
-  if (preview && preview !== getRundownPrimaryLabel(entry)) {
-    return preview;
-  }
-
-  if (entry?.name && entry.name !== getRundownPrimaryLabel(entry)) {
-    return entry.name;
-  }
-
-  return '';
-};
-
-const supportsFieldStyleEditor = (template = null, entry = null) => {
-  if (entry?.entryType === 'vmix') {
-    return false;
-  }
-
-  const fieldNames = (template?.fields || entry?.templateFields || [])
-    .map((field) => String(field?.name || '').toLowerCase())
-    .filter(Boolean);
-  return Boolean(template?.fieldStyleEditor === true && fieldNames.length > 0);
-};
-
-const normalizeLocalFieldStyles = (templateFields = [], styles = {}) =>
-  Object.fromEntries(
-    (Array.isArray(templateFields) ? templateFields : [])
-      .map((field) => {
-        const style = styles?.[field.name] || {};
-        const fontFamily = typeof style.fontFamily === 'string' ? style.fontFamily.trim() : '';
-        const fontSourcePath = typeof style.fontSourcePath === 'string' ? style.fontSourcePath.trim() : '';
-        const fontSize = Number.parseInt(style.fontSize ?? '', 10);
-        const color = typeof style.color === 'string' ? style.color.trim() : '';
-
-        return [
-          field.name,
-          {
-            ...(fontFamily ? { fontFamily } : {}),
-            ...(fontSourcePath ? { fontSourcePath } : {}),
-            ...(Number.isFinite(fontSize) && fontSize > 0 ? { fontSize } : {}),
-            ...(color ? { color } : {}),
-          },
-        ];
-      })
-      .filter(([, style]) => Object.keys(style).length > 0),
-  );
-
-const buildUploadFormData = (files, name) => {
-  const formData = new FormData();
-
-  if (name.trim()) {
-    formData.append('name', name.trim());
-  }
-
-  files.forEach((file) => {
-    formData.append('files', file, file.webkitRelativePath || file.name);
-  });
-
-  return formData;
-};
-
-const FONT_STYLE_HINTS = ['thin', 'extralight', 'light', 'regular', 'medium', 'semibold', 'bold', 'extrabold', 'black', 'italic'];
-
-const pickPreferredFontFile = (fontName, filePaths = []) => {
-  const normalizedFontName = String(fontName || '').toLowerCase();
-  const desiredHints = FONT_STYLE_HINTS.filter((hint) => normalizedFontName.includes(hint));
-  const candidates = (Array.isArray(filePaths) ? filePaths : [])
-    .map((filePath) => String(filePath || '').trim())
-    .filter(Boolean);
-
-  if (!candidates.length) {
-    return '';
-  }
-
-  const scoreFile = (filePath) => {
-    const normalizedPath = filePath.toLowerCase();
-    let score = 0;
-
-    if (desiredHints.length) {
-      desiredHints.forEach((hint) => {
-        if (normalizedPath.includes(hint)) {
-          score += 6;
-        }
-      });
-    } else {
-      if (normalizedPath.includes('regular')) score += 6;
-      if (normalizedPath.includes('variablefont_wght') && !normalizedPath.includes('italic')) score += 5;
-      if (!/(italic|bold|black|light|thin|medium|semibold|extrabold)/.test(normalizedPath)) score += 4;
-    }
-
-    if (!normalizedPath.includes('italic')) score += 2;
-    if (!normalizedPath.includes('bold')) score += 1;
-    if (normalizedPath.endsWith('.ttf')) score += 1;
-
-    return score;
-  };
-
-  return [...candidates].sort((left, right) => scoreFile(right) - scoreFile(left))[0] || candidates[0];
-};
-
-const buildVmixEntryConfig = (input) => {
-  const textFields = input?.textFields?.length ? input.textFields : [{ name: 'Text', index: '0' }];
-  const usedKeys = new Set();
-  const fieldMap = textFields.map((field, index) => {
-    let key = slugFieldKey(field.name || `field_${index + 1}`);
-
-    while (usedKeys.has(key)) {
-      key = `${key}_${index + 1}`;
-    }
-
-    usedKeys.add(key);
-    return {
-      name: key,
-      label: field.name || `Field ${index + 1}`,
-      vmixFieldName: field.name || 'Text',
-      index: field.index || String(index),
-      sourceColumnIndex: index,
-    };
-  });
-
-  return {
-    fieldMap,
-    fields: Object.fromEntries(fieldMap.map((field) => [field.name, ''])),
-  };
-};
-
-const buildPersistedEntry = (entry = {}) => {
-  const base = {
-    id: entry.id,
-    entryType: entry.entryType === 'vmix' ? 'vmix' : 'local',
-    templateId: entry.entryType === 'vmix' ? null : entry.templateId,
-    name: entry.name || '',
-    fields: entry.fields || {},
-    createdAt: entry.createdAt || null,
-    updatedAt: entry.updatedAt || null,
-    hidden: Boolean(entry.hidden),
-    shortcuts: entry.shortcuts || { show: '', live: '', hide: '' },
-  };
-
-  if (entry.entryType === 'vmix') {
-    return {
-      ...base,
-      vmixInputKey: entry.vmixInputKey || null,
-      vmixInputTitle: entry.vmixInputTitle || '',
-      vmixFieldMap: Array.isArray(entry.vmixFieldMap) ? entry.vmixFieldMap : [],
-      vmixShowAction: entry.vmixShowAction || 'TransitionIn',
-      vmixHideAction: entry.vmixHideAction || 'TransitionOut',
-    };
-  }
-
-  return {
-    ...base,
-    localFieldMap: Array.isArray(entry.localFieldMap) ? entry.localFieldMap : [],
-  };
-};
-
-const buildPersistedTimer = (timer = {}) => ({
-  id: timer.id,
-  name: timer.name || 'New Timer',
-  mode: timer.mode === 'countup' ? 'countup' : 'countdown',
-  durationMs: Number(timer.durationMs ?? 0),
-  valueMs: Number(timer.valueMs ?? 0),
-  running: Boolean(timer.running),
-  startedAt: timer.startedAt || null,
-  sourceType: timer.sourceType === 'vmix' ? 'vmix' : 'local',
-  targetOutputId: timer.targetOutputId || null,
-  targetTemplateId: timer.targetTemplateId || null,
-  targetTimerId: timer.targetTimerId || null,
-  vmixInputKey: timer.vmixInputKey || null,
-  vmixTextField: timer.vmixTextField || 'Text',
-  displayFormat: timer.displayFormat || 'mm:ss',
-});
-
-const buildPersistedProjectStateFromSnapshot = (snapshot) => ({
-  selectedOutputId: snapshot?.selectedOutputId || null,
-  outputs: (snapshot?.outputs || []).map((output) => ({
-    ...output,
-    program: output?.program || null,
-    previewProgram: output?.previewProgram || null,
-  })),
-  integrations: snapshot?.integrations || {},
-  entries: (snapshot?.entries || []).map((entry) => buildPersistedEntry(entry)),
-  timers: (snapshot?.timers || []).map((timer) => buildPersistedTimer(timer)),
-});
-
-const buildProjectSignature = ({ snapshot, sourceLibrary, selectedSourceId }) =>
-  JSON.stringify({
-    state: buildPersistedProjectStateFromSnapshot(snapshot),
-    sources: {
-      selectedSourceId: selectedSourceId || null,
-      items: normalizeSourceLibrary(sourceLibrary || []).map((source) => ({
-        id: source.id,
-        name: source.name,
-        delimiter: source.delimiter,
-        linkedTimerId: source.linkedTimerId || null,
-        linkedTimerByOutput: source.linkedTimerByOutput || {},
-        columns: source.columns || [],
-        rows: source.remote ? [] : source.rows || [],
-        remote: source.remote
-          ? {
-              type: source.remote.type || 'csv-url',
-              url: source.remote.url || '',
-              sheetName: source.remote.sheetName || '',
-              autoRefresh: Boolean(source.remote.autoRefresh),
-              refreshIntervalSec: Number(source.remote.refreshIntervalSec || 30),
-            }
-          : null,
-      })),
-    },
-  });
-
-const isVmixTitleInput = (input) => {
-  if (!input) {
-    return false;
-  }
-
-  const title = `${input.title || ''} ${input.shortTitle || ''}`.toLowerCase();
-  const type = String(input.type || '').toLowerCase();
-  const hasTextFields = Array.isArray(input.textFields) && input.textFields.length > 0;
-
-  return hasTextFields && (title.includes('.gtzip') || title.includes('.gt') || type.includes('gt') || type.includes('title'));
-};
-
+import {
+  LINKED_TIMER_OVERRIDE_MS,
+  TIMER_MAX_MS,
+  TIMER_FORMATS,
+  changeTimerSegment,
+  formatCompactTimer,
+  formatStatusTime,
+  getLinkedTimerStatus,
+  getSourceLinkedTimerId,
+  getTimerSegments,
+  normalizeLinkedTimerId,
+  timerIdMatches,
+} from './control-shell/lib/timer-utils.js';
+import {
+  VMIX_TITLE_ACTIONS,
+  applyRowToFields,
+  buildEffectiveEntryFieldMap,
+  buildEffectiveLocalFieldMap,
+  buildEffectiveVmixFieldMap,
+  buildFieldMapSignature,
+  buildUploadFormData,
+  buildVmixEntryConfig,
+  createClientId,
+  getEntryDataPreview,
+  getRundownPrimaryLabel,
+  getRundownSecondaryLabel,
+  getSourceRowEditKey,
+  isVmixTitleInput,
+  loadLiveSourceColumnWidths,
+  normalizeLocalFieldStyles,
+  normalizeVmixTitleAction,
+  pickPreferredFontFile,
+  saveLiveSourceColumnWidths,
+  slugFieldKey,
+  supportsFieldStyleEditor,
+} from './control-shell/lib/entry-utils.js';
+import { useFeedback } from './control-shell/lib/use-feedback.js';
+import { useProjectActions } from './control-shell/lib/use-project-actions.js';
+import { useProjectState } from './control-shell/lib/use-project-state.js';
 
 function ControlShell() {
   const desktopBridge = window.webTitleDesktop || null;
@@ -528,7 +87,6 @@ function ControlShell() {
   const [systemFontOptions, setSystemFontOptions] = useState([]);
   const [systemFontAssetMap, setSystemFontAssetMap] = useState({});
   const [systemFontOptionsLoading, setSystemFontOptionsLoading] = useState(false);
-  const [showProjectPanel, setShowProjectPanel] = useState(false);
   const [newEntryMode, setNewEntryMode] = useState('local');
   const [newEntryTemplateId, setNewEntryTemplateId] = useState('');
   const [newEntryName, setNewEntryName] = useState('');
@@ -537,7 +95,6 @@ function ControlShell() {
   const [uploadName, setUploadName] = useState('');
   const [uploadFiles, setUploadFiles] = useState([]);
   const [busyAction, setBusyAction] = useState('');
-  const [feedback, setFeedback] = useState('');
   const [localSelectedOutputId, setLocalSelectedOutputId] = useState(null);
   const [sourceLibrary, setSourceLibrary] = useState(() => loadSourceLibrary());
   const [selectedSourceId, setSelectedSourceId] = useState('');
@@ -549,11 +106,6 @@ function ControlShell() {
   const [remoteSourceType, setRemoteSourceType] = useState('csv-url');
   const [remoteSourceAutoRefresh, setRemoteSourceAutoRefresh] = useState(true);
   const [remoteSourceRefreshIntervalSec, setRemoteSourceRefreshIntervalSec] = useState(30);
-  const [projectStatus, setProjectStatus] = useState({
-    supported: false,
-    currentProjectPath: null,
-    recentProjects: [],
-  });
   const [yandexAuthState, setYandexAuthState] = useState({
     supported: false,
     encrypted: false,
@@ -571,55 +123,33 @@ function ControlShell() {
     status: 'idle',
     error: '',
   });
-  const [projectBaselineSignature, setProjectBaselineSignature] = useState(null);
-  const [projectDirty, setProjectDirty] = useState(false);
   const [manualRowValues, setManualRowValues] = useState({});
   const [editingSourceRows, setEditingSourceRows] = useState({});
   const [sourceRowDrafts, setSourceRowDrafts] = useState({});
   const [entryFieldMapDraft, setEntryFieldMapDraft] = useState(null);
   const [vmixHostDraft, setVmixHostDraft] = useState('');
-  const feedbackTimerRef = useRef(null);
-  const saveTimerRef = useRef(null);
   const [activeSourceRows, setActiveSourceRows] = useState({});
   const [activeTimerRows, setActiveTimerRows] = useState({});
   const [sourceRowTimers, setSourceRowTimers] = useState({});
   const [liveSourceColumnWidths, setLiveSourceColumnWidths] = useState(() => loadLiveSourceColumnWidths());
-  const [showPreviewPanel, setShowPreviewPanel] = useState(false);
-  const [expandedRender, setExpandedRender] = useState(null);
-  const [manageRundown, setManageRundown] = useState(false);
-  const [showHiddenEntries, setShowHiddenEntries] = useState(false);
   const [learningShortcut, setLearningShortcut] = useState(null);
-  const [showSourceSyncMenu, setShowSourceSyncMenu] = useState(false);
-  const [draggedRundownEntryId, setDraggedRundownEntryId] = useState(null);
-  const [manageSources, setManageSources] = useState(false);
   const [draggedSourceId, setDraggedSourceId] = useState(null);
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderDelaySec, setReminderDelaySec] = useState(15);
   const [pendingReminder, setPendingReminder] = useState(null);
-  const [showCompactMenu, setShowCompactMenu] = useState(false);
-  const [showOutputSelector, setShowOutputSelector] = useState(false);
   const reminderTimeoutRef = useRef(null);
   const remoteRefreshStateRef = useRef({});
   const latestDraftRef = useRef({ name: '', fields: {} });
-  const appCloseAuthorizedRef = useRef(false);
   const outputs = snapshot?.outputs || [];
-  const currentProjectName = useMemo(() => {
-    const currentPath = projectStatus?.currentProjectPath || '';
-    if (!currentPath) {
-      return 'Unsaved Project';
-    }
-
-    const parts = currentPath.split(/[\\/]/).filter(Boolean);
-    return parts[parts.length - 1] || 'Unsaved Project';
-  }, [projectStatus?.currentProjectPath]);
-  const currentProjectDisplayName = useMemo(
-    () => currentProjectName.replace(/\.wtp-project(\.json)?$/i, '') || 'Unsaved Project',
-    [currentProjectName],
-  );
-  const currentProjectSignature = useMemo(
-    () => (snapshot ? buildProjectSignature({ snapshot, sourceLibrary, selectedSourceId }) : null),
-    [snapshot, sourceLibrary, selectedSourceId],
-  );
+  const [feedback, pushFeedback] = useFeedback();
+  const {
+    projectStatus,
+    setProjectStatus,
+    currentProjectDisplayName,
+    projectDirty,
+    setProjectBaselineSignature,
+    setDirty: setProjectDirty,
+  } = useProjectState({ snapshot, sourceLibrary, selectedSourceId });
   const updateState = appMeta?.updates || snapshot?.integrations?.updates || null;
   const effectiveSelectedOutputId = localSelectedOutputId || snapshot?.selectedOutputId || outputs[0]?.id || null;
   const selectedOutput =
@@ -633,10 +163,15 @@ function ControlShell() {
   const templateMap = useMemo(() => new Map(templates.map((template) => [template.id, template])), [templates]);
   const selectedTemplate = selectedEntry ? templateMap.get(selectedEntry.templateId) : null;
   const selectedCreateTemplate = templateMap.get(newEntryTemplateId) || null;
-  const selectedEntryFields = useMemo(
-    () => selectedEntry?.templateFields || selectedTemplate?.fields || [],
-    [selectedEntry?.templateFields, selectedTemplate?.fields],
-  );
+  const selectedEntryFields = useMemo(() => {
+    if (selectedEntry?.templateFields?.length) return selectedEntry.templateFields;
+    if (selectedTemplate?.fields?.length) return selectedTemplate.fields;
+    // Fallback: derive a field list from the entry's own `fields` keys so the
+    // mapping panel still works even when the template parser didn't pick up
+    // any `[data-field]` markers (custom templates, legacy projects, etc.).
+    const fieldKeys = Object.keys(selectedEntry?.fields || {});
+    return fieldKeys.map((name) => ({ name, label: name }));
+  }, [selectedEntry?.templateFields, selectedEntry?.fields, selectedTemplate?.fields]);
   const canManageEntryAppearance = (entry) => supportsFieldStyleEditor(templateMap.get(entry?.templateId), entry);
   const styleEditorEntry = useMemo(
     () => (snapshot?.entries || []).find((entry) => entry.id === styleEditorEntryId) || null,
@@ -740,10 +275,6 @@ function ControlShell() {
           ? [selectedOutput.id]
           : [],
     [outputs, selectedOutput?.id, selectedSyncGroupId],
-  );
-  const visibleEntries = useMemo(
-    () => (snapshot?.entries || []).filter((entry) => showHiddenEntries || !entry.hidden),
-    [showHiddenEntries, snapshot?.entries],
   );
   const localTimerTemplates = useMemo(
     () => templates.filter((template) => Array.isArray(template.timers) && template.timers.length > 0),
@@ -850,21 +381,6 @@ function ControlShell() {
       previewUrl: `${outputInfo.primaryPreviewUrl}&output=${encodeURIComponent(output.key)}`,
     }));
   }, [outputInfo, outputs]);
-  const embeddedRenderUrl = useMemo(() => {
-    if (!selectedOutput?.key) {
-      return `${BACKEND_ORIGIN}/render.html?embed=1`;
-    }
-
-    return `${BACKEND_ORIGIN}/render.html?embed=1&output=${encodeURIComponent(selectedOutput.key)}`;
-  }, [selectedOutput?.key]);
-  const embeddedPreviewUrl = useMemo(() => {
-    if (!selectedOutput?.key) {
-      return `${BACKEND_ORIGIN}/render.html?preview=1&embed=1`;
-    }
-
-    return `${BACKEND_ORIGIN}/render.html?preview=1&embed=1&output=${encodeURIComponent(selectedOutput.key)}`;
-  }, [selectedOutput?.key]);
-  const expandedRenderUrl = expandedRender === 'preview' ? embeddedPreviewUrl : embeddedRenderUrl;
   const shortcutBindings = snapshot?.integrations?.shortcuts || {
     show: '',
     live: '',
@@ -1054,27 +570,6 @@ function ControlShell() {
   useEffect(() => {
     let mounted = true;
 
-    if (!desktopBridge?.getProjectStatus) {
-      return undefined;
-    }
-
-    desktopBridge
-      .getProjectStatus()
-      .then((status) => {
-        if (mounted && status) {
-          setProjectStatus(status);
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      mounted = false;
-    };
-  }, [desktopBridge]);
-
-  useEffect(() => {
-    let mounted = true;
-
     if (!desktopBridge?.getYandexAuthSettings) {
       return undefined;
     }
@@ -1172,74 +667,6 @@ function ControlShell() {
   }, [styleEditorEntry?.id, systemFontAssetMap]);
 
   useEffect(() => {
-    let mounted = true;
-
-    if (!desktopBridge?.getStartupProject) {
-      return undefined;
-    }
-
-    desktopBridge
-      .getStartupProject()
-      .then(async (result) => {
-        if (!mounted || !result) {
-          return;
-        }
-
-        if (result.status) {
-          setProjectStatus(result.status);
-        }
-
-        if (result.project) {
-          await applyProjectDocument(result.project, result.status || null);
-          pushFeedback(`Project opened: ${result.path?.split(/[\\/]/).pop() || 'project'}`);
-        } else if (result.error) {
-          pushFeedback(result.error);
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      mounted = false;
-    };
-  }, [desktopBridge]);
-
-  useEffect(() => {
-    const nextTitle = buildWindowTitle(currentProjectDisplayName, projectDirty);
-    document.title = nextTitle;
-    desktopBridge?.setWindowTitle?.({ title: nextTitle });
-  }, [currentProjectDisplayName, projectDirty, desktopBridge]);
-
-  useEffect(() => {
-    if (!currentProjectSignature) {
-      return;
-    }
-
-    setProjectBaselineSignature((current) => current || currentProjectSignature);
-  }, [currentProjectSignature]);
-
-  useEffect(() => {
-    if (!currentProjectSignature || !projectBaselineSignature) {
-      return;
-    }
-
-    setProjectDirty(currentProjectSignature !== projectBaselineSignature);
-  }, [currentProjectSignature, projectBaselineSignature]);
-
-  useEffect(() => {
-    const onBeforeUnload = (event) => {
-      if (!projectDirty || appCloseAuthorizedRef.current) {
-        return;
-      }
-
-      event.preventDefault();
-      event.returnValue = '';
-    };
-
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [projectDirty]);
-
-  useEffect(() => {
     const nextValues = {};
 
     manualRowColumns.forEach((_column, index) => {
@@ -1280,6 +707,13 @@ function ControlShell() {
     }, 250);
 
     return () => window.clearInterval(timerId);
+  }, []);
+
+  // Clear any pending reminder timeout on unmount so callbacks don't fire on a dead tree.
+  useEffect(() => {
+    return () => {
+      window.clearTimeout(reminderTimeoutRef.current);
+    };
   }, []);
 
   const getSourceRowTimerState = (sourceId, row, linkedTimer = null, isTimerRow = false) => {
@@ -1530,12 +964,6 @@ function ControlShell() {
     }
   };
 
-  const pushFeedback = (message) => {
-    setFeedback(message);
-    window.clearTimeout(feedbackTimerRef.current);
-    feedbackTimerRef.current = window.setTimeout(() => setFeedback(''), 2600);
-  };
-
   const persistDraft = async (override = null) => {
     if (!selectedEntry) return;
     const payload = override || latestDraftRef.current;
@@ -1566,44 +994,32 @@ function ControlShell() {
     }
   };
 
-  const schedulePersist = (override = null) => {
-    window.clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = window.setTimeout(() => {
-      persistDraft(override).catch((requestError) => pushFeedback(requestError.message));
-    }, 180);
-  };
-
-  const updateSelectedVmixEntry = async (patch = {}) => {
-    if (!selectedEntry || selectedEntry.entryType !== 'vmix') {
-      return;
-    }
-
-    try {
-      await api(`/api/entries/${selectedEntry.id}`, {
-        method: 'PUT',
-        body: patch,
-      });
-      pushFeedback('vMix title updated');
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    }
-  };
-
-  const updateSelectedVmixFieldBinding = async (fieldName, vmixFieldName) => {
-    if (!selectedEntry || selectedEntry.entryType !== 'vmix') {
-      return;
-    }
-
-    const nextFieldMap = effectiveSelectedEntryFieldMap.map((field) =>
-      field.name === fieldName
-        ? {
-            ...field,
-            vmixFieldName: vmixFieldName || field.vmixFieldName || field.label || field.name,
-          }
-        : field,
-    );
-    await updateSelectedFieldMap(nextFieldMap, 'vMix title mapping updated');
-  };
+  const {
+    createNewProject,
+    openProject,
+    openRecentProject,
+    saveProject,
+    exportProjectBundle,
+    importProjectBundleFile,
+  } = useProjectActions({
+    desktopBridge,
+    appVersion: appMeta?.version || null,
+    currentProjectDisplayName,
+    projectDirty,
+    projectStatus,
+    sourceLibrary,
+    selectedSourceId,
+    setProjectBaselineSignature,
+    setProjectDirty,
+    setProjectStatus,
+    setSourceLibrary,
+    setSelectedSourceId,
+    setActiveSourceRows,
+    setActiveTimerRows,
+    setSourceRowTimers,
+    persistDraft,
+    pushFeedback,
+  });
 
   const updateSelectedFieldMap = async (nextFieldMap, feedbackMessage) => {
     if (!selectedEntry) {
@@ -1754,36 +1170,6 @@ function ControlShell() {
     }
   };
 
-  const runProgramAction = async (action, entryId) => {
-    if (action !== 'hide' && !selectedEntry) return;
-    if (action === 'update' && selectedEntry?.entryType === 'vmix') {
-      pushFeedback('LIVE is not used for vMix titles');
-      return;
-    }
-
-    setBusyAction(action);
-
-    try {
-      if (action !== 'hide') {
-        await persistDraft();
-      }
-
-      await api(`/api/program/${action}`, {
-        method: 'POST',
-        body: {
-          ...(entryId ? { entryId } : {}),
-          outputId: selectedOutput?.id,
-        },
-      });
-
-      pushFeedback(`${action === 'update' ? 'LIVE' : action.toUpperCase()} sent`);
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    } finally {
-      setBusyAction('');
-    }
-  };
-
   // Fire show/hide for an explicit output (used by per-output Play/Stop buttons on the OutputsSidebar v2).
   const runProgramActionForOutput = async (outputId, action, entryId) => {
     if (!outputId) return;
@@ -1859,37 +1245,11 @@ function ControlShell() {
     }
   };
 
-  const uploadTemplate = async () => {
-    if (!uploadFiles.length) {
-      pushFeedback('Р’С‹Р±РµСЂРёС‚Рµ ZIP, РїР°РїРєСѓ РёР»Рё HTML/CSS/JS С„Р°Р№Р»С‹');
-      return;
-    }
-
-    setBusyAction('upload-template');
-
-    try {
-      await api('/api/templates/upload', {
-        method: 'POST',
-        body: buildUploadFormData(uploadFiles, uploadName),
-      });
-
-      setUploadFiles([]);
-      setUploadName('');
-      setShowAddModal(false);
-      setTemplateValidationReport(null);
-      pushFeedback('РЁР°Р±Р»РѕРЅ Р·Р°РіСЂСѓР¶РµРЅ');
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    } finally {
-      setBusyAction('');
-    }
-  };
-
   const importSourceDataset = async () => {
     const rawText = sourcePayload.trim();
 
     if (!rawText) {
-      pushFeedback('Р—Р°РіСЂСѓР·РёС‚Рµ TXT/CSV С„Р°Р№Р» РёР»Рё РІСЃС‚Р°РІСЊС‚Рµ СЃС‚СЂРѕРєРё РёСЃС‚РѕС‡РЅРёРєР°');
+      pushFeedback('Загрузите TXT/CSV файл или вставьте строки источника');
       return;
     }
 
@@ -1905,7 +1265,7 @@ function ControlShell() {
       setSourcePayload('');
       setSourceName('');
       setSourceFileName('');
-      pushFeedback('РСЃС‚РѕС‡РЅРёРє РґРѕР±Р°РІР»РµРЅ РІ С‚Р°Р±Р»РёС†Сѓ');
+      pushFeedback('Источник добавлен в таблицу');
     } catch (requestError) {
       pushFeedback(requestError.message);
     }
@@ -2247,105 +1607,19 @@ function ControlShell() {
     }
   };
 
-  const setEntryHidden = async (entry, hidden) => {
-    if (!entry?.id) {
-      return;
-    }
-
-    setBusyAction(`${hidden ? 'hide' : 'show'}-entry-${entry.id}`);
-
+  const reorderEntriesByIds = async (nextIds) => {
     try {
-      if (hidden) {
-        const liveOutputs = (snapshot?.outputs || []).filter(
-          (output) => output.program?.entryId === entry.id && output.program?.visible,
-        );
-
-        for (const output of liveOutputs) {
-          await api('/api/program/hide', {
-            method: 'POST',
-            body: { outputId: output.id },
-          });
-        }
-      }
-
-      await api(`/api/entries/${entry.id}`, {
-        method: 'PUT',
-        body: { hidden },
-      });
-      pushFeedback(hidden ? 'Title hidden from rundown' : 'Title restored to rundown');
+      await api('/api/entries/reorder', { method: 'POST', body: { ids: nextIds } });
     } catch (requestError) {
-      if (requestError.details?.length) {
-        setTemplateValidationReport({
-          title: requestError.message,
-          details: requestError.details,
-        });
-      }
       pushFeedback(requestError.message);
-    } finally {
-      setBusyAction('');
     }
   };
 
-  const reorderEntry = async (entryId, direction) => {
-    const currentIds = (snapshot?.entries || []).map((entry) => entry.id);
-    const currentIndex = currentIds.indexOf(entryId);
-
-    if (currentIndex === -1) {
-      return;
-    }
-
-    const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-
-    if (nextIndex < 0 || nextIndex >= currentIds.length) {
-      return;
-    }
-
-    const nextIds = [...currentIds];
-    [nextIds[currentIndex], nextIds[nextIndex]] = [nextIds[nextIndex], nextIds[currentIndex]];
-
-    setBusyAction(`reorder-${entryId}`);
-
+  const reorderOutputsByIds = async (nextIds) => {
     try {
-      await api('/api/entries/reorder', {
-        method: 'POST',
-        body: { ids: nextIds },
-      });
+      await api('/api/outputs/reorder', { method: 'POST', body: { ids: nextIds } });
     } catch (requestError) {
       pushFeedback(requestError.message);
-    } finally {
-      setBusyAction('');
-    }
-  };
-
-  const reorderEntriesToTarget = async (draggedEntryId, targetEntryId) => {
-    if (!draggedEntryId || !targetEntryId || draggedEntryId === targetEntryId) {
-      return;
-    }
-
-    const currentIds = (snapshot?.entries || []).map((entry) => entry.id);
-    const draggedIndex = currentIds.indexOf(draggedEntryId);
-    const targetIndex = currentIds.indexOf(targetEntryId);
-
-    if (draggedIndex === -1 || targetIndex === -1) {
-      return;
-    }
-
-    const nextIds = [...currentIds];
-    const [movedId] = nextIds.splice(draggedIndex, 1);
-    nextIds.splice(targetIndex, 0, movedId);
-
-    setBusyAction(`reorder-${draggedEntryId}`);
-
-    try {
-      await api('/api/entries/reorder', {
-        method: 'POST',
-        body: { ids: nextIds },
-      });
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    } finally {
-      setBusyAction('');
-      setDraggedRundownEntryId(null);
     }
   };
 
@@ -2371,7 +1645,7 @@ function ControlShell() {
       await api(`/api/entries/${entry.id}`, { method: 'DELETE' });
       pushFeedback(
         entry.entryType === 'vmix'
-          ? 'vMix title hidden and removed from rundown'
+          ? 'vMix title removed from rundown'
           : 'Local title removed from rundown',
       );
     } catch (requestError) {
@@ -2520,7 +1794,7 @@ function ControlShell() {
 
   const applySourceRow = async (row) => {
     if (!selectedOutput?.id) {
-      pushFeedback('РЎРЅР°С‡Р°Р»Р° РІС‹Р±РµСЂРёС‚Рµ output');
+      pushFeedback('Сначала выберите output');
       return;
     }
 
@@ -2619,35 +1893,9 @@ function ControlShell() {
       }
 
       scheduleTimerReminder(selectedSource?.id || '', row);
-      pushFeedback(`РЎС‚СЂРѕРєР° ${row.index} РїСЂРёРјРµРЅРµРЅР° Рє ${targetOutputIds.length} output(s)`);
+      pushFeedback(`Строка ${row.index} применена к ${targetOutputIds.length} output(s)`);
     } catch (requestError) {
       pushFeedback(requestError.message);
-    }
-  };
-
-  const runPreviewAction = async (action, entryId) => {
-    if (action !== 'hide' && !selectedEntry) return;
-
-    setBusyAction(`preview-${action}`);
-
-    try {
-      if (action !== 'hide') {
-        await persistDraft();
-      }
-
-      await api(`/api/preview/${action === 'hide' ? 'hide' : 'show'}`, {
-        method: 'POST',
-        body: {
-          ...(entryId ? { entryId } : {}),
-          outputId: selectedOutput?.id,
-        },
-      });
-
-      pushFeedback(action === 'hide' ? 'Preview hidden' : 'Preview updated');
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    } finally {
-      setBusyAction('');
     }
   };
 
@@ -2801,6 +2049,71 @@ function ControlShell() {
     setSourceLibrary((current) =>
       current.map((source) => (source.id === sourceId ? { ...source, name: trimmed } : source)),
     );
+  };
+
+  // Duplicate a source — useful before destructive edits on a large table.
+  // The remote config is dropped intentionally so the clone is a snapshot
+  // local copy (auto-refresh from the same URL on two sources would clobber).
+  const cloneSource = (sourceId) => {
+    const original = sourceLibrary.find((item) => item.id === sourceId);
+    if (!original) {
+      return;
+    }
+    const cloneId = createClientId('src');
+    const baseName = original.name || 'Source';
+    const cloneName = `${baseName} (copy)`;
+    const clone = {
+      ...original,
+      id: cloneId,
+      name: cloneName,
+      remote: null,
+      rows: (original.rows || []).map((row) => ({
+        ...row,
+        id: createClientId('row'),
+      })),
+    };
+    setSourceLibrary((current) => {
+      const originalIndex = current.findIndex((item) => item.id === sourceId);
+      if (originalIndex === -1) return [...current, clone];
+      // Insert the clone right after the original so it's easy to find.
+      return [...current.slice(0, originalIndex + 1), clone, ...current.slice(originalIndex + 1)];
+    });
+    setSelectedSourceId(cloneId);
+    pushFeedback(`Cloned ${baseName} → ${cloneName}`);
+  };
+
+  // Export a source as a portable JSON blob — saved by the browser as a
+  // download. Use Import via the existing TXT/CSV file picker to bring it
+  // back; alternatively a future "Import .source.json" path can take this
+  // shape directly. Schema is intentionally minimal: columns + rows.
+  const exportSource = (sourceId) => {
+    const source = sourceLibrary.find((item) => item.id === sourceId);
+    if (!source) {
+      return;
+    }
+    const payload = {
+      version: 1,
+      kind: 'web-title-pro:source',
+      exportedAt: new Date().toISOString(),
+      source: {
+        name: source.name || 'Source',
+        columns: source.columns || [],
+        rows: (source.rows || []).map((row) => ({
+          values: row.values || [],
+        })),
+      },
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const safeName = (source.name || 'source').replace(/[<>:"/\\|?*]+/g, ' ').trim() || 'source';
+    link.href = url;
+    link.download = `${safeName}.source.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    pushFeedback(`Exported ${source.name || 'source'}`);
   };
 
   const reorderSourcesToTarget = (draggedId, targetId) => {
@@ -3251,266 +2564,6 @@ function ControlShell() {
     }
   };
 
-  const buildProjectDocument = async () => {
-    const exported = await api('/api/project/export');
-
-    return {
-      version: 1,
-      meta: {
-        name: currentProjectDisplayName,
-        updatedAt: new Date().toISOString(),
-        appVersion: appMeta?.version || null,
-      },
-      state: exported?.state || {},
-      sources: {
-        selectedSourceId: selectedSourceId || null,
-        items: sourceLibrary,
-      },
-    };
-  };
-
-  const confirmProceedWithUnsavedProject = async (detail) => {
-    if (!projectDirty) {
-      return true;
-    }
-
-    if (desktopBridge?.confirmUnsavedChanges) {
-      const result = await desktopBridge.confirmUnsavedChanges({ detail });
-
-      if (result?.action === 'cancel') {
-        return false;
-      }
-
-      if (result?.action === 'save') {
-        const saveResult = await saveProject();
-        return Boolean(saveResult && !saveResult.canceled);
-      }
-
-      return true;
-    }
-
-    return window.confirm('The current project has unsaved changes. Continue without saving?');
-  };
-
-  useEffect(() => {
-    window.__webTitleHandleCloseRequest = async () => {
-      const shouldProceed = await confirmProceedWithUnsavedProject('Do you want to save the current project before closing Web Title Pro?');
-
-      if (!shouldProceed) {
-        return false;
-      }
-
-      if (desktopBridge?.requestAppClose) {
-        appCloseAuthorizedRef.current = true;
-        await desktopBridge.requestAppClose();
-      }
-
-      return true;
-    };
-
-    return () => {
-      delete window.__webTitleHandleCloseRequest;
-    };
-  }, [confirmProceedWithUnsavedProject, desktopBridge]);
-
-  useEffect(() => {
-    window.__webTitleAuthorizeAppClose = () => {
-      appCloseAuthorizedRef.current = true;
-      return true;
-    };
-
-    return () => {
-      delete window.__webTitleAuthorizeAppClose;
-    };
-  }, []);
-
-  useEffect(() => {
-    window.__webTitleConfirmUpdateInstall = async () =>
-      confirmProceedWithUnsavedProject('Do you want to save the current project before updating Web Title Pro?');
-
-    return () => {
-      delete window.__webTitleConfirmUpdateInstall;
-    };
-  }, [confirmProceedWithUnsavedProject]);
-
-  const applyProjectDocument = async (projectDocument, nextProjectStatus = null) => {
-    await api('/api/project/load', {
-      method: 'POST',
-      body: {
-        state: projectDocument?.state || {},
-        seedExamples: false,
-      },
-    });
-
-    const nextSourceLibrary = normalizeSourceLibrary(projectDocument?.sources?.items || []);
-    setSourceLibrary(nextSourceLibrary);
-    setSelectedSourceId(projectDocument?.sources?.selectedSourceId || nextSourceLibrary[0]?.id || '');
-    setActiveSourceRows({});
-    setActiveTimerRows({});
-    setSourceRowTimers({});
-    setShowHiddenEntries(false);
-    setManageRundown(false);
-    setShowSourceSyncMenu(false);
-    setShowProjectPanel(false);
-
-    if (nextProjectStatus) {
-      setProjectStatus(nextProjectStatus);
-    }
-
-    const nextSignature = buildProjectSignature({
-      snapshot: {
-        selectedOutputId: projectDocument?.state?.selectedOutputId || null,
-        outputs: projectDocument?.state?.outputs || [],
-        integrations: projectDocument?.state?.integrations || {},
-        entries: projectDocument?.state?.entries || [],
-        timers: projectDocument?.state?.timers || [],
-      },
-      sourceLibrary: nextSourceLibrary,
-      selectedSourceId: projectDocument?.sources?.selectedSourceId || nextSourceLibrary[0]?.id || '',
-    });
-    setProjectBaselineSignature(nextSignature);
-    setProjectDirty(false);
-  };
-
-  const createNewProject = async () => {
-    try {
-      const shouldProceed = await confirmProceedWithUnsavedProject('Do you want to save the current project before creating a new one?');
-
-      if (!shouldProceed) {
-        return;
-      }
-
-      const nextSnapshot = await api('/api/project/load', {
-        method: 'POST',
-        body: {
-          state: {},
-          seedExamples: true,
-        },
-      });
-      setSourceLibrary([]);
-      setSelectedSourceId('');
-      setActiveSourceRows({});
-      setActiveTimerRows({});
-      setSourceRowTimers({});
-      setShowHiddenEntries(false);
-      setManageRundown(false);
-      setShowSourceSyncMenu(false);
-      setShowProjectPanel(false);
-
-      if (desktopBridge?.createNewProject) {
-        const status = await desktopBridge.createNewProject();
-        if (status) {
-          setProjectStatus(status);
-        }
-      }
-
-      const nextSignature = buildProjectSignature({
-        snapshot: nextSnapshot,
-        sourceLibrary: [],
-        selectedSourceId: '',
-      });
-      setProjectBaselineSignature(nextSignature);
-      setProjectDirty(false);
-
-      pushFeedback('New project created');
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    }
-  };
-
-  const openProject = async () => {
-    if (!desktopBridge?.openProjectDialog) {
-      pushFeedback('Project files are available in the desktop app only');
-      return;
-    }
-
-    try {
-      const shouldProceed = await confirmProceedWithUnsavedProject('Do you want to save the current project before opening another one?');
-
-      if (!shouldProceed) {
-        return;
-      }
-
-      const result = await desktopBridge.openProjectDialog();
-
-      if (result?.canceled) {
-        return;
-      }
-
-      await applyProjectDocument(result.project, result.status || null);
-      pushFeedback(`Project opened: ${result.path?.split(/[\\/]/).pop() || 'project'}`);
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    }
-  };
-
-  const openRecentProject = async (projectPath) => {
-    if (!desktopBridge?.openRecentProject || !projectPath) {
-      return;
-    }
-
-    try {
-      const shouldProceed = await confirmProceedWithUnsavedProject('Do you want to save the current project before opening another one?');
-
-      if (!shouldProceed) {
-        return;
-      }
-
-      const result = await desktopBridge.openRecentProject(projectPath);
-
-      if (result?.canceled) {
-        return;
-      }
-
-      await applyProjectDocument(result.project, result.status || null);
-      pushFeedback(`Project opened: ${result.path?.split(/[\\/]/).pop() || 'project'}`);
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    }
-  };
-
-  const saveProject = async ({ saveAs = false } = {}) => {
-    if (!desktopBridge?.saveProject || !desktopBridge?.saveProjectAs) {
-      pushFeedback('Project files are available in the desktop app only');
-      return { canceled: true };
-    }
-
-    try {
-      await persistDraft();
-      const project = await buildProjectDocument();
-      const savedSignature = buildProjectSignature({
-        snapshot: project.state || {},
-        sourceLibrary: project.sources?.items || [],
-        selectedSourceId: project.sources?.selectedSourceId || null,
-      });
-      const suggestedName = (project.meta?.name || 'WebTitleProject').replace(/[<>:\"/\\|?*]+/g, ' ').trim() || 'WebTitleProject';
-      const result = saveAs
-        ? await desktopBridge.saveProjectAs({ project, suggestedName })
-        : await desktopBridge.saveProject({
-            path: projectStatus?.currentProjectPath || null,
-            project,
-            suggestedName,
-          });
-
-      if (result?.canceled) {
-        return result;
-      }
-
-      if (result?.status) {
-        setProjectStatus(result.status);
-      }
-
-      setProjectBaselineSignature(savedSignature);
-      setProjectDirty(false);
-
-      pushFeedback(`Project saved: ${result.path?.split(/[\\/]/).pop() || 'project'}`);
-      return result;
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-      return { canceled: true, error: requestError.message };
-    }
-  };
-
   const saveGlobalShortcut = async (action, value) => {
     try {
       const prefixMap = [
@@ -3587,19 +2640,6 @@ function ControlShell() {
     }
   };
 
-  const selectVmixTimerInput = async (inputKey) => {
-    try {
-      const nextState = await api('/api/vmix/select-timer-input', {
-        method: 'POST',
-        body: { inputKey },
-      });
-      setVmixState(nextState);
-      pushFeedback('vMix timer input selected');
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    }
-  };
-
   const resizeLiveSourceColumn = (sourceId, columnId, width) => {
     if (!sourceId || !columnId) {
       return;
@@ -3611,29 +2651,16 @@ function ControlShell() {
     }));
   };
 
-  const runVmixTimerAction = async (action) => {
-    try {
-      const nextState = await api('/api/vmix/timer-action', {
-        method: 'POST',
-        body: { action },
-      });
-      setVmixState(nextState);
-      pushFeedback(`vMix ${action} sent`);
-    } catch (requestError) {
-      pushFeedback(requestError.message);
-    }
-  };
-
   const addManualSourceRow = () => {
     const values = manualRowColumns.map((_column, index) => (manualRowValues[index] || '').trim());
 
     if (!values.some(Boolean)) {
-      pushFeedback('Р—Р°РїРѕР»РЅРёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРЅРѕ РїРѕР»Рµ СЃС‚СЂРѕРєРё');
+      pushFeedback('Заполните хотя бы одно поле строки');
       return;
     }
 
     if (!manualRowColumns.length) {
-      pushFeedback('РЎРЅР°С‡Р°Р»Р° РІС‹Р±РµСЂРёС‚Рµ С‚РёС‚СЂ РёР»Рё РёСЃС‚РѕС‡РЅРёРє РґР°РЅРЅС‹С…');
+      pushFeedback('Сначала выберите титр или источник данных');
       return;
     }
 
@@ -3676,7 +2703,7 @@ function ControlShell() {
         return acc;
       }, {}),
     );
-    pushFeedback('РЎС‚СЂРѕРєР° РґРѕР±Р°РІР»РµРЅР° РІ Source Table');
+    pushFeedback('Строка добавлена в Source Table');
   };
 
   useGlobalShortcuts({
@@ -3693,14 +2720,6 @@ function ControlShell() {
     triggerNavigationShortcut,
     commandTimer,
     pushFeedback,
-    onCloseFloatingMenus: (event) => {
-      if (!event.target?.closest?.('.tab-toolbar-menu')) {
-        setShowCompactMenu(false);
-      }
-      if (!event.target?.closest?.('.outputs-selector')) {
-        setShowOutputSelector(false);
-      }
-    },
   });
 
   // Sync registered OS-level global shortcuts with the desktop main process
@@ -3809,6 +2828,9 @@ function ControlShell() {
         onSaveAsProject={() => saveProject({ saveAs: true })}
         onOpenRecentProject={openRecentProject}
         onOpenTemplateFolders={openTemplateFolders}
+        onExportProjectBundle={exportProjectBundle}
+        onImportProjectBundleFile={importProjectBundleFile}
+        onOpenSettingsTab={(tab) => { setActiveTab('settings'); setSettingsTab(tab); }}
       />
 
       <div className="main-v2">
@@ -3836,6 +2858,7 @@ function ControlShell() {
             outputs={outputs}
             entries={snapshot?.entries || []}
             selectedOutputId={selectedOutput?.id}
+            outputRenderTargets={outputRenderTargets}
           />
 
           <div className="content-v2-inner">
@@ -3864,6 +2887,7 @@ function ControlShell() {
           onApplySourceRow={applySourceRow}
           onControlSourceRowTimer={controlSourceRowTimer}
           onAdjustSourceRowTimerSegment={adjustSourceRowTimerSegment}
+          onSetSourceRowTimerBase={updateSourceRowTimerBase}
           onResizeSourceColumn={resizeLiveSourceColumn}
           onTogglePreview={() => setShowPreviewOverlay((v) => !v)}
           previewOpen={showPreviewOverlay}
@@ -3879,6 +2903,7 @@ function ControlShell() {
           selectedEntryFieldMap={effectiveSelectedEntryFieldMap}
           sourceColumnChoices={sourceColumnChoices}
           busyAction={busyAction}
+          outputRenderTargets={outputRenderTargets}
           onSelectOutput={selectOutput}
           onSelectEntry={selectEntry}
           onUpdateOutput={updateOutput}
@@ -3887,9 +2912,13 @@ function ControlShell() {
           onManageEntryAppearance={openStyleEditor}
           canManageEntryAppearance={canManageEntryAppearance}
           onSourceColumnMappingChange={updateSelectedSourceColumnMapping}
+          onCopyRenderUrl={(output) => copyText(output.renderUrl).then(() => pushFeedback(`Render URL ${output.name} copied`))}
+          onCopyPreviewUrl={(output) => copyText(output.previewUrl).then(() => pushFeedback(`Preview URL ${output.name} copied`))}
           onOpenAddTitle={() => setShowAddModal(true)}
           onOpenAddOutput={createOutput}
           onOpenTemplateFolders={openTemplateFolders}
+          onReorderOutputs={reorderOutputsByIds}
+          onReorderEntries={reorderEntriesByIds}
         />
       )}
 
@@ -3935,6 +2964,8 @@ function ControlShell() {
           updateState={updateState}
           yandexAuthState={yandexAuthState}
           yandexDeviceAuth={yandexDeviceAuth}
+          vmixState={vmixState}
+          vmixHostDraft={vmixHostDraft}
           formatStatusTime={formatStatusTime}
           onSetSettingsTab={setSettingsTab}
           onSelectOutput={selectOutput}
@@ -3981,6 +3012,9 @@ function ControlShell() {
           onReloadYandexAuthSettings={reloadYandexAuthSettings}
           onConnectYandex={startYandexConnect}
           onDisconnectYandex={disconnectYandex}
+          onSetVmixHostDraft={setVmixHostDraft}
+          onConnectVmix={connectVmix}
+          onRefreshVmixState={refreshVmixState}
         />
       )}
 
@@ -4017,14 +3051,14 @@ function ControlShell() {
           onImportRemoteSourceDataset={importRemoteSourceDataset}
           onConnectYandex={startYandexConnect}
           onSelectSource={setSelectedSourceId}
-          manageSources={manageSources}
           draggedSourceId={draggedSourceId}
-          onToggleManageSources={() => setManageSources((current) => !current)}
           onDragStartSource={setDraggedSourceId}
           onDropSource={(targetSourceId) => reorderSourcesToTarget(draggedSourceId, targetSourceId)}
           onDragEndSource={() => setDraggedSourceId(null)}
           onRenameSource={renameSource}
           onDeleteSource={deleteSourceById}
+          onCloneSource={cloneSource}
+          onExportSource={exportSource}
           onDeleteSelectedSource={deleteSelectedSource}
           onRefreshSelectedSource={() => refreshRemoteSource(selectedSource?.id)}
           onUpdateSelectedSourceRemote={updateSelectedSourceRemote}
@@ -4061,60 +3095,34 @@ function ControlShell() {
 
       {pendingReminder && reminderRow && (
         <div className="modal-backdrop" onClick={() => setPendingReminder(null)}>
+          {/* Only one Cancel path now — bottom-row "Отмена" + backdrop click.
+              The header used to double-stack a "Нет" next to the title which
+              was a redundant dismiss button. */}
           <div className="modal-card modal-card--narrow" onClick={(event) => event.stopPropagation()}>
-            <div className="card-head">
+            <div className="panel-head-v3">
               <div>
-                <span className="panel-kicker">Timer Reminder</span>
-                <h3>Р—Р°РїСѓСЃС‚РёС‚СЊ С‚Р°Р№РјРµСЂ?</h3>
+                <span className="kicker-v3">Timer Reminder</span>
+                <h3>Запустить таймер?</h3>
               </div>
-              <button className="ghost-button" onClick={() => setPendingReminder(null)}>РќРµС‚</button>
             </div>
             <div className="manual-row-card">
-              <span className="output-note">{pendingReminder.sourceName}</span>
+              <span className="note-v3">{pendingReminder.sourceName}</span>
               <strong>{reminderRow.values?.[0] || reminderRow.label || 'Selected row'}</strong>
-              <div className="row-timer-segments reminder-timer-segments">
-                {getTimerSegments(
-                  Number(reminderRow.timer?.baseMs || 0),
-                  reminderLinkedTimer?.displayFormat || reminderRow.timer?.format || 'mm:ss',
-                ).map((segment, index) => {
-                  const isTimerReminderRow =
-                    activeTimerBinding?.sourceId === pendingReminder.sourceId && activeTimerBinding?.rowId === reminderRow.id;
-
-                  return (
-                    <div className="row-timer-segment-group" key={`reminder-${segment.key}`}>
-                      {index > 0 && <span className="row-timer-colon">:</span>}
-                      <div className="row-timer-segment">
-                        <button
-                          className="row-timer-arrow"
-                          onClick={() => adjustSourceRowTimerSegment(pendingReminder.sourceId, reminderRow, segment.key, 1, {
-                            currentMs: Number(reminderRow.timer?.baseMs || 0),
-                            syncTimerId: reminderLinkedTimer ? reminderLinkedTimer.id : null,
-                            linkedTimerId: reminderLinkedTimerId,
-                            linkedTimer: reminderLinkedTimer || null,
-                          })}
-                        >
-                          <ChevronUpIcon />
-                        </button>
-                        <strong>{segment.value}</strong>
-                        <button
-                          className="row-timer-arrow"
-                          onClick={() => adjustSourceRowTimerSegment(pendingReminder.sourceId, reminderRow, segment.key, -1, {
-                            currentMs: Number(reminderRow.timer?.baseMs || 0),
-                            syncTimerId: reminderLinkedTimer ? reminderLinkedTimer.id : null,
-                            linkedTimerId: reminderLinkedTimerId,
-                            linkedTimer: reminderLinkedTimer || null,
-                          })}
-                        >
-                          <ChevronDownIcon />
-                        </button>
-                      </div>
-                    </div>
-                  );
+              <SegmentedTimerInput
+                value={Number(reminderRow.timer?.baseMs || 0)}
+                format={reminderLinkedTimer?.displayFormat || reminderRow.timer?.format || 'mm:ss'}
+                size="lg"
+                withArrows
+                className="reminder-timer-readout"
+                onCommit={(nextMs) => updateSourceRowTimerBase(pendingReminder.sourceId, reminderRow.id, nextMs, {
+                  syncTimerId: reminderLinkedTimer ? reminderLinkedTimer.id : null,
+                  linkedTimerId: reminderLinkedTimerId,
+                  linkedTimer: reminderLinkedTimer || null,
                 })}
-              </div>
+              />
               <div className="timer-command-row">
-                <button className="primary-button" onClick={startReminderTimer}>Start</button>
-                <button className="ghost-button" onClick={() => setPendingReminder(null)}>РќРµС‚</button>
+                <button className="btn-v3-primary" onClick={startReminderTimer}>Запустить</button>
+                <button className="btn-v3-ghost" onClick={() => setPendingReminder(null)}>Отмена</button>
               </div>
             </div>
           </div>
@@ -4124,64 +3132,21 @@ function ControlShell() {
       {templateValidationReport && (
         <div className="modal-backdrop" onClick={() => setTemplateValidationReport(null)}>
           <div className="modal-card modal-card--narrow" onClick={(event) => event.stopPropagation()}>
-            <div className="card-head">
+            <div className="panel-head-v3">
               <div>
-                <span className="panel-kicker">Template Validation</span>
+                <span className="kicker-v3">Template Validation</span>
                 <h3>{templateValidationReport.title || 'Template validation failed'}</h3>
               </div>
-              <button className="ghost-button" onClick={() => setTemplateValidationReport(null)}>Close</button>
+              <button className="btn-v3-ghost" onClick={() => setTemplateValidationReport(null)}>Close</button>
             </div>
             <div className="source-list">
               {templateValidationReport.details?.map((item, index) => (
-                <div className="meta-card" key={`${item.file || 'file'}-${index}`}>
-                  <span className="meta-label">{item.file || '(package)'}</span>
+                <div className="info-card-v3" key={`${item.file || 'file'}-${index}`}>
+                  <span className="info-label-v3">{item.file || '(package)'}</span>
                   <strong>{item.message || 'Validation issue'}</strong>
-                  {item.hint && <span className="output-note">{item.hint}</span>}
+                  {item.hint && <span className="note-v3">{item.hint}</span>}
                 </div>
               ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {expandedRender && (
-        <div className="modal-backdrop render-modal-backdrop" onClick={() => setExpandedRender(null)}>
-          <div className="modal-card render-modal-card" onClick={(event) => event.stopPropagation()}>
-            <div className="card-head">
-              <div>
-                <span className="panel-kicker">Render View</span>
-                <h3>{expandedRender === 'preview' ? 'Preview Renderer' : 'Live Renderer'}</h3>
-              </div>
-              <button className="ghost-button" onClick={() => setExpandedRender(null)}>Close</button>
-            </div>
-            <div className="render-modal-actions">
-              {expandedRender === 'preview' ? (
-                <>
-                  <button className="ghost-button compact-button" onClick={() => runPreviewAction('show', selectedEntry?.id)} disabled={!selectedEntry || selectedEntry?.entryType === 'vmix'}>
-                    Preview Show
-                  </button>
-                  <button className="ghost-button compact-button" onClick={() => runPreviewAction('hide')} disabled={selectedEntry?.entryType === 'vmix'}>
-                    Preview Hide
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button className="ghost-button compact-button" onClick={() => runProgramAction('show', selectedEntry?.id)} disabled={!selectedEntry || busyAction === 'show'}>
-                    Show
-                  </button>
-                  <button className="ghost-button compact-button" onClick={() => runProgramAction('hide')} disabled={busyAction === 'hide'}>
-                    Hide
-                  </button>
-                </>
-              )}
-            </div>
-            <div className="render-modal-frame-wrap">
-              <iframe
-                key={`expanded-${expandedRender}-${selectedOutput?.id || 'default'}`}
-                className="render-modal-frame"
-                title={expandedRender === 'preview' ? 'Expanded Preview Renderer' : 'Expanded Live Renderer'}
-                src={expandedRenderUrl}
-              />
             </div>
           </div>
         </div>
@@ -4190,26 +3155,26 @@ function ControlShell() {
       {showAddModal && (
         <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
           <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <div className="card-head">
+            <div className="panel-head-v3">
               <div>
-                <span className="panel-kicker">Add Title</span>
-                <h3>РЎРѕР·РґР°С‚СЊ С‚РёС‚СЂ РІ rundown РёР»Рё Р·Р°РіСЂСѓР·РёС‚СЊ РЅРѕРІС‹Р№ С€Р°Р±Р»РѕРЅ</h3>
+                <span className="kicker-v3">Add Title</span>
+                <h3>Создать титр в rundown или загрузить новый шаблон</h3>
               </div>
-              <button className="ghost-button" onClick={() => setShowAddModal(false)}>Close</button>
+              <button className="btn-v3-ghost" onClick={() => setShowAddModal(false)}>Close</button>
             </div>
             <div className="modal-grid add-title-modal-grid">
               <div className="modal-section add-title-section">
                 <h4>Create Entry</h4>
-                <div className="mode-toggle" role="tablist" aria-label="Title entry mode">
+                <div className="seg-control-v3" role="tablist" aria-label="Title entry mode">
                   <button
-                    className={`mode-toggle-button ${newEntryMode === 'local' ? 'is-active' : ''}`}
+                    className={`seg-button-v3 ${newEntryMode === 'local' ? 'is-active' : ''}`}
                     onClick={() => setNewEntryMode('local')}
                     type="button"
                   >
                     Local
                   </button>
                   <button
-                    className={`mode-toggle-button ${newEntryMode === 'vmix' ? 'is-active' : ''}`}
+                    className={`seg-button-v3 ${newEntryMode === 'vmix' ? 'is-active' : ''}`}
                     onClick={() => setNewEntryMode('vmix')}
                     type="button"
                   >
@@ -4218,7 +3183,7 @@ function ControlShell() {
                 </div>
                 {newEntryMode === 'local' ? (
                   <>
-                    <label className="input-block">
+                    <label className="field-v3">
                       <span>Template</span>
                       <select value={newEntryTemplateId} onChange={(event) => setNewEntryTemplateId(event.target.value)}>
                         {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
@@ -4226,9 +3191,9 @@ function ControlShell() {
                     </label>
                     {selectedCreateTemplate?.source === 'custom' && (
                       <div className="template-manage-row">
-                        <span className="output-note">Custom template selected</span>
+                        <span className="note-v3">Custom template selected</span>
                         <button
-                          className="ghost-button compact-button danger-button"
+                          className="btn-v3-ghost btn-v3-sm btn-v3-danger"
                           type="button"
                           onClick={() => deleteCustomTemplate(selectedCreateTemplate.id, setNewEntryTemplateId)}
                         >
@@ -4240,9 +3205,9 @@ function ControlShell() {
                 ) : (
                   <>
                     {!vmixTitleInputs.length && (
-                      <div className="output-note">Connect and sync vMix first to discover title inputs and text fields.</div>
+                      <div className="note-v3">Connect and sync vMix first to discover title inputs and text fields.</div>
                     )}
-                    <label className="input-block">
+                    <label className="field-v3">
                       <span>vMix Input</span>
                       <select value={newVmixInputKey} onChange={(event) => setNewVmixInputKey(event.target.value)}>
                         {vmixTitleInputs.map((input) => (
@@ -4262,11 +3227,11 @@ function ControlShell() {
                     </div>
                   </>
                 )}
-                <label className="input-block add-title-name-input">
+                <label className="field-v3 add-title-name-input">
                   <input value={newEntryName} onChange={(event) => setNewEntryName(event.target.value)} placeholder="Rundown Name" />
                 </label>
                 <button
-                  className="primary-button full-width"
+                  className="btn-v3-primary btn-v3-full"
                   onClick={createEntry}
                   disabled={busyAction === 'create-entry' || (newEntryMode === 'vmix' && !vmixTitleInputs.length)}
                 >
@@ -4275,11 +3240,28 @@ function ControlShell() {
               </div>
               <div className="modal-section add-title-section">
                 <h4>Upload Template Package</h4>
-                <label className="input-block">
+                <label className="field-v3">
                   <span>Template Name</span>
                   <input value={uploadName} onChange={(event) => setUploadName(event.target.value)} placeholder="Custom Lower Third" />
                 </label>
-                <label className="input-block">
+                {/* Drop zone — accepts both clicks (opens the native picker via
+                    the wrapped <input>) and dragged files. The visible filename
+                    list is just a read-back of what's queued; actual upload
+                    fires on the Upload Template button below. */}
+                <label
+                  className={`field-v3 template-drop-zone ${uploadFiles?.length ? 'has-files' : ''}`}
+                  onDragOver={(event) => {
+                    event.preventDefault();
+                    event.currentTarget.classList.add('is-dragover');
+                  }}
+                  onDragLeave={(event) => event.currentTarget.classList.remove('is-dragover')}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    event.currentTarget.classList.remove('is-dragover');
+                    const dropped = Array.from(event.dataTransfer?.files || []);
+                    if (dropped.length) setUploadFiles(dropped);
+                  }}
+                >
                   <span>ZIP file or loose files</span>
                   <input
                     type="file"
@@ -4289,8 +3271,13 @@ function ControlShell() {
                       setUploadFiles([...event.target.files]);
                     }}
                   />
+                  <span className="note-v3">
+                    {uploadFiles?.length
+                      ? `${uploadFiles.length} file${uploadFiles.length === 1 ? '' : 's'} queued: ${uploadFiles.map((f) => f.name).join(', ')}`
+                      : 'Click to pick or drag a .zip / loose files here'}
+                  </span>
                 </label>
-                <button className="primary-button full-width" onClick={uploadTemplateFromSelection} disabled={busyAction === 'upload-template'}>Upload Template</button>
+                <button className="btn-v3-primary btn-v3-full" onClick={uploadTemplateFromSelection} disabled={busyAction === 'upload-template'}>Upload Template</button>
               </div>
             </div>
           </div>

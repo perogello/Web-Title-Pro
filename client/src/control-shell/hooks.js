@@ -38,6 +38,20 @@ export const useRealtimeState = () => {
       socket.addEventListener('message', (event) => {
         if (!mounted) return;
         const message = JSON.parse(event.data);
+
+        if (message?.type === 'timer-tick' && Array.isArray(message.payload?.timers)) {
+          setSnapshot((current) => (
+            current
+              ? {
+                  ...current,
+                  serverTime: message.payload.serverTime || current.serverTime,
+                  timers: message.payload.timers,
+                }
+              : current
+          ));
+          return;
+        }
+
         if (message?.payload) {
           setSnapshot(message.payload);
         }
@@ -46,6 +60,9 @@ export const useRealtimeState = () => {
       socket.addEventListener('close', () => {
         if (!mounted) return;
         setConnection('reconnecting');
+        // Guard against accidentally scheduling multiple reconnects if
+        // close fires more than once for the same socket.
+        window.clearTimeout(reconnectTimer);
         reconnectTimer = window.setTimeout(connect, 1200);
       });
 

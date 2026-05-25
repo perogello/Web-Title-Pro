@@ -1,9 +1,14 @@
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs/promises';
-import { Router } from 'express';
+import express, { Router } from 'express';
 import multer from 'multer';
 import { fetchRemoteSourceData } from '../remote-sources/index.js';
+import {
+  createProjectBundleStream,
+  getBundleFilename,
+  importProjectBundle,
+} from '../templates/bundle-service.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -286,6 +291,49 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     response.json(templateService.getTemplates());
   });
 
+  // Project bundle (.wtpkg) — full self-contained export and import. The
+  // export endpoint accepts the project document built by the client (it
+  // already knows the data-source library; the server doesn't). The import
+  // endpoint installs any bundled custom templates and returns the project
+  // document for the client to apply via the normal load flow.
+  router.post('/project/bundle/export', express.json({ limit: '50mb' }), async (request, response) => {
+    try {
+      const project = request.body?.project;
+      if (!project) {
+        throw new Error('Project document missing in request body.');
+      }
+      const { stream, manifest } = createProjectBundleStream({ project, templateService });
+      response.setHeader('Content-Type', 'application/zip');
+      response.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${getBundleFilename(project)}"`,
+      );
+      response.setHeader('X-Bundle-Included-Templates', String(manifest.includedTemplateIds.length));
+      stream.on('error', (error) => sendError(response, error));
+      stream.pipe(response);
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  router.post('/project/bundle/import', upload.single('bundle'), async (request, response) => {
+    try {
+      if (!request.file?.buffer?.length) {
+        throw new Error('No bundle file uploaded.');
+      }
+      const result = await importProjectBundle({
+        buffer: request.file.buffer,
+        templateService,
+      });
+      await store.refreshTemplates();
+      store.reconcileEntries();
+      store.touch();
+      response.json(result);
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
   router.post('/templates/upload', upload.any(), async (request, response) => {
     try {
       const template = await templateService.importTemplatePackage(request.files, request.body.name || '');
@@ -314,10 +362,16 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     try {
       const templateId = decodeURIComponent(request.params.templateId || '');
       const snapshot = store.getSnapshot();
-      const usageCount = (snapshot.entries || []).filter((entry) => entry.templateId === templateId).length;
+      const usedEntries = (snapshot.entries || []).filter((entry) => entry.templateId === templateId);
+      const usageCount = usedEntries.length;
+      const force = request.query.force === '1' || request.query.force === 'true';
 
-      if (usageCount > 0) {
+      if (usageCount > 0 && !force) {
         throw new Error(`Template is still used by ${usageCount} title(s) in the rundown. Remove those titles first.`);
+      }
+
+      if (force) {
+        usedEntries.forEach((entry) => store.deleteEntry(entry.id));
       }
 
       const result = await templateService.deleteTemplate(templateId);
@@ -375,6 +429,15 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
   router.post('/entries/reorder', (request, response) => {
     try {
       store.reorderEntries(request.body.ids || []);
+      response.json({ ok: true });
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  router.post('/outputs/reorder', (request, response) => {
+    try {
+      store.reorderOutputs(request.body.ids || []);
       response.json({ ok: true });
     } catch (error) {
       sendError(response, error);

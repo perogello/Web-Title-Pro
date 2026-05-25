@@ -1,0 +1,88 @@
+
+/* ---- Misc chips / flags ---- */
+.shell-v2 .content-v2-inner .flag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.shell-v2 .content-v2-inner .flag-live {
+  background: var(--live-v2);
+  color: #fff;
+}
+.shell-v2 .content-v2-inner .file-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-dim-v2);
+}
+
+/* ---- Sources tab layout ---- */
+.shell-v2 .content-v2-inner .source-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 14px;
+  min-height: 0;
+}
+.shell-v2 .content-v2-inner .source-sidebar {
+  background: var(--card-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 8px;
+  min-height: 0;
+}
+.shell-v2 .content-v2-inner .source-list {
+  display: flex; flex-direction: column; gap: 4px;
+  overflow: auto; min-height: 0;
+}
+.shell-v2 .content-v2-inner .source-list-item {
+  padding: 8px 10px;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-v2);
+}
+.shell-v2 .content-v2-inner .source-list-item:hover { border-color: var(--border-strong-v2); }
+.shell-v2 .content-v2-inner .source-list-item.is-selected,
+.shell-v2 .content-v2-inner .source-list-item[aria-current="true"] {
+  border-color: var(--select-v2);
+  background: var(--select-bg-v2);
+}
+@media (max-width: 800px) {
+  .shell-v2 .content-v2-inner .source-layout { grid-template-columns: 1fr; }
+}
+
+/* ---- Yandex / MIDI / Bitfocus lists ---- */
+.shell-v2 .content-v2-inner .midi-monitor,
+.shell-v2 .content-v2-inner .midi-device-list,
+.shell-v2 .content-v2-inner .bitfocus-action-list {
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 12px;
+  color: var(--text-v2);
+  max-height: 320px;
+  overflow: auto;
+}
+.shell-v2 .content-v2-inner .midi-monitor-row {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  gap: 8px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border-v2);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+}
+.shell-v2 .content-v2-inner .midi-monitor-time { color: var(--text-faint-v2); }
+.shell-v2 .content-v2-inner .midi-monitor-raw { color: var(--text-dim-v2); }
+.shell-v2 .content-v2-inner .midi-monitor-parsed { color: var(--vmix-v2); }

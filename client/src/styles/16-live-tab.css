@@ -1,0 +1,125 @@
+/* ===================================================================
+   VMIX SETTINGS — connection card in Settings → Integrations
+   ================================================================= */
+.shell-v2 .vmix-settings-card {
+  background: var(--card-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.shell-v2 .vmix-settings-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.shell-v2 .vmix-settings-head h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 2px 0 0;
+}
+.shell-v2 .vmix-settings-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.shell-v2 .vmix-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.shell-v2 .vmix-status-dot.is-on {
+  background: var(--good-v2);
+  box-shadow: 0 0 6px var(--good-v2);
+}
+.shell-v2 .vmix-status-dot.is-off {
+  background: var(--text-faint-v2);
+}
+.shell-v2 .vmix-status-label.is-on { color: var(--good-v2); }
+.shell-v2 .vmix-status-label.is-off { color: var(--text-faint-v2); }
+.shell-v2 .vmix-settings-status:has(.is-on) {
+  background: var(--good-bg-v2);
+  border-color: rgba(0, 184, 107, 0.35);
+}
+
+.shell-v2 .vmix-settings-body {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+.shell-v2 .vmix-settings-body .field-v3 input {
+  font-family: "Cascadia Mono", Consolas, ui-monospace, monospace !important;
+  font-size: 13px !important;
+}
+.shell-v2 .vmix-settings-actions {
+  display: flex;
+  gap: 6px;
+}
+.shell-v2 .vmix-settings-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-v2);
+}
+.shell-v2 .vmix-readout-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+}
+.shell-v2 .vmix-readout-label {
+  color: var(--text-dim-v2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+.shell-v2 .vmix-readout-value {
+  color: var(--text-v2);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.shell-v2 .vmix-readout-host {
+  font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-size: 12px;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: var(--text-v2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shell-v2 .vmix-readout-error {
+  padding: 8px 12px;
+  background: var(--live-bg-v2);
+  border: 1px solid rgba(249, 50, 50, 0.4);
+  border-radius: 6px;
+  color: var(--live-v2);
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .shell-v2 .vmix-settings-body {
+    grid-template-columns: 1fr;
+  }
+}
+

@@ -513,14 +513,19 @@ ipcMain.handle('window:set-title', async (_event, payload = {}) => {
   return { ok: true };
 });
 
-const setWindowMeta = async (windowRef, { title, eyebrow } = {}) => {
+const setWindowMeta = async (windowRef, { title, eyebrow, version } = {}) => {
   if (!windowRef || windowRef.isDestroyed()) {
     return;
   }
 
+  let appVersion = version;
+  if (!appVersion) {
+    try { appVersion = app.getVersion(); } catch {}
+  }
+
   try {
     await windowRef.webContents.executeJavaScript(
-      `window.setShellMeta && window.setShellMeta(${JSON.stringify({ title, eyebrow })});`,
+      `window.setShellMeta && window.setShellMeta(${JSON.stringify({ title, eyebrow, version: appVersion })});`,
       true,
     );
   } catch {}
@@ -562,7 +567,7 @@ const createShellWindow = async ({
   height = 280,
   title = 'Web Title Pro',
   eyebrow = 'Broadcast Title Control',
-  backgroundColor = '#090a0d',
+  backgroundColor = '#0a0a0c',
   modal = false,
   parent = null,
   show = true,

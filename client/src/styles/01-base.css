@@ -1,0 +1,95 @@
+/* ===================================================================
+   Web Title Pro control UI v3
+   ================================================================= */
+
+:root {
+  color-scheme: dark;
+  font-family: "Segoe UI", "YS Text", system-ui, sans-serif;
+  background: #050507;
+  color: #f2f3f5;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-width: 0;
+  min-height: 100%;
+  width: 100%;
+}
+
+body {
+  background: #050507;
+  overflow: hidden;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  color-scheme: dark;
+}
+
+.loading-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #050507;
+  color: #9a9a9d;
+  font-family: "Segoe UI", "YS Text", system-ui, sans-serif;
+}
+
+/* Palette: neutral black + dark grays, matching the 0.3.4 release feel.
+   Earlier v2 values had a noticeable blue tint (#1f1f29 / #2a2a36 — they
+   read as indigo on calibrated displays); this scale strips the blue and
+   pushes the canvas to a true black, with a quiet warm-neutral gray for
+   panels and chrome. Accent reds and warning yellows are untouched so
+   "LIVE / ON AIR / WARN" indicators still pop. */
+.shell-v2 {
+  --bg-v2: #050507;            /* canvas — near-black */
+  --bg-2-v2: #101012;          /* sunken surface (inputs, sub-panels) */
+  --card-v2: #16161a;          /* primary panel background */
+  --card-2-v2: #1d1d21;        /* nested / hovered panel */
+  --border-v2: #2a2a2e;        /* neutral gray divider */
+  --border-strong-v2: #3a3a40; /* hover / focused divider */
+  --text-v2: #f2f3f5;
+  --text-dim-v2: #9a9aa0;
+  --text-faint-v2: #65656b;
+  --select-v2: #f2f3f5;
+  --select-bg-v2: #20202a;
+  --select-accent-v2: #8b9eff;
+  --live-v2: #f93232;
+  --live-bg-v2: rgba(249,50,50,0.14);
+  --good-v2: #00b86b;
+  --good-bg-v2: rgba(0,184,107,0.15);
+  --warn-v2: #ffb84d;
+  --warn-bg-v2: rgba(255,184,77,0.13);
+  --vmix-v2: #6aa3ff;
+  --vmix-bg-v2: rgba(106,163,255,0.13);
+
+  position: fixed; inset: 0;
+  display: grid;
+  grid-template-rows: 40px 1fr;
+  background: var(--bg-v2);
+  color: var(--text-v2);
+  font-family: "Segoe UI", "YS Text", system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+  min-width: 720px;
+  overflow: hidden;
+}
+

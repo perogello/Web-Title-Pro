@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { EditIcon, GripIcon, SaveIcon, TrashIcon } from '../icons.jsx';
+import { CopyIcon, DownloadIcon, EditIcon, GripIcon, SaveIcon, TrashIcon } from '../icons.jsx';
 import {
   REMOTE_SOURCE_TYPE_OPTIONS,
   REMOTE_SOURCE_TYPES,
@@ -39,14 +39,14 @@ export default function SourcesTab({
   onImportRemoteSourceDataset,
   onConnectYandex,
   onSelectSource,
-  manageSources,
   draggedSourceId,
-  onToggleManageSources,
   onDragStartSource,
   onDropSource,
   onDragEndSource,
   onRenameSource,
   onDeleteSource,
+  onCloneSource,
+  onExportSource,
   onDeleteSelectedSource,
   onRefreshSelectedSource,
   onUpdateSelectedSourceRemote,
@@ -88,54 +88,65 @@ export default function SourcesTab({
   };
 
   return (
-    <section className="card source-table-card standalone-tab">
+    <section className="source-table-card standalone-tab">
       <div className="source-layout">
         <aside className="source-sidebar">
           <div className="source-list">
             <div className="source-list-head">
               <strong>Sources</strong>
-              <button className={`ghost-button compact-button ${manageSources ? 'is-active-manage' : ''}`} onClick={onToggleManageSources}>
-                Manage
-              </button>
             </div>
+            {/* Sources are always rendered with drag handle + delete affordance.
+                The earlier Manage button toggled between a simple <button> row and
+                this expanded layout — but director workflow needs drag/delete to
+                be one click away, not behind a mode flip. Click anywhere on the
+                main area still selects. */}
             {sourceLibrary.map((item) => (
-              manageSources ? (
-                <div
-                  key={item.id}
-                  className={`source-list-item source-manage-item ${item.id === selectedSourceId ? 'is-selected' : ''} ${draggedSourceId === item.id ? 'is-dragging' : ''}`}
-                  draggable
-                  onDragStart={() => onDragStartSource(item.id)}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => onDropSource(item.id)}
-                  onDragEnd={onDragEndSource}
-                >
-                  <span className="source-manage-handle" title="Move source"><GripIcon /></span>
-                  <button className="source-manage-main" onClick={() => onSelectSource(item.id)}>
-                    <strong>{item.name}</strong>
-                    <span>{item.remote?.url ? `Remote - ${item.rows.length} rows` : `${item.rows.length} rows`}</span>
-                  </button>
-                  <div className="source-manage-actions">
-                    <button className="ghost-button compact-button icon-button danger-button" onClick={() => onDeleteSource(item.id)} title="Delete source" aria-label="Delete source">
-                      <TrashIcon />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button key={item.id} className={`source-list-item ${item.id === selectedSourceId ? 'is-selected' : ''}`} onClick={() => onSelectSource(item.id)}>
+              <div
+                key={item.id}
+                className={`source-list-item source-manage-item ${item.id === selectedSourceId ? 'is-selected' : ''} ${draggedSourceId === item.id ? 'is-dragging' : ''}`}
+                draggable
+                onDragStart={() => onDragStartSource(item.id)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => onDropSource(item.id)}
+                onDragEnd={onDragEndSource}
+              >
+                <span className="source-manage-handle" title="Drag to reorder"><GripIcon /></span>
+                <button className="source-manage-main" onClick={() => onSelectSource(item.id)}>
                   <strong>{item.name}</strong>
                   <span>{item.remote?.url ? `Remote - ${item.rows.length} rows` : `${item.rows.length} rows`}</span>
                 </button>
-              )
+                <div className="source-manage-actions">
+                  <button
+                    className="btn-v3-ghost btn-v3-sm btn-v3-icon"
+                    onClick={() => onCloneSource(item.id)}
+                    title="Duplicate source"
+                    aria-label="Duplicate source"
+                  >
+                    <CopyIcon />
+                  </button>
+                  <button
+                    className="btn-v3-ghost btn-v3-sm btn-v3-icon"
+                    onClick={() => onExportSource(item.id)}
+                    title="Export source to JSON"
+                    aria-label="Export source"
+                  >
+                    <DownloadIcon />
+                  </button>
+                  <button className="btn-v3-ghost btn-v3-sm btn-v3-icon btn-v3-danger" onClick={() => onDeleteSource(item.id)} title="Delete source" aria-label="Delete source">
+                    <TrashIcon />
+                  </button>
+                </div>
+              </div>
             ))}
-            {!sourceLibrary.length && <div className="empty-state">Import a TXT/CSV source and it will appear here.</div>}
+            {!sourceLibrary.length && <div className="empty-v3">Import a TXT/CSV source and it will appear here.</div>}
           </div>
 
           <div className="source-import-card">
             <div className="source-import-head">
               <strong>Add Source</strong>
-              <span className="output-note">Choose how you want to feed data into the current project.</span>
+              <span className="note-v3">Choose how you want to feed data into the current project.</span>
             </div>
-            <label className="input-block">
+            <label className="field-v3">
               <span>Input Type</span>
               <select value={sourceImportMode} onChange={(event) => handleImportModeChange(event.target.value)}>
                 <option value="manual-text">Text</option>
@@ -153,7 +164,7 @@ export default function SourcesTab({
                 {isYandexMode && !yandexConnected && (
                   <div className="source-yandex-connect-card">
                     <strong>Yandex authorization required</strong>
-                    <span className="output-note">Connect Yandex once, then paste the public file link here.</span>
+                    <span className="note-v3">Connect Yandex once, then paste the public file link here.</span>
                     <button className="yandex-auth-button" onClick={onConnectYandex} disabled={yandexConnecting}>
                       <span className="yandex-auth-button__mark">Y</span>
                       <span>{yandexConnecting ? 'Connecting...' : 'Sign in with Yandex ID'}</span>
@@ -163,12 +174,12 @@ export default function SourcesTab({
                 {isYandexMode && yandexConnected && (
                   <div className="source-yandex-connect-card">
                     <strong>Yandex connected</strong>
-                    <span className="output-note">Paste the public Yandex Disk file link below and add the source when ready.</span>
+                    <span className="note-v3">Paste the public Yandex Disk file link below and add the source when ready.</span>
                   </div>
                 )}
                 {(!isYandexMode || yandexConnected) && (
                   <>
-                    <label className="input-block">
+                    <label className="field-v3">
                       <span>Source Name</span>
                       <input
                         value={remoteSourceName}
@@ -176,20 +187,20 @@ export default function SourcesTab({
                         placeholder={`${getImportModeLabel(sourceImportMode)} Source`}
                       />
                     </label>
-                    <label className="input-block">
+                    <label className="field-v3">
                       <span>Remote URL</span>
                       <input value={remoteSourceUrl} onChange={(event) => onRemoteSourceUrlChange(event.target.value)} placeholder="https://..." />
                     </label>
-                    <span className="output-note">{getRemoteSourceHelp(sourceImportMode)}</span>
+                    <span className="note-v3">{getRemoteSourceHelp(sourceImportMode)}</span>
                   </>
                 )}
                 {(!isYandexMode || yandexConnected) && (
                   <div className="source-remote-row">
-                    <label className="toggle-pill">
+                    <label className="toggle-pill-v3">
                       <input type="checkbox" checked={remoteSourceAutoRefresh} onChange={(event) => onRemoteSourceAutoRefreshChange(event.target.checked)} />
                       <span>Auto-refresh</span>
                     </label>
-                    <label className="input-block compact-inline-block">
+                    <label className="field-v3 field-v3-inline">
                       <span>Interval, sec</span>
                       <input
                         type="number"
@@ -204,20 +215,20 @@ export default function SourcesTab({
               </>
             ) : (
               <>
-                <label className="input-block">
+                <label className="field-v3">
                   <span>Source Name</span>
                   <input value={sourceName} onChange={(event) => onSourceNameChange(event.target.value)} placeholder="Guests / Speakers / News List" />
                 </label>
                 {sourceImportMode === 'manual-file' ? (
                   <>
-                    <label className="input-block">
+                    <label className="field-v3">
                       <span>TXT / CSV file</span>
                       <input type="file" accept=".txt,.csv" onChange={(event) => onSourceFilePicked(event.target.files?.[0])} />
                     </label>
                     {sourceFileName && <div className="file-chip">File: {sourceFileName}</div>}
                   </>
                 ) : (
-                  <label className="input-block">
+                  <label className="field-v3">
                     <span>Source Rows</span>
                     <textarea
                       value={sourcePayload}
@@ -235,7 +246,7 @@ export default function SourcesTab({
 
             {(!isYandexMode || yandexConnected) && (
               <button
-                className="primary-button full-width"
+                className="btn-v3-primary btn-v3-full"
                 onClick={handleAddSource}
                 disabled={remoteSourceBusy}
               >
@@ -245,40 +256,36 @@ export default function SourcesTab({
           </div>
         </aside>
         <section className="source-table-card inner-source-card">
-          <div className="card-head">
-            <div>
-              <span className="panel-kicker">Current Source</span>
-              <h3>{selectedSource?.name || 'No source selected'}</h3>
+          <div className="panel-head-v3">
+            <div className="source-current-head">
+              <span className="kicker-v3">Current Source</span>
+              {selectedSource ? (
+                <input
+                  className="source-current-name-input"
+                  value={selectedSource.name || ''}
+                  onChange={(event) => onRenameSource(selectedSource.id, event.target.value)}
+                  placeholder="Source name"
+                  disabled={selectedSourceRefreshing}
+                  aria-label="Source name"
+                />
+              ) : (
+                <h3>No source selected</h3>
+              )}
             </div>
             <div className="topbar-actions source-current-actions">
               {selectedSource?.remote?.url && (
-                <button className="ghost-button" onClick={onRefreshSelectedSource} disabled={selectedSourceRefreshing}>
+                <button className="btn-v3-ghost" onClick={onRefreshSelectedSource} disabled={selectedSourceRefreshing}>
                   {selectedSourceRefreshing ? 'Refreshing...' : 'Refresh'}
                 </button>
               )}
-              <button className="ghost-button compact-button icon-button danger-button" onClick={onDeleteSelectedSource} disabled={!selectedSource || selectedSourceRefreshing} title="Delete source" aria-label="Delete source">
+              <button className="btn-v3-ghost btn-v3-sm btn-v3-icon btn-v3-danger" onClick={onDeleteSelectedSource} disabled={!selectedSource || selectedSourceRefreshing} title="Delete source" aria-label="Delete source">
                 <TrashIcon />
               </button>
             </div>
           </div>
-          {selectedSource && (
-            <div className="source-remote-settings">
-              <div className="source-name-row">
-                <label className="input-block">
-                  <span>Source Name</span>
-                  <input
-                    value={selectedSource.name || ''}
-                    onChange={(event) => onRenameSource(selectedSource.id, event.target.value)}
-                    placeholder="Source name"
-                    disabled={selectedSourceRefreshing}
-                  />
-                </label>
-              </div>
-            </div>
-          )}
           {selectedSource?.remote?.url && (
             <div className="source-remote-settings">
-              <label className="input-block">
+              <label className="field-v3">
                 <span>Remote Type</span>
                 <select
                   value={selectedSource.remote.type || 'csv-url'}
@@ -291,20 +298,20 @@ export default function SourcesTab({
                 </select>
               </label>
               {selectedSource.remote.type === 'yandex-disk-public' && (
-                <div className="input-block">
+                <div className="field-v3">
                   <span>Access</span>
-                  <span className="output-note">This source uses the public Yandex Disk file link mode.</span>
+                  <span className="note-v3">This source uses the public Yandex Disk file link mode.</span>
                 </div>
               )}
               {selectedSource.remote.sheetNames?.length > 1 && (
-                <div className="input-block">
+                <div className="field-v3">
                   <span>Sheet</span>
-                  <div className="mode-toggle source-sheet-toggle" role="tablist" aria-label={`Workbook sheets for ${selectedSource.name}`}>
+                  <div className="seg-control-v3 source-sheet-toggle" role="tablist" aria-label={`Workbook sheets for ${selectedSource.name}`}>
                     {selectedSource.remote.sheetNames.map((sheetName) => (
                       <button
                         key={sheetName}
                         type="button"
-                        className={`mode-toggle-button ${(selectedSource.remote.sheetName || selectedSource.remote.sheetNames[0] || '') === sheetName ? 'is-active' : ''}`}
+                        className={`seg-button-v3 ${(selectedSource.remote.sheetName || selectedSource.remote.sheetNames[0] || '') === sheetName ? 'is-active' : ''}`}
                         onClick={() => onUpdateSelectedSourceRemote({ sheetName })}
                         disabled={selectedSourceRefreshing}
                       >
@@ -314,7 +321,7 @@ export default function SourcesTab({
                   </div>
                 </div>
               )}
-              <label className="input-block">
+              <label className="field-v3">
                 <span>Remote URL</span>
                 <input
                   value={selectedSource.remote.url || ''}
@@ -324,7 +331,7 @@ export default function SourcesTab({
                 />
               </label>
               <div className="source-remote-row">
-                <label className="toggle-pill">
+                <label className="toggle-pill-v3">
                   <input
                     type="checkbox"
                     checked={Boolean(selectedSource.remote.autoRefresh)}
@@ -332,7 +339,7 @@ export default function SourcesTab({
                   />
                   <span>Auto-refresh</span>
                 </label>
-                <label className="input-block compact-inline-block">
+                <label className="field-v3 field-v3-inline">
                   <span>Interval, sec</span>
                   <input
                     type="number"
@@ -344,7 +351,7 @@ export default function SourcesTab({
                 </label>
               </div>
               <div className="source-remote-meta">
-                <span className="output-note">
+                <span className="note-v3">
                   {selectedSourceRefreshing
                     ? 'Loading source data...'
                     : `Last sync: ${selectedSource.remote.lastFetchedAt || 'Not yet synced'}`}
@@ -356,7 +363,7 @@ export default function SourcesTab({
           {selectedSource && !selectedSource.remote?.url && (
             <div className="source-remote-settings">
               <div className="source-replace-card">
-                <label className="input-block">
+                <label className="field-v3">
                   <span>Replace with TXT / CSV file</span>
                   <input type="file" accept=".txt,.csv" onChange={(event) => onReplaceSelectedSourceFile(event.target.files?.[0])} />
                 </label>
@@ -413,14 +420,21 @@ export default function SourcesTab({
                         <td>
                           <div className="source-row-actions" onClick={(event) => event.stopPropagation()}>
                             <button
-                              className="ghost-button compact-button icon-button"
+                              className="btn-v3-ghost btn-v3-sm btn-v3-icon"
                               onClick={() => (isEditing ? onSaveSourceRowEdit(selectedSource.id, row.id) : onStartSourceRowEdit(selectedSource.id, row))}
                               title={isEditing ? 'Save row' : 'Edit row'}
                               aria-label={isEditing ? 'Save row' : 'Edit row'}
                             >
                               {isEditing ? <SaveIcon /> : <EditIcon />}
                             </button>
-                            <button className="ghost-button compact-button danger-button" onClick={() => onDeleteSourceRow(selectedSource.id, row.id)}>Delete</button>
+                            <button
+                              className="btn-v3-ghost btn-v3-sm btn-v3-icon btn-v3-danger"
+                              onClick={() => onDeleteSourceRow(selectedSource.id, row.id)}
+                              title="Delete row"
+                              aria-label="Delete row"
+                            >
+                              <TrashIcon />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -430,18 +444,18 @@ export default function SourcesTab({
               </table>
             </div>
           ) : (
-            <div className="empty-state source-empty">Load a source on the left, then use a row here to feed the current title.</div>
+            <div className="empty-v3 source-empty">Load a source on the left, then use a row here to feed the current title.</div>
           )}
           <div className="manual-row-card">
-            <div className="card-head">
+            <div className="panel-head-v3">
               <div>
                 <h3>Add Row</h3>
               </div>
-              <span className="output-note">The fields below come from the selected title. If the title has 4 variables, this form will show 4 fields too.</span>
+              <span className="note-v3">The fields below come from the selected title. If the title has 4 variables, this form will show 4 fields too.</span>
             </div>
             <div className="manual-row-grid">
               {manualRowColumns.map((column, index) => (
-                <label className="input-block" key={column.id}>
+                <label className="field-v3" key={column.id}>
                   <span>{column.label}</span>
                   <input
                     value={manualRowValues[index] || ''}
@@ -450,11 +464,11 @@ export default function SourcesTab({
                   />
                 </label>
               ))}
-              {!manualRowColumns.length && <div className="empty-state">Select a title or a source first so the row fields can be generated.</div>}
+              {!manualRowColumns.length && <div className="empty-v3">Select a title or a source first so the row fields can be generated.</div>}
             </div>
             <div className="manual-row-actions">
-              <button className="primary-button" onClick={onAddManualSourceRow}>+ Add Row</button>
-              <span className="output-note">{selectedSource ? 'The row will be added into the selected source table.' : 'If no table exists yet, a new Manual Source will be created.'}</span>
+              <button className="btn-v3-primary" onClick={onAddManualSourceRow}>+ Add Row</button>
+              <span className="note-v3">{selectedSource ? 'The row will be added into the selected source table.' : 'If no table exists yet, a new Manual Source will be created.'}</span>
             </div>
           </div>
         </section>

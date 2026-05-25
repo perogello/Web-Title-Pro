@@ -1,0 +1,129 @@
+/* ===================================================================
+   TIMERS TAB — outer card grows with content; panels wrap in a grid.
+   `.timer-card` must take min-height: max-content so its background
+   reaches the bottom panel even when there's a second row.
+   ================================================================= */
+.shell-v2 .content-v2-inner .timer-card {
+  flex: 0 0 auto;
+  align-self: stretch;
+  min-height: max-content;
+}
+.shell-v2 .content-v2-inner .timer-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-content: flex-start;
+}
+.shell-v2 .content-v2-inner .timer-panel {
+  width: 340px;
+  flex: 0 0 340px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 8px;
+}
+
+/* ===================================================================
+   DATA TAB — compact source table rows
+   ================================================================= */
+.shell-v2 .source-table-wrapper {
+  max-height: 70vh;
+}
+.shell-v2 .source-table {
+  font-size: 12px;
+}
+.shell-v2 .source-table th,
+.shell-v2 .source-table td {
+  padding: 5px 10px !important;
+  font-size: 12px;
+  line-height: 1.3;
+  height: auto;
+  vertical-align: middle;
+}
+.shell-v2 .source-table th {
+  padding: 6px 10px !important;
+  font-size: 11px;
+}
+.shell-v2 .source-table tbody tr {
+  height: 30px;
+}
+/* Narrow # column */
+.shell-v2 .source-table th:first-child,
+.shell-v2 .source-table td:first-child {
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  text-align: center;
+  color: var(--text-faint-v2);
+  font-variant-numeric: tabular-nums;
+}
+/* Last column = action column, narrow */
+.shell-v2 .source-table th:last-child,
+.shell-v2 .source-table td:last-child {
+  width: 76px;
+  min-width: 76px;
+}
+.shell-v2 .source-table .source-row-actions {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 4px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.shell-v2 .source-table .source-row-actions button {
+  padding: 0;
+  font-size: 11px;
+}
+.shell-v2 .source-table .source-row-actions .btn-v3-icon {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+}
+.shell-v2 .source-table .source-row-actions .btn-v3-icon svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* ===================================================================
+   LIVE DATA SOURCE — readable rows, polished row-timer cell
+   ================================================================= */
+.shell-v2 table.source-v2 th,
+.shell-v2 table.source-v2 td {
+  padding: 10px 14px;
+  line-height: 1.35;
+  vertical-align: middle;
+}
+.shell-v2 table.source-v2 td {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-v2);
+}
+.shell-v2 table.source-v2 tbody tr {
+  height: 44px;
+}
+.shell-v2 table.source-v2 td.idx {
+  font-weight: 700;
+  color: var(--text-faint-v2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Selected (applied) row — PALE RED background, clear visual cue */
+.shell-v2 table.source-v2 tr.is-applied td {
+  background: rgba(249, 50, 50, 0.10) !important;
+}
+.shell-v2 table.source-v2 tr.is-applied td:first-child {
+  color: var(--live-v2);
+  font-weight: 800;
+  box-shadow: inset 3px 0 0 var(--live-v2);
+}
+.shell-v2 table.source-v2 tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+.shell-v2 table.source-v2 tr.is-applied:hover td {
+  background: rgba(249, 50, 50, 0.14) !important;
+}
+

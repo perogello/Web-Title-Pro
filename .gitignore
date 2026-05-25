@@ -3,6 +3,7 @@ dist/
 release/
 storage/
 .tmp-test/
+tmp-verify/
 *.log
 desktop-*.log
 Thumbs.db
@@ -10,3 +11,10 @@ Thumbs.db
 templates/*.zip
 templates/*.7z
 /.claude/
+
+# Runtime state — contains operator's real data (vMix URLs, entry names,
+# tokens). Must NEVER be in the public repo. The runtime writes a fresh
+# copy under userData/data/state.json on first launch.
+data/state.json
+
+

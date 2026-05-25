@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { formatShortcutFromEvent, isTypingTarget } from './shortcut-utils.js';
 
 /**
@@ -9,8 +9,12 @@ import { formatShortcutFromEvent, isTypingTarget } from './shortcut-utils.js';
  * the next captured combination and saves it via `onSaveShortcut`.
  *
  * Also runs a click-outside watcher that closes any compact-mode dropdowns
- * (`.tab-toolbar-menu`, `.outputs-selector`) by invoking the supplied
- * `onCloseFloatingMenus` callback.
+ * by invoking the supplied `onCloseFloatingMenus` callback.
+ *
+ * Internally uses a single ref so that the window event listeners are attached
+ * exactly once for the lifetime of the component. Without this pattern, the
+ * `snapshot` / `shortcutBindings` deps would cause React to detach + reattach
+ * three window listeners on every WebSocket timer-tick (10×/sec).
  */
 export const useGlobalShortcuts = ({
   api,
@@ -28,8 +32,27 @@ export const useGlobalShortcuts = ({
   pushFeedback,
   onCloseFloatingMenus,
 }) => {
+  const stateRef = useRef({});
+  stateRef.current = {
+    api,
+    shortcutBindings,
+    learningShortcut,
+    outputs,
+    snapshot,
+    selectedOutput,
+    setLearningShortcut,
+    setLocalSelectedOutputId,
+    saveGlobalShortcut,
+    triggerGlobalShortcut,
+    triggerNavigationShortcut,
+    commandTimer,
+    pushFeedback,
+    onCloseFloatingMenus,
+  };
+
   useEffect(() => {
     const onShortcutInput = (event) => {
+      const s = stateRef.current;
       if (isTypingTarget(event.target)) {
         return;
       }
@@ -52,85 +75,85 @@ export const useGlobalShortcuts = ({
         return;
       }
 
-      if (learningShortcut) {
+      if (s.learningShortcut) {
         event.preventDefault();
         event.stopPropagation();
-        void saveGlobalShortcut(learningShortcut.action, shortcutValue);
-        setLearningShortcut(null);
+        void s.saveGlobalShortcut(s.learningShortcut.action, shortcutValue);
+        s.setLearningShortcut(null);
         return;
       }
 
+      const bindings = s.shortcutBindings || {};
+
       if (
-        shortcutBindings?.show === shortcutValue ||
-        shortcutBindings?.live === shortcutValue ||
-        shortcutBindings?.hide === shortcutValue
+        bindings.show === shortcutValue ||
+        bindings.live === shortcutValue ||
+        bindings.hide === shortcutValue
       ) {
         event.preventDefault();
         const action =
-          shortcutBindings?.show === shortcutValue
+          bindings.show === shortcutValue
             ? 'show'
-            : shortcutBindings?.live === shortcutValue
+            : bindings.live === shortcutValue
               ? 'live'
               : 'hide';
-        void triggerGlobalShortcut(action);
+        void s.triggerGlobalShortcut(action);
         return;
       }
 
-      if (
-        shortcutBindings?.nextTitle === shortcutValue ||
-        shortcutBindings?.previousTitle === shortcutValue
-      ) {
+      if (bindings.nextTitle === shortcutValue || bindings.previousTitle === shortcutValue) {
         event.preventDefault();
-        void triggerNavigationShortcut(
-          shortcutBindings?.nextTitle === shortcutValue ? 'nextTitle' : 'previousTitle',
+        void s.triggerNavigationShortcut(
+          bindings.nextTitle === shortcutValue ? 'nextTitle' : 'previousTitle',
         );
         return;
       }
 
-      const outputShortcutEntry = Object.entries(shortcutBindings?.outputSelectById || {})
+      const outputShortcutEntry = Object.entries(bindings.outputSelectById || {})
         .find(([, value]) => value === shortcutValue);
       if (outputShortcutEntry) {
         event.preventDefault();
-        setLocalSelectedOutputId(outputShortcutEntry[0]);
-        pushFeedback(
+        s.setLocalSelectedOutputId(outputShortcutEntry[0]);
+        s.pushFeedback(
           `Output switched to ${
-            outputs.find((output) => output.id === outputShortcutEntry[0])?.name || 'selected output'
+            (s.outputs || []).find((output) => output.id === outputShortcutEntry[0])?.name ||
+            'selected output'
           }`,
         );
         return;
       }
 
-      const entryShortcutEntry = Object.entries(shortcutBindings?.entrySelectById || {})
+      const entryShortcutEntry = Object.entries(bindings.entrySelectById || {})
         .find(([, value]) => value === shortcutValue);
       if (entryShortcutEntry) {
         event.preventDefault();
-        void api(`/api/entries/${entryShortcutEntry[0]}/select`, {
+        void s.api(`/api/entries/${entryShortcutEntry[0]}/select`, {
           method: 'POST',
-          body: { outputId: selectedOutput?.id },
+          body: { outputId: s.selectedOutput?.id },
         }).catch(() => {});
         return;
       }
 
-      const timerToggleEntry = Object.entries(shortcutBindings?.timerToggleById || {})
+      const timerToggleEntry = Object.entries(bindings.timerToggleById || {})
         .find(([, value]) => value === shortcutValue);
       if (timerToggleEntry) {
         event.preventDefault();
-        const timer = snapshot?.timers?.find((item) => item.id === timerToggleEntry[0]);
+        const timer = s.snapshot?.timers?.find((item) => item.id === timerToggleEntry[0]);
         const nextAction = timer?.running ? 'stop' : 'start';
-        void commandTimer(timerToggleEntry[0], nextAction);
+        void s.commandTimer(timerToggleEntry[0], nextAction);
         return;
       }
 
-      const timerResetEntry = Object.entries(shortcutBindings?.timerResetById || {})
+      const timerResetEntry = Object.entries(bindings.timerResetById || {})
         .find(([, value]) => value === shortcutValue);
       if (timerResetEntry) {
         event.preventDefault();
-        void commandTimer(timerResetEntry[0], 'reset');
+        void s.commandTimer(timerResetEntry[0], 'reset');
       }
     };
 
     const onAnyClick = (event) => {
-      onCloseFloatingMenus?.(event);
+      stateRef.current.onCloseFloatingMenus?.(event);
     };
 
     window.addEventListener('keydown', onShortcutInput, true);
@@ -141,28 +164,5 @@ export const useGlobalShortcuts = ({
       window.removeEventListener('mousedown', onShortcutInput, true);
       window.removeEventListener('click', onAnyClick);
     };
-  }, [
-    api,
-    learningShortcut,
-    selectedOutput?.id,
-    shortcutBindings?.show,
-    shortcutBindings?.live,
-    shortcutBindings?.hide,
-    shortcutBindings?.nextTitle,
-    shortcutBindings?.previousTitle,
-    outputs,
-    JSON.stringify(shortcutBindings?.outputSelectById || {}),
-    JSON.stringify(shortcutBindings?.entrySelectById || {}),
-    JSON.stringify(shortcutBindings?.timerToggleById || {}),
-    JSON.stringify(shortcutBindings?.timerResetById || {}),
-    snapshot?.timers?.map((t) => `${t.id}:${t.running}`).join('|'),
-    setLearningShortcut,
-    setLocalSelectedOutputId,
-    saveGlobalShortcut,
-    triggerGlobalShortcut,
-    triggerNavigationShortcut,
-    commandTimer,
-    pushFeedback,
-    onCloseFloatingMenus,
-  ]);
+  }, []);
 };

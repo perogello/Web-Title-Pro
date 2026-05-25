@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { ChevronLeftIcon, ChevronRightIcon, PaletteIcon, PauseIcon, PlayIcon, ResetIcon, TrashIcon } from '../icons.jsx';
 import TimerColorEditorModal from '../TimerColorEditorModal.jsx';
+import SegmentedTimerInput from '../v2/SegmentedTimerInput.jsx';
+import DebouncedTextInput from '../v2/DebouncedTextInput.jsx';
+import { getLinkedTimerStatus } from '../lib/timer-utils.js';
 
 export default function TimersTab({
   timers,
@@ -26,20 +29,20 @@ export default function TimersTab({
 
   return (
     <>
-      <section className="card timer-card">
-        <div className="card-head">
+      <section className="timer-card">
+        <div className="panel-head-v3">
           <div>
-            <span className="panel-kicker">Timer Outputs</span>
+            <span className="kicker-v3">Timer Outputs</span>
             <h3>{timers.length} timer{timers.length === 1 ? '' : 's'} with explicit output target</h3>
           </div>
-          <button className="ghost-button" onClick={onCreateTimer}>Add Timer</button>
+          <button className="btn-v3-ghost" onClick={onCreateTimer}>Add Timer</button>
         </div>
         <div className="timer-reminder-card">
-          <label className="toggle">
+          <label className="toggle-pill-v3">
             <input type="checkbox" checked={reminderEnabled} onChange={(event) => onSetReminderEnabled(event.target.checked)} />
             <span>Напомнить о запуске таймера после выбора титра</span>
           </label>
-          <label className="input-block compact reminder-delay-input">
+          <label className="field-v3 field-v3-compact reminder-delay-input">
             <span>Через секунд</span>
             <input type="number" min="1" step="1" value={reminderDelaySec} onChange={(event) => onSetReminderDelaySec(Number(event.target.value) || 1)} />
           </label>
@@ -49,46 +52,62 @@ export default function TimersTab({
             <div className="timer-panel" key={timer.id}>
               <div className="timer-source-head">
                 <strong>{timer.name}</strong>
-                <div className="mode-toggle" role="tablist" aria-label={`Timer output mode ${timer.name}`}>
+                <div className="seg-control-v3" role="tablist" aria-label={`Timer output mode ${timer.name}`}>
                   <button
                     type="button"
-                    className={`mode-toggle-button ${timer.sourceType !== 'vmix' ? 'is-active' : ''}`}
+                    className={`seg-button-v3 ${timer.sourceType !== 'vmix' ? 'is-active' : ''}`}
                     onClick={() => onUpdateTimer(timer.id, { sourceType: 'local' })}
                   >
                     Local
                   </button>
                   <button
                     type="button"
-                    className={`mode-toggle-button ${timer.sourceType === 'vmix' ? 'is-active' : ''}`}
+                    className={`seg-button-v3 ${timer.sourceType === 'vmix' ? 'is-active' : ''}`}
                     onClick={() => onUpdateTimer(timer.id, { sourceType: 'vmix' })}
                   >
                     vMix
                   </button>
                 </div>
               </div>
-              <label className="input-block compact">
+              <label className="field-v3 field-v3-compact">
                 <span>Name</span>
-                <input defaultValue={timer.name} onBlur={(event) => onUpdateTimer(timer.id, { name: event.target.value })} />
+                <DebouncedTextInput
+                  value={timer.name || ''}
+                  onCommit={(next) => onUpdateTimer(timer.id, { name: next })}
+                />
               </label>
-              <div className="timer-readout" style={timer.color ? { color: timer.color } : undefined}>{timer.display}</div>
-              <div className="timer-format-row">
-                <span className="meta-label">Format</span>
-                <div className="timer-format-switch">
-                  <button className="ghost-button compact-button icon-button" onClick={() => onShiftTimerFormat(timer, 'left')}><ChevronLeftIcon /></button>
-                  <strong>{timer.displayFormat || 'mm:ss'}</strong>
-                  <button className="ghost-button compact-button icon-button" onClick={() => onShiftTimerFormat(timer, 'right')}><ChevronRightIcon /></button>
+              {/* Big editable readout — click any digit to type, ↑↓/wheel to step.
+                  When timer is idle we edit duration directly; while running we
+                  show the live value (non-editable cosmetic state is handled by
+                  the input becoming a no-op via onCommit going through the
+                  duration update). */}
+              <SegmentedTimerInput
+                value={Number(timer.durationMs || 0)}
+                format={timer.displayFormat || 'mm:ss'}
+                onCommit={(nextMs) => onUpdateTimer(timer.id, { durationMs: nextMs })}
+                size="lg"
+                className="timer-readout-edit"
+              />
+              <div className="timer-meta-row">
+                <div className="timer-meta-block">
+                  <span className="info-label-v3">Mode</span>
+                  <select defaultValue={timer.mode} onChange={(event) => onUpdateTimer(timer.id, { mode: event.target.value })}>
+                    <option value="countdown">Down</option>
+                    <option value="countup">Up</option>
+                  </select>
                 </div>
-              </div>
-              <div className="timer-controls">
-                <select defaultValue={timer.mode} onChange={(event) => onUpdateTimer(timer.id, { mode: event.target.value })}>
-                  <option value="countdown">Down</option>
-                  <option value="countup">Up</option>
-                </select>
-                <input type="number" min="0" step="1" defaultValue={Math.round(timer.durationMs / 1000)} onBlur={(event) => onUpdateTimer(timer.id, { durationMs: Number(event.target.value) * 1000 })} />
+                <div className="timer-meta-block">
+                  <span className="info-label-v3">Format</span>
+                  <div className="timer-format-switch">
+                    <button className="btn-v3-ghost btn-v3-sm btn-v3-icon" onClick={() => onShiftTimerFormat(timer, 'left')}><ChevronLeftIcon /></button>
+                    <strong>{timer.displayFormat || 'mm:ss'}</strong>
+                    <button className="btn-v3-ghost btn-v3-sm btn-v3-icon" onClick={() => onShiftTimerFormat(timer, 'right')}><ChevronRightIcon /></button>
+                  </div>
+                </div>
               </div>
               {timer.sourceType !== 'vmix' ? (
                 <>
-                  <label className="input-block compact">
+                  <label className="field-v3 field-v3-compact">
                     <span>Local title template</span>
                     <select
                       value={timer.targetTemplateId || ''}
@@ -107,7 +126,7 @@ export default function TimersTab({
                       ))}
                     </select>
                   </label>
-                  <label className="input-block compact">
+                  <label className="field-v3 field-v3-compact">
                     <span>Timer field in template</span>
                     <select
                       value={timer.targetTimerId || ''}
@@ -120,14 +139,14 @@ export default function TimersTab({
                       ))}
                     </select>
                   </label>
-                  {!localTimerTemplates.length && <div className="output-note">No local templates with `data-timer` were found yet, so there is nothing to bind a local timer output to.</div>}
+                  {!localTimerTemplates.length && <div className="note-v3">No local templates with `data-timer` were found yet, so there is nothing to bind a local timer output to.</div>}
                   {timer.targetTemplateId && timer.targetTimerId && (
-                    <div className="output-note">This timer will appear when `{localTimerTemplateMap.get(timer.targetTemplateId)?.name}` is on air with the `{timer.targetTimerId}` timer field.</div>
+                    <div className="note-v3">This timer will appear when `{localTimerTemplateMap.get(timer.targetTemplateId)?.name}` is on air with the `{timer.targetTimerId}` timer field.</div>
                   )}
                 </>
               ) : (
                 <>
-                  <label className="input-block compact">
+                  <label className="field-v3 field-v3-compact">
                     <span>vMix text input target</span>
                     <select
                       value={timer.vmixInputKey || ''}
@@ -148,7 +167,7 @@ export default function TimersTab({
                       ))}
                     </select>
                   </label>
-                  <label className="input-block compact">
+                  <label className="field-v3 field-v3-compact">
                     <span>vMix text field name</span>
                     <select
                       value={timer.vmixTextField || ((vmixState?.inputs || []).find((input) => (input.key || input.number) === timer.vmixInputKey)?.textFields?.[0]?.name || 'Text')}
@@ -163,15 +182,15 @@ export default function TimersTab({
               )}
               <div className="timer-command-row">
                 <button
-                  className="ghost-button compact-button icon-button"
+                  className={`timer-state-btn-v2 is-${getLinkedTimerStatus(timer)}`}
                   onClick={() => onRunTimerPanelCommand(timer, timer.running ? 'stop' : 'start')}
-                  aria-label={timer.running ? 'Stop timer' : 'Start timer'}
-                  title={timer.running ? 'Stop timer' : 'Start timer'}
+                  aria-label={timer.running ? 'Pause timer' : 'Start timer'}
+                  title={timer.running ? 'Pause timer' : 'Start timer'}
                 >
                   {timer.running ? <PauseIcon /> : <PlayIcon />}
                 </button>
                 <button
-                  className="ghost-button compact-button icon-button"
+                  className="timer-state-btn-v2 is-reset"
                   onClick={() => onRunTimerPanelCommand(timer, 'reset')}
                   aria-label="Reset timer"
                   title="Reset timer"
@@ -179,7 +198,7 @@ export default function TimersTab({
                   <ResetIcon />
                 </button>
                 <button
-                  className="ghost-button compact-button icon-button"
+                  className="timer-state-btn-v2 is-palette"
                   onClick={() => setColorEditorTimerId(timer.id)}
                   aria-label="Edit timer colors"
                   title="Default color and color triggers"
@@ -188,7 +207,7 @@ export default function TimersTab({
                   <PaletteIcon />
                 </button>
                 <button
-                  className="ghost-button compact-button icon-button danger-button"
+                  className="timer-state-btn-v2 is-danger"
                   onClick={() => onDeleteTimer(timer.id)}
                   aria-label="Delete timer"
                   title="Delete timer"
@@ -201,36 +220,15 @@ export default function TimersTab({
         </div>
       </section>
 
-      <section className="card vmix-card">
-        <div className="card-head">
-          <div>
-            <span className="panel-kicker">vMix Connection</span>
-            <h3>{vmixState?.connected ? 'Connected to vMix' : 'Disconnected from vMix'}</h3>
-          </div>
-          <div className="topbar-actions">
-            <button className="ghost-button compact-button" onClick={onRefreshVmixState}>Sync Now</button>
-            <span className={`connection-pill ${vmixState?.connected ? 'is-connected' : 'is-disconnected'}`}>{vmixState?.connected ? 'vMix Online' : 'vMix Offline'}</span>
-          </div>
+      {!vmixState?.connected && timers.some((t) => t.sourceType === 'vmix') && (
+        <div className="timer-vmix-hint">
+          One or more timers target vMix inputs, but vMix is not connected.
+          <a href="#" onClick={(e) => { e.preventDefault(); onRefreshVmixState?.(); }}>
+            Try reconnect
+          </a>
+          {' '}or configure host in <strong>Settings → Integrations → vMix</strong>.
         </div>
-        <div className="vmix-grid">
-          <label className="input-block">
-            <span>vMix Host</span>
-            <input value={vmixHostDraft} onChange={(event) => onSetVmixHostDraft(event.target.value)} placeholder="http://127.0.0.1:8088" />
-          </label>
-          <div className="timer-command-row">
-            <button className="ghost-button" onClick={() => onConnectVmix(vmixHostDraft)}>Connect / Save Host</button>
-          </div>
-          <div className="vmix-readout">
-            <span className="meta-label">Discovered Inputs</span>
-            <strong>{vmixState?.inputs?.length || 0} input(s)</strong>
-          </div>
-          <div className="vmix-readout">
-            <span className="meta-label">Status</span>
-            <strong>{vmixState?.connected ? 'Connection active' : 'Waiting for connection'}</strong>
-            {vmixState?.error ? <span className="output-note">{vmixState.error}</span> : null}
-          </div>
-        </div>
-      </section>
+      )}
 
       {colorEditorTimer && (
         <TimerColorEditorModal

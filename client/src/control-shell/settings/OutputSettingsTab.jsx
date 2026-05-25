@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import DebouncedTextInput from '../v2/DebouncedTextInput.jsx';
 
 export default function OutputSettingsTab({
   outputInfo,
@@ -13,7 +14,7 @@ export default function OutputSettingsTab({
   onCopyBaseUrl,
 }) {
   if (!outputInfo) {
-    return <div className="empty-state">Waiting for backend system info.</div>;
+    return <div className="empty-v3">Waiting for backend system info.</div>;
   }
 
   const [copiedKey, setCopiedKey] = useState('');
@@ -43,55 +44,32 @@ export default function OutputSettingsTab({
 
   return (
     <div className="integration-grid">
-      <div className="output-settings-card">
-        <div className="card-head output-settings-head">
-          <div>
-            <span className="panel-kicker">Control</span>
-            <h3>Control UI URL</h3>
-          </div>
-        </div>
-        <div className="output-url-list">
-          <div className="output-url-row">
-            <div className="output-url-copy">
-              <strong>Browser URL</strong>
-              <code>{outputInfo.controlUrl}</code>
-            </div>
-            <div className="output-url-actions">
-              <button className="ghost-button compact-button" onClick={() => handleCopy('base', () => onCopyBaseUrl(outputInfo.controlUrl))}>
-                {copiedKey === 'base' ? 'URL Copied' : 'Copy URL'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
       <div className="output-settings-grid">
         {outputRenderTargets.map((output) => (
           <div className="output-settings-card" key={output.id}>
-            <div className="card-head output-settings-head">
+            <div className="panel-head-v3 output-settings-head">
               <div>
                 <h3>{output.name}</h3>
               </div>
               <div className="topbar-actions">
                 {output.id === selectedOutput?.id && <span className="flag flag-live">ACTIVE</span>}
-                <button className="ghost-button compact-button" onClick={() => onSelectOutput(output.id)}>Open</button>
-                <button className="ghost-button compact-button" onClick={() => onDeleteOutput(output.id)} disabled={outputs.length <= 1}>Delete</button>
+                <button className="btn-v3-ghost btn-v3-sm" onClick={() => onSelectOutput(output.id)}>Open</button>
+                <button className="btn-v3-ghost btn-v3-sm" onClick={() => onDeleteOutput(output.id)} disabled={outputs.length <= 1}>Delete</button>
               </div>
             </div>
             <div className="output-settings-fields">
-              <label className="input-block compact">
+              <label className="field-v3 field-v3-compact">
                 <span>Output Name</span>
-                <input
-                  key={`${output.id}-name-${output.name}`}
-                  defaultValue={output.name}
-                  onBlur={(event) => onUpdateOutput(output.id, { name: event.target.value })}
+                <DebouncedTextInput
+                  value={output.name || ''}
+                  onCommit={(next) => onUpdateOutput(output.id, { name: next })}
                 />
               </label>
-              <label className="input-block compact">
+              <label className="field-v3 field-v3-compact">
                 <span>URL Key</span>
-                <input
-                  key={`${output.id}-key-${output.key}`}
-                  defaultValue={output.key}
-                  onBlur={(event) => onUpdateOutput(output.id, { key: event.target.value })}
+                <DebouncedTextInput
+                  value={output.key || ''}
+                  onCommit={(next) => onUpdateOutput(output.id, { key: next })}
                 />
               </label>
             </div>
@@ -102,7 +80,7 @@ export default function OutputSettingsTab({
                   <code>{output.renderUrl}</code>
                 </div>
                 <div className="output-url-actions">
-                  <button className="ghost-button compact-button" onClick={() => handleCopy(`render-${output.id}`, () => onCopyRenderUrl(output))}>
+                  <button className="btn-v3-ghost btn-v3-sm" onClick={() => handleCopy(`render-${output.id}`, () => onCopyRenderUrl(output))}>
                     {copiedKey === `render-${output.id}` ? 'URL Copied' : 'Copy Render'}
                   </button>
                 </div>
@@ -113,7 +91,7 @@ export default function OutputSettingsTab({
                   <code>{output.previewUrl}</code>
                 </div>
                 <div className="output-url-actions">
-                  <button className="ghost-button compact-button" onClick={() => handleCopy(`preview-${output.id}`, () => onCopyPreviewUrl(output))}>
+                  <button className="btn-v3-ghost btn-v3-sm" onClick={() => handleCopy(`preview-${output.id}`, () => onCopyPreviewUrl(output))}>
                     {copiedKey === `preview-${output.id}` ? 'URL Copied' : 'Copy Preview'}
                   </button>
                 </div>

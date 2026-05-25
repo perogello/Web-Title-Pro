@@ -1,0 +1,89 @@
+
+/* ---- Timer panel specifics ---- */
+/* Generic row-of-buttons utility — used by toolbars and action stacks.
+   Note: .source-manage-main was here previously; removed because it's a
+   column (name on top, meta below), not a flex row. The Sources sidebar
+   is styled fully in 19-sources-data.css. */
+.shell-v2 .content-v2-inner .timer-controls,
+.shell-v2 .content-v2-inner .timer-command-row,
+.shell-v2 .content-v2-inner .timer-format-row,
+.shell-v2 .content-v2-inner .timer-source-head,
+.shell-v2 .content-v2-inner .topbar-actions,
+.shell-v2 .content-v2-inner .source-row-actions,
+.shell-v2 .content-v2-inner .output-url-actions,
+.shell-v2 .content-v2-inner .output-url-row,
+.shell-v2 .content-v2-inner .manual-row-actions,
+.shell-v2 .content-v2-inner .source-name-row,
+.shell-v2 .content-v2-inner .source-remote-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+}
+.shell-v2 .content-v2-inner .timer-readout,
+.shell-v2 .content-v2-inner .vmix-readout {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-v2);
+}
+.shell-v2 .content-v2-inner .timer-format-switch {
+  display: inline-flex; gap: 2px;
+  padding: 2px;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 6px;
+}
+
+/* ---- Shortcut entry cards ---- */
+.shell-v2 .content-v2-inner .shortcut-entry-card { padding: 10px 12px; }
+.shell-v2 .content-v2-inner .shortcut-learning-cell {
+  background: var(--bg-2-v2);
+  border: 1px dashed var(--warn-v2);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--warn-v2);
+  font-size: 12px;
+}
+
+/* ---- Output settings ---- */
+.shell-v2 .content-v2-inner .output-url-list {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.shell-v2 .content-v2-inner .output-url-copy {
+  flex: 1;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-dim-v2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ---- Standalone tab wrapper (Sources card) ---- */
+.shell-v2 .content-v2-inner .standalone-tab { width: 100%; }
+
+/* ---- Manual row card ---- */
+.shell-v2 .content-v2-inner .manual-row-card {
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 6px;
+  padding: 10px;
+}
+.shell-v2 .content-v2-inner .manual-row-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+/* ---- Scrollbar polish ---- */
+.shell-v2 .content-v2-inner ::-webkit-scrollbar { width: 10px; height: 10px; }
+.shell-v2 .content-v2-inner ::-webkit-scrollbar-track { background: transparent; }
+.shell-v2 .content-v2-inner ::-webkit-scrollbar-thumb {
+  background: var(--border-v2);
+  border-radius: 5px;
+  border: 2px solid var(--bg-v2);
+}
+.shell-v2 .content-v2-inner ::-webkit-scrollbar-thumb:hover { background: var(--border-strong-v2); }
+

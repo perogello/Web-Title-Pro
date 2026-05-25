@@ -57,41 +57,6 @@ export const ResetIcon = () => (
   </svg>
 );
 
-export const StopwatchIcon = () => (
-  <svg {...iconProps}>
-    <circle cx="12" cy="13" r="7" />
-    <path d="M12 13V9" />
-    <path d="M12 13l3 2" />
-    <path d="M9 3h6" />
-    <path d="M12 3v3" />
-  </svg>
-);
-
-export const ZoomIcon = () => (
-  <svg {...iconProps}>
-    <circle cx="11" cy="11" r="6" />
-    <path d="M20 20l-4.2-4.2" />
-    <path d="M11 8v6" />
-    <path d="M8 11h6" />
-  </svg>
-);
-
-export const EyeIcon = () => (
-  <svg {...iconProps}>
-    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
-export const EyeOffIcon = () => (
-  <svg {...iconProps}>
-    <path d="M3 3l18 18" />
-    <path d="M10.7 5.1A11.5 11.5 0 0 1 12 5c6.5 0 10 7 10 7a18.7 18.7 0 0 1-4 4.9" />
-    <path d="M6.6 6.6A18.2 18.2 0 0 0 2 12s3.5 7 10 7c1.8 0 3.4-.4 4.8-1" />
-    <path d="M9.5 9.5A3.5 3.5 0 0 0 14.5 14.5" />
-  </svg>
-);
-
 export const TrashIcon = () => (
   <svg {...iconProps}>
     <path d="M3 6h18" />
@@ -99,13 +64,6 @@ export const TrashIcon = () => (
     <path d="M19 6l-1 14H6L5 6" />
     <path d="M10 11v6" />
     <path d="M14 11v6" />
-  </svg>
-);
-
-export const FolderIcon = () => (
-  <svg {...iconProps}>
-    <path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-    <path d="M3 10h18" />
   </svg>
 );
 
@@ -122,7 +80,7 @@ export const GripIcon = () => (
 
 export const ChevronLeftIcon = () => (
   <svg {...iconProps}>
-    <path d="m15 18-6-6-6 6" />
+    <path d="m15 18-6-6 6-6" />
   </svg>
 );
 
@@ -145,5 +103,20 @@ export const PlusIcon = () => (
   <svg {...iconProps}>
     <path d="M12 5v14" />
     <path d="M5 12h14" />
+  </svg>
+);
+
+export const CopyIcon = () => (
+  <svg {...iconProps}>
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </svg>
+);
+
+export const DownloadIcon = () => (
+  <svg {...iconProps}>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="M7 10l5 5 5-5" />
+    <path d="M12 15V3" />
   </svg>
 );

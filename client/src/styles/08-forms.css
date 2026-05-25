@@ -1,0 +1,134 @@
+/* ---- Inputs ---- */
+/* Form inputs — base style.
+   The `input:not([type])` selector catches <input> elements without
+   an explicit type attribute (default text behavior). Without it, all
+   the JSX <input value={...}> shorthand inputs fall back to the browser
+   default gray look. */
+.shell-v2 .content-v2-inner input[type="text"],
+.shell-v2 .content-v2-inner input[type="number"],
+.shell-v2 .content-v2-inner input[type="search"],
+.shell-v2 .content-v2-inner input[type="url"],
+.shell-v2 .content-v2-inner input[type="email"],
+.shell-v2 .content-v2-inner input[type="password"],
+.shell-v2 .content-v2-inner input:not([type]),
+.shell-v2 .content-v2-inner select,
+.shell-v2 .content-v2-inner textarea {
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  color: var(--text-v2);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 120ms;
+}
+/* Checkbox — fully custom, replaces the native gray HTML square.
+   16×16 dark square; on :checked we fill with accent and paint a white
+   checkmark via inline SVG background. Used wherever <input type="checkbox">
+   appears (Auto-refresh, reminder, MIDI global, shortcuts global, etc.). */
+.shell-v2 .content-v2-inner input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 3px;
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  flex-shrink: 0;
+  vertical-align: middle;
+  transition: background 120ms, border-color 120ms;
+}
+.shell-v2 .content-v2-inner input[type="checkbox"]:hover {
+  border-color: var(--border-strong-v2);
+}
+.shell-v2 .content-v2-inner input[type="checkbox"]:checked {
+  background-color: var(--select-accent-v2);
+  border-color: var(--select-accent-v2);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'><path d='M3.5 8.2l3.2 3.2 6-7'/></svg>");
+  background-size: 12px 12px;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+.shell-v2 .content-v2-inner input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--select-accent-v2);
+  outline-offset: 2px;
+}
+.shell-v2 .content-v2-inner input[type="checkbox"]:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* File input — compact: the native button is restyled as a ghost
+   pill, the filename text sits right after it. No wide background. */
+.shell-v2 .content-v2-inner input[type="file"] {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-dim-v2);
+}
+.shell-v2 .content-v2-inner input[type="file"]::file-selector-button,
+.shell-v2 .content-v2-inner input[type="file"]::-webkit-file-upload-button {
+  background: transparent;
+  border: 1px solid var(--border-v2);
+  color: var(--text-v2);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: background 120ms, border-color 120ms;
+}
+.shell-v2 .content-v2-inner input[type="file"]::file-selector-button:hover,
+.shell-v2 .content-v2-inner input[type="file"]::-webkit-file-upload-button:hover {
+  background: var(--bg-2-v2);
+  border-color: var(--border-strong-v2);
+}
+.shell-v2 .content-v2-inner input:focus,
+.shell-v2 .content-v2-inner select:focus,
+.shell-v2 .content-v2-inner textarea:focus {
+  border-color: var(--select-accent-v2);
+}
+/* Always-visible dropdown chevron on every custom-styled <select>.
+   Native chevron is hidden by `appearance: none` (Vite/Vivaldi/Electron
+   all do it inconsistently), so we paint a clean inline SVG instead. */
+.shell-v2 .content-v2-inner select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%23a8a8b3' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M1 1l4 4 4-4'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 10px 6px;
+  padding-right: 28px;
+  cursor: pointer;
+}
+.shell-v2 .content-v2-inner select:hover {
+  border-color: var(--border-strong-v2);
+}
+.shell-v2 .content-v2-inner select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+/* Also apply to selects inside ConfigTab mapping rows (not under .content-v2-inner). */
+.shell-v2 .mapping-row-v2 select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none' stroke='%23a8a8b3' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M1 1l4 4 4-4'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 10px 6px;
+  padding-right: 28px;
+  cursor: pointer;
+}
+

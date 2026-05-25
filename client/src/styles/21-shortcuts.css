@@ -1,0 +1,97 @@
+
+/* ===================================================================
+   SHORTCUTS / MIDI / BITFOCUS action rows — btn-v3-full vertical stack
+   Each row: [label] [binding code] [actions] — like VS Code shortcuts editor
+   ================================================================= */
+.shell-v2 .shortcut-action-grid {
+  display: flex !important;
+  flex-direction: column;
+  gap: 4px;
+}
+.shell-v2 .shortcut-action-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 10px;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 6px;
+  min-height: 36px;
+}
+.shell-v2 .shortcut-action-row > strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-v2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shell-v2 .shortcut-action-row .shortcut-binding-value,
+.shell-v2 .shortcut-action-row .shortcut-learning-cell {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  background: var(--card-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: var(--text-v2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+}
+.shell-v2 .shortcut-action-row .shortcut-binding-value.is-unset {
+  color: var(--text-faint-v2);
+  border-style: dashed;
+  font-style: italic;
+}
+.shell-v2 .shortcut-action-row .shortcut-learning-cell {
+  border-color: var(--warn-v2);
+  color: var(--warn-v2);
+  background: rgba(255, 184, 77, 0.08);
+  border-style: dashed;
+}
+.shell-v2 .shortcut-action-row .topbar-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.shell-v2 .shortcut-action-row.is-learning {
+  border-color: var(--warn-v2);
+  background: rgba(255, 184, 77, 0.04);
+}
+.shell-v2 .shortcut-global-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim-v2);
+  padding: 4px 8px;
+  border: 1px solid var(--border-v2);
+  border-radius: 4px;
+  cursor: pointer;
+  background: var(--card-v2);
+  user-select: none;
+}
+.shell-v2 .shortcut-global-toggle input {
+  margin: 0;
+  accent-color: var(--select-accent-v2);
+}
+.shell-v2 .shortcut-global-toggle.is-on {
+  color: var(--good-v2);
+  border-color: rgba(0, 184, 107, 0.4);
+}
+.shell-v2 .shortcut-global-toggle.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+

@@ -1,0 +1,145 @@
+/* ====== TOP BAR ====== */
+.topbar-v2 {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 0 12px;
+  background: #08080a;
+  border-bottom: 1px solid var(--border-v2);
+  position: relative;
+}
+.topbar-v2 .app-menu {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-v2);
+  cursor: pointer;
+  font: inherit;
+}
+.topbar-v2 .app-menu:hover { background: var(--bg-2-v2); border-color: var(--border-v2); }
+.topbar-v2 .app-menu .burger { font-size: 14px; line-height: 1; }
+.topbar-v2 .app-menu .project { font-size: 12px; color: var(--text-dim-v2); }
+.topbar-v2 .app-menu .project strong { color: var(--text-v2); font-weight: 600; }
+.topbar-v2 .app-menu .dirty { color: var(--warn-v2); margin-left: 4px; }
+
+.topbar-v2 .file-dropdown {
+  position: absolute;
+  top: 38px; left: 8px;
+  min-width: 260px;
+  background: #131316;
+  border: 1px solid var(--border-strong-v2);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+  z-index: 100;
+}
+.topbar-v2 .file-dropdown button {
+  display: block; width: 100%;
+  text-align: left;
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-v2);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.topbar-v2 .file-dropdown button:hover { background: var(--bg-2-v2); }
+.topbar-v2 .file-dropdown button:disabled { opacity: 0.4; cursor: not-allowed; }
+.topbar-v2 .file-dropdown button:disabled:hover { background: transparent; }
+.topbar-v2 .file-dropdown .sep {
+  border-top: 1px solid var(--border-v2);
+  margin: 4px 0; padding: 0; height: 1px;
+}
+.topbar-v2 .file-dropdown .kbd {
+  float: right; color: var(--text-faint-v2); font-size: 11px; font-family: ui-monospace, monospace;
+}
+.topbar-v2 .file-dropdown .group-label {
+  padding: 6px 14px 2px;
+  font-size: 9px; color: var(--text-faint-v2);
+  text-transform: uppercase; letter-spacing: 0.1em;
+}
+.topbar-v2 .file-dropdown .recent {
+  padding: 4px 14px; font-size: 12px; color: var(--text-dim-v2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.topbar-v2 .tabs-v2 { display: flex; align-items: center; gap: 2px; }
+.topbar-v2 .tab-v2 {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-dim-v2);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: inherit;
+}
+.topbar-v2 .tab-v2:hover { color: var(--text-v2); background: var(--bg-2-v2); }
+.topbar-v2 .tab-v2.is-active {
+  color: var(--text-v2);
+  background: var(--card-2-v2);
+  border-color: var(--border-v2);
+}
+.topbar-v2 .tab-v2 .icon { display: none; }
+
+/* === STATUS BADGES === */
+.topbar-v2 .status-v2 { display: flex; gap: 6px; align-items: center; padding-right: 4px; }
+.badge-status-v2 {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--border-v2);
+  background: var(--bg-2-v2);
+  color: var(--text-dim-v2);
+  line-height: 1;
+}
+.badge-status-v2 .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint-v2);
+}
+.badge-status-v2.is-on {
+  color: var(--good-v2);
+  background: rgba(0,184,107,0.15);
+  border-color: rgba(0,184,107,0.35);
+}
+.badge-status-v2.is-on .dot { background: var(--good-v2); box-shadow: 0 0 6px var(--good-v2); }
+.badge-status-v2.is-warn {
+  color: var(--warn-v2);
+  background: rgba(255,184,77,0.13);
+  border-color: rgba(255,184,77,0.35);
+}
+.badge-status-v2.is-warn .dot { background: var(--warn-v2); }
+.badge-status-v2.is-off { color: var(--text-faint-v2); }
+
+/* Clickable variant — chips that route into a settings tab. Carries an
+   explicit pointer cursor and a subtle hover shift so user knows it's
+   interactive. The non-clickable WebSocket chip stays as a <span>. */
+button.badge-status-v2 {
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+}
+button.badge-status-v2.is-clickable {
+  transition: background 120ms, border-color 120ms, transform 90ms;
+}
+button.badge-status-v2.is-clickable:hover {
+  border-color: var(--border-strong-v2);
+  filter: brightness(1.15);
+}
+button.badge-status-v2.is-clickable:active {
+  transform: translateY(1px);
+}
+

@@ -1,5 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 
+// Bundle import — hidden file input fired from the menu item below. Keeps
+// the picker out of the layout tree until the user actually clicks Import.
+function BundleFileInput({ onPick, inputRef }) {
+  return (
+    <input
+      ref={inputRef}
+      type="file"
+      accept=".wtpkg,.zip,application/zip"
+      style={{ display: 'none' }}
+      onChange={(event) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (file) onPick?.(file);
+      }}
+    />
+  );
+}
+
 const TABS = [
   { id: 'rundown', label: 'Live', icon: '▶' },
   { id: 'config', label: 'Config', icon: '⚙' },
@@ -8,7 +26,21 @@ const TABS = [
   { id: 'settings', label: 'Settings', icon: '⚒' },
 ];
 
-function StatusBadge({ tone, label, title }) {
+function StatusBadge({ tone, label, title, onClick }) {
+  // Clickable chips navigate to their settings page; non-clickable stays as a span.
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={`badge-status-v2 is-${tone} is-clickable`}
+        onClick={onClick}
+        title={title || label}
+      >
+        <span className="dot" />
+        <span>{label}</span>
+      </button>
+    );
+  }
   return (
     <span className={`badge-status-v2 is-${tone}`} title={title || label}>
       <span className="dot" />
@@ -33,9 +65,13 @@ export default function TopBar({
   onSaveAsProject,
   onOpenRecentProject,
   onOpenTemplateFolders,
+  onExportProjectBundle,
+  onImportProjectBundleFile,
+  onOpenSettingsTab,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const bundleInputRef = useRef(null);
 
   useEffect(() => {
     if (!menuOpen) return undefined;
@@ -48,7 +84,8 @@ export default function TopBar({
     return () => document.removeEventListener('mousedown', onClick);
   }, [menuOpen]);
 
-  const wsTone = connection === 'online' ? 'on' : connection === 'reconnecting' ? 'warn' : 'off';
+  const wsConnected = connection === 'connected';
+  const wsTone = wsConnected ? 'on' : connection === 'reconnecting' || connection === 'connecting' ? 'warn' : 'off';
   const vmixTone = vmixState?.connected ? 'on' : 'off';
   const midiTone = midiState?.enabled ? (midiState?.inputs?.length ? 'on' : 'warn') : 'off';
   const yandexTone = yandexAuthState?.accessToken ? 'on' : 'off';
@@ -82,25 +119,33 @@ export default function TopBar({
       <div />
 
       <div className="status-v2">
+        {/* Connection chip is a status-only indicator — no settings page for it.
+            The other three are click-throughs into their integration/control panels:
+              vMix   → Settings ▸ Integrations
+              MIDI   → Settings ▸ Controls (Shortcuts/MIDI bindings)
+              Yandex → Settings ▸ Integrations */}
         <StatusBadge
           tone={wsTone}
-          label={connection === 'online' ? 'Connected' : connection === 'reconnecting' ? 'Reconnecting' : 'Offline'}
+          label={wsConnected ? 'Connected' : connection === 'reconnecting' ? 'Reconnecting' : connection === 'connecting' ? 'Connecting' : 'Offline'}
           title={`WebSocket: ${connection}`}
         />
         <StatusBadge
           tone={vmixTone}
           label="vMix"
-          title={vmixState?.connected ? 'vMix connected' : `vMix: ${vmixState?.error || 'disconnected'}`}
+          title={vmixState?.connected ? 'vMix connected — click to open settings' : `vMix: ${vmixState?.error || 'disconnected'} — click to open settings`}
+          onClick={() => onOpenSettingsTab?.('integrations')}
         />
         <StatusBadge
           tone={midiTone}
           label="MIDI"
-          title={midiState?.enabled ? `MIDI: ${midiState?.inputs?.length || 0} device(s)` : 'MIDI off'}
+          title={midiState?.enabled ? `MIDI: ${midiState?.inputs?.length || 0} device(s) — click to open Controls` : 'MIDI off — click to open Controls'}
+          onClick={() => onOpenSettingsTab?.('controls')}
         />
         <StatusBadge
           tone={yandexTone}
           label="Yandex"
-          title={yandexAuthState?.accessToken ? `Yandex: ${yandexAuthState?.accountLogin || 'connected'}` : 'Yandex: not connected'}
+          title={yandexAuthState?.accessToken ? `Yandex: ${yandexAuthState?.accountLogin || 'connected'} — click to open settings` : 'Yandex: not connected — click to open settings'}
+          onClick={() => onOpenSettingsTab?.('integrations')}
         />
       </div>
 
@@ -135,11 +180,26 @@ export default function TopBar({
             </>
           )}
           <span className="sep" />
+          <div className="group-label">Project bundle (.wtpkg)</div>
+          <button
+            onClick={() => { setMenuOpen(false); onExportProjectBundle?.(); }}
+            title="Export this project together with all referenced custom templates as one .wtpkg file"
+          >
+            Export bundle...
+          </button>
+          <button
+            onClick={() => { setMenuOpen(false); bundleInputRef.current?.click(); }}
+            title="Import a .wtpkg project bundle and install its bundled templates"
+          >
+            Import bundle...
+          </button>
+          <span className="sep" />
           <button onClick={() => { setMenuOpen(false); onOpenTemplateFolders?.(); }}>
             Open templates folder
           </button>
         </div>
       )}
+      <BundleFileInput inputRef={bundleInputRef} onPick={onImportProjectBundleFile} />
     </header>
   );
 }

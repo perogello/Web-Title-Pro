@@ -1,0 +1,18 @@
+/* MIDI device list / monitor / bitfocus rows — same vertical pattern */
+.shell-v2 .midi-device-list,
+.shell-v2 .midi-monitor,
+.shell-v2 .bitfocus-action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.shell-v2 .bitfocus-action-list > * {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 10px;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 6px;
+}
+

@@ -76,17 +76,17 @@ export default function YandexSettingsTab({
 
   return (
     <div className="integration-grid">
-      <div className="meta-card">
-        <span className="meta-label">Yandex OAuth</span>
+      <div className="info-card-v3">
+        <span className="info-label-v3">Yandex OAuth</span>
         <strong>{supported ? 'Desktop-only local credentials' : 'Unavailable in browser mode'}</strong>
-        <span className="output-note">
+        <span className="note-v3">
           These values are stored locally on this computer only. They are not written into the project file and are not included in GitHub releases.
         </span>
       </div>
       <div className="output-settings-card">
-        <div className="card-head output-settings-head">
+        <div className="panel-head-v3 output-settings-head">
           <div>
-            <span className="panel-kicker">Connect</span>
+            <span className="kicker-v3">Connect</span>
             <h3>Yandex authorization</h3>
           </div>
         </div>
@@ -97,7 +97,7 @@ export default function YandexSettingsTab({
                 <span className="yandex-auth-button__mark">Y</span>
                 <span>{accountLabel}</span>
               </div>
-              <button className="ghost-button compact-button" onClick={onDisconnect} disabled={!supported}>
+              <button className="btn-v3-ghost btn-v3-sm" onClick={onDisconnect} disabled={!supported}>
                 Sign out
               </button>
             </>
@@ -109,8 +109,8 @@ export default function YandexSettingsTab({
           )}
         </div>
         <div className="integration-grid">
-          <div className="meta-card">
-            <span className="meta-label">Status</span>
+          <div className="info-card-v3">
+            <span className="info-label-v3">Status</span>
             <strong>
               {yandexDeviceAuth?.status === 'waiting'
                 ? 'Waiting for browser callback'
@@ -122,52 +122,52 @@ export default function YandexSettingsTab({
                       ? 'Token saved'
                       : 'Not connected'}
             </strong>
-            <span className="output-note">
+            <span className="note-v3">
               {yandexDeviceAuth?.status === 'waiting'
                 ? 'The Yandex authorization page is open in your browser. Complete login there and return will happen through your redirect URI.'
                 : 'Use Sign in with Yandex ID to receive access and refresh tokens automatically.'}
             </span>
-            {connected && <span className="output-note">Connected as {accountLabel}</span>}
-            {connected && <span className="output-note">Sign out clears local tokens from Web Title Pro, but does not log you out of Yandex in the browser.</span>}
+            {connected && <span className="note-v3">Connected as {accountLabel}</span>}
+            {connected && <span className="note-v3">Sign out clears local tokens from Web Title Pro, but does not log you out of Yandex in the browser.</span>}
             {yandexDeviceAuth?.error && <span className="danger-note">{yandexDeviceAuth.error}</span>}
           </div>
         </div>
       </div>
       <div className="output-settings-card">
-        <div className="card-head output-settings-head">
+        <div className="panel-head-v3 output-settings-head">
           <div>
-            <span className="panel-kicker">Application</span>
+            <span className="kicker-v3">Application</span>
             <h3>Yandex application settings</h3>
           </div>
           <div className="topbar-actions">
-            <button className="ghost-button compact-button" onClick={onReload} disabled={!supported}>Reload</button>
+            <button className="btn-v3-ghost btn-v3-sm" onClick={onReload} disabled={!supported}>Reload</button>
             {hasSavedCredentials && !isEditingCredentials && (
-              <button className="ghost-button compact-button" onClick={() => setIsEditingCredentials(true)} disabled={!supported}>
+              <button className="btn-v3-ghost btn-v3-sm" onClick={() => setIsEditingCredentials(true)} disabled={!supported}>
                 Edit credentials
               </button>
             )}
             {isEditingCredentials && hasSavedCredentials && (
-              <button className="ghost-button compact-button" onClick={handleCancelEditing} disabled={!supported}>
+              <button className="btn-v3-ghost btn-v3-sm" onClick={handleCancelEditing} disabled={!supported}>
                 Cancel
               </button>
             )}
             {isEditingCredentials && (
-              <button className="primary-button compact-button" onClick={handleSaveCredentials} disabled={!supported}>
+              <button className="btn-v3-primary btn-v3-sm" onClick={handleSaveCredentials} disabled={!supported}>
                 Save
               </button>
             )}
           </div>
         </div>
-        <div className="meta-card">
-          <span className="meta-label">Tokens</span>
+        <div className="info-card-v3">
+          <span className="info-label-v3">Tokens</span>
           <strong>Access and refresh tokens are hidden</strong>
-          <span className="output-note">
+          <span className="note-v3">
             Web Title Pro stores them locally after successful authorization. To rotate them, use `Sign out` and then sign in again.
           </span>
         </div>
         {isEditingCredentials ? (
           <div className="output-settings-fields yandex-auth-grid">
-            <label className="input-block compact">
+            <label className="field-v3 field-v3-compact">
               <span>Client ID</span>
               <input
                 type="password"
@@ -178,7 +178,7 @@ export default function YandexSettingsTab({
                 {...sensitiveInputProps}
               />
             </label>
-            <label className="input-block compact">
+            <label className="field-v3 field-v3-compact">
               <span>Client Secret</span>
               <input
                 type="password"
@@ -189,7 +189,7 @@ export default function YandexSettingsTab({
                 {...sensitiveInputProps}
               />
             </label>
-            <label className="input-block compact">
+            <label className="field-v3 field-v3-compact">
               <span>Scope</span>
               <input
                 value={draftCredentials.scope}
@@ -201,17 +201,17 @@ export default function YandexSettingsTab({
           </div>
         ) : (
           <div className="integration-grid">
-            <div className="meta-card">
-              <span className="meta-label">Credentials</span>
+            <div className="info-card-v3">
+              <span className="info-label-v3">Credentials</span>
               <strong>Client ID and Client Secret are hidden after saving</strong>
-              <span className="output-note">
+              <span className="note-v3">
                 They cannot be copied back out of the UI. To replace them, use `Edit credentials`, then save and sign in again.
               </span>
             </div>
-            <div className="meta-card">
-              <span className="meta-label">Saved values</span>
+            <div className="info-card-v3">
+              <span className="info-label-v3">Saved values</span>
               <strong>{hasSavedCredentials ? 'Credentials are stored locally on this computer' : 'Credentials are not saved yet'}</strong>
-              <span className="output-note">
+              <span className="note-v3">
                 Scope: {yandexAuthState?.scope || 'cloud_api:disk.read'}
               </span>
             </div>

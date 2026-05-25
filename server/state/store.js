@@ -499,41 +499,37 @@ export class TitleStore extends EventEmitter {
   reconcileEntries() {
     const templates = this.getTemplateMap();
 
-    this.state.entries = this.state.entries
-      .map((entry) => {
-        if (entry.entryType === 'vmix') {
-          return {
-            ...entry,
-            templateId: null,
-            fields: this.buildEntryFields(null, entry.fields || {}),
-            vmixShowAction: normalizeVmixAction(entry.vmixShowAction, 'TransitionIn'),
-            vmixHideAction: normalizeVmixAction(entry.vmixHideAction, 'TransitionOut'),
-            hidden: Boolean(entry.hidden),
-            shortcuts: normalizeEntryShortcuts(entry.shortcuts),
-            missingTemplate: false,
-          };
-        }
-
-        const template = templates.get(entry.templateId);
-
-        if (!template) {
-          return {
-            ...entry,
-            missingTemplate: true,
-          };
-        }
-
+    this.state.entries = this.state.entries.map(({ hidden: _hidden, ...entry }) => {
+      if (entry.entryType === 'vmix') {
         return {
           ...entry,
-          hidden: Boolean(entry.hidden),
+          templateId: null,
+          fields: this.buildEntryFields(null, entry.fields || {}),
+          vmixShowAction: normalizeVmixAction(entry.vmixShowAction, 'TransitionIn'),
+          vmixHideAction: normalizeVmixAction(entry.vmixHideAction, 'TransitionOut'),
           shortcuts: normalizeEntryShortcuts(entry.shortcuts),
           missingTemplate: false,
-          fields: this.buildEntryFields(template, entry.fields),
-          localFieldMap: buildLocalFieldMap(template, entry.localFieldMap),
-          fieldStyles: buildLocalFieldStyles(template, entry.fieldStyles),
         };
-      })
-      .sort((a, b) => new Date(a.createdAt || 0).valueOf() - new Date(b.createdAt || 0).valueOf());
+      }
+
+      const template = templates.get(entry.templateId);
+
+      if (!template) {
+        return {
+          ...entry,
+          missingTemplate: true,
+        };
+      }
+
+      return {
+        ...entry,
+        shortcuts: normalizeEntryShortcuts(entry.shortcuts),
+        missingTemplate: false,
+        fields: this.buildEntryFields(template, entry.fields),
+        localFieldMap: buildLocalFieldMap(template, entry.localFieldMap),
+        fieldStyles: buildLocalFieldStyles(template, entry.fieldStyles),
+      };
+    });
   }
 
   seedExampleEntries() {
@@ -737,6 +733,13 @@ export class TitleStore extends EventEmitter {
         color: resolveTimerColor(timer, currentMs),
       };
     });
+  }
+
+  getTimerUpdate(now = Date.now()) {
+    return {
+      serverTime: now,
+      timers: this.getTimers(now),
+    };
   }
 
   getTimerCurrentValue(timer, now = Date.now()) {
@@ -954,7 +957,6 @@ export class TitleStore extends EventEmitter {
         vmixFieldMap: Array.isArray(payload.vmixFieldMap) ? payload.vmixFieldMap : buildVmixFieldDefinitions({ fields: initialFields }),
         vmixShowAction: normalizeVmixAction(payload.vmixShowAction, 'TransitionIn'),
         vmixHideAction: normalizeVmixAction(payload.vmixHideAction, 'TransitionOut'),
-        hidden: false,
         shortcuts: normalizeEntryShortcuts(payload.shortcuts),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -979,7 +981,6 @@ export class TitleStore extends EventEmitter {
       fields: this.buildEntryFields(template, fields),
       localFieldMap: buildLocalFieldMap(template, payload.localFieldMap),
       fieldStyles: buildLocalFieldStyles(template, payload.fieldStyles),
-      hidden: false,
       shortcuts: normalizeEntryShortcuts(payload.shortcuts),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -1054,10 +1055,6 @@ export class TitleStore extends EventEmitter {
 
     if (typeof payload.name === 'string') {
       entry.name = payload.name.trim() || entry.name;
-    }
-
-    if (typeof payload.hidden === 'boolean') {
-      entry.hidden = payload.hidden;
     }
 
     if (payload.shortcuts) {
@@ -1156,6 +1153,14 @@ export class TitleStore extends EventEmitter {
     const ordered = ids.map((id) => lookup.get(id)).filter(Boolean);
     const remaining = this.state.entries.filter((entry) => !ids.includes(entry.id));
     this.state.entries = [...ordered, ...remaining];
+    this.touch();
+  }
+
+  reorderOutputs(ids) {
+    const lookup = new Map(this.state.outputs.map((output) => [output.id, output]));
+    const ordered = ids.map((id) => lookup.get(id)).filter(Boolean);
+    const remaining = this.state.outputs.filter((output) => !ids.includes(output.id));
+    this.state.outputs = [...ordered, ...remaining];
     this.touch();
   }
 
@@ -1302,17 +1307,17 @@ export class TitleStore extends EventEmitter {
       throw new Error('Output not found.');
     }
 
-    const visibleEntries = this.state.entries.filter((entry) => !entry.hidden);
+    const entries = this.state.entries;
 
-    if (!visibleEntries.length) {
-      throw new Error('No visible titles are available.');
+    if (!entries.length) {
+      throw new Error('No titles are available.');
     }
 
-    const currentIndex = visibleEntries.findIndex((entry) => entry.id === output.selectedEntryId);
+    const currentIndex = entries.findIndex((entry) => entry.id === output.selectedEntryId);
     const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
     const delta = direction === 'previous' ? -1 : 1;
-    const nextIndex = (safeCurrentIndex + delta + visibleEntries.length) % visibleEntries.length;
-    const nextEntry = visibleEntries[nextIndex];
+    const nextIndex = (safeCurrentIndex + delta + entries.length) % entries.length;
+    const nextEntry = entries[nextIndex];
 
     output.selectedEntryId = nextEntry.id;
     this.state.selectedOutputId = output.id;

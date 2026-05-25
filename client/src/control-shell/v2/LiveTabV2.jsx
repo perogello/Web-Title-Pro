@@ -1,9 +1,11 @@
 import { useRef } from 'react';
 import SyncPopover from './SyncPopover.jsx';
+import SegmentedTimerInput from './SegmentedTimerInput.jsx';
+import { PauseIcon, PlayIcon, ResetIcon } from '../icons.jsx';
 
 const DEFAULT_COL_WIDTH = 200;
 const IDX_COL_WIDTH = 50;
-const TIMER_COL_WIDTH = 220;
+const TIMER_COL_WIDTH = 200;
 
 export default function LiveTabV2({
   selectedOutput,
@@ -28,6 +30,7 @@ export default function LiveTabV2({
   onApplySourceRow,
   onControlSourceRowTimer,
   onAdjustSourceRowTimerSegment,
+  onSetSourceRowTimerBase,
   onResizeSourceColumn,
   onTogglePreview,
   previewOpen,
@@ -191,11 +194,11 @@ export default function LiveTabV2({
                         </td>
                       ))}
                       {selectedLinkedTimerId && (
-                        <td onClick={(event) => event.stopPropagation()}>
-                          <div className="row-timer-cell">
-                            <div className="row-timer-actions">
+                        <td className="row-timer-td" onClick={(event) => event.stopPropagation()}>
+                          <div className="row-timer-cell-v3">
+                            <div className="row-timer-actions-v3">
                               <button
-                                className={`ghost-v2 timer-state-button is-${timerState?.status || 'idle'}`}
+                                className={`row-timer-icon-btn is-${timerState?.status || 'idle'}`}
                                 onClick={() => onControlSourceRowTimer?.(selectedSource.id, row, 'toggle', {
                                   syncTimerId: selectedLinkedTimerId,
                                   linkedTimerId: selectedLinkedTimerId,
@@ -204,10 +207,10 @@ export default function LiveTabV2({
                                 })}
                                 title={timerState?.status === 'running' ? 'Pause' : 'Start'}
                               >
-                                {timerState?.status === 'running' ? '⏸' : '▶'}
+                                {timerState?.status === 'running' ? <PauseIcon /> : <PlayIcon />}
                               </button>
                               <button
-                                className="ghost-v2"
+                                className="row-timer-icon-btn is-reset"
                                 onClick={() => onControlSourceRowTimer?.(selectedSource.id, row, 'reset', {
                                   syncTimerId: selectedLinkedTimerId,
                                   linkedTimerId: selectedLinkedTimerId,
@@ -216,28 +219,20 @@ export default function LiveTabV2({
                                 })}
                                 title="Reset timer"
                               >
-                                ↺
+                                <ResetIcon />
                               </button>
                             </div>
-                            <div className="row-timer-segments">
-                              {timerSegments.map((segment, idx) => (
-                                <span key={`${row.id}-${segment.key}`}>
-                                  {idx > 0 && <span style={{ opacity: 0.5 }}>:</span>}
-                                  <button
-                                    className="ghost-v2"
-                                    style={{ padding: '2px 6px', minWidth: 36 }}
-                                    onClick={() => onAdjustSourceRowTimerSegment?.(selectedSource.id, row, segment.key, 1, {
-                                      currentMs: displayedTimerMs,
-                                      syncTimerId: selectedLinkedTimerId,
-                                      linkedTimerId: selectedLinkedTimerId,
-                                      linkedTimer: linkedSourceTimer || null,
-                                    })}
-                                  >
-                                    {segment.value}
-                                  </button>
-                                </span>
-                              ))}
-                            </div>
+                            <SegmentedTimerInput
+                              value={displayedTimerMs}
+                              format={timerFormat}
+                              size="lg"
+                              withArrows
+                              onCommit={(nextMs) => onSetSourceRowTimerBase?.(selectedSource.id, row.id, nextMs, {
+                                syncTimerId: selectedLinkedTimerId,
+                                linkedTimerId: selectedLinkedTimerId,
+                                linkedTimer: linkedSourceTimer || null,
+                              })}
+                            />
                           </div>
                         </td>
                       )}

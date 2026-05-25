@@ -1,372 +1,3 @@
-/* ===================================================================
-   REDESIGN v3 — new shell layout
-   Imported from main.jsx after app.css.
-   ================================================================= */
-
-.shell-v2 {
-  --bg-v2: #0a0a0c;
-  --bg-2-v2: #131319;
-  --card-v2: #181820;
-  --card-2-v2: #1f1f29;
-  --border-v2: #2a2a36;
-  --border-strong-v2: #404055;
-  --text-v2: #ebebf0;
-  --text-dim-v2: #8a8a99;
-  --text-faint-v2: #5c5c6a;
-  --select-v2: #ebebf0;
-  --select-bg-v2: #21212c;
-  --select-accent-v2: #8b9eff;
-  --live-v2: #f93232;
-  --good-v2: #00b86b;
-  --warn-v2: #ffb84d;
-  --vmix-v2: #6aa3ff;
-
-  position: fixed; inset: 0;
-  display: grid;
-  grid-template-rows: 40px 1fr;
-  background: var(--bg-v2);
-  color: var(--text-v2);
-  font-family: "Segoe UI", "YS Text", system-ui, sans-serif;
-  min-width: 720px;
-  overflow: hidden;
-}
-
-/* ====== TOP BAR ====== */
-.topbar-v2 {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto;
-  align-items: center;
-  gap: 14px;
-  padding: 0 12px;
-  background: #07070a;
-  border-bottom: 1px solid var(--border-v2);
-  position: relative;
-}
-.topbar-v2 .app-menu {
-  display: flex; align-items: center; gap: 8px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-v2);
-  cursor: pointer;
-  font: inherit;
-}
-.topbar-v2 .app-menu:hover { background: var(--bg-2-v2); border-color: var(--border-v2); }
-.topbar-v2 .app-menu .burger { font-size: 14px; line-height: 1; }
-.topbar-v2 .app-menu .project { font-size: 12px; color: var(--text-dim-v2); }
-.topbar-v2 .app-menu .project strong { color: var(--text-v2); font-weight: 600; }
-.topbar-v2 .app-menu .dirty { color: var(--warn-v2); margin-left: 4px; }
-
-.topbar-v2 .file-dropdown {
-  position: absolute;
-  top: 38px; left: 8px;
-  min-width: 260px;
-  background: #0e0e14;
-  border: 1px solid var(--border-strong-v2);
-  border-radius: 8px;
-  padding: 4px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-  z-index: 100;
-}
-.topbar-v2 .file-dropdown button {
-  display: block; width: 100%;
-  text-align: left;
-  padding: 8px 14px;
-  background: transparent;
-  border: none;
-  color: var(--text-v2);
-  border-radius: 6px;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-.topbar-v2 .file-dropdown button:hover { background: var(--bg-2-v2); }
-.topbar-v2 .file-dropdown button:disabled { opacity: 0.4; cursor: not-allowed; }
-.topbar-v2 .file-dropdown button:disabled:hover { background: transparent; }
-.topbar-v2 .file-dropdown .sep {
-  border-top: 1px solid var(--border-v2);
-  margin: 4px 0; padding: 0; height: 1px;
-}
-.topbar-v2 .file-dropdown .kbd {
-  float: right; color: var(--text-faint-v2); font-size: 11px; font-family: ui-monospace, monospace;
-}
-.topbar-v2 .file-dropdown .group-label {
-  padding: 6px 14px 2px;
-  font-size: 9px; color: var(--text-faint-v2);
-  text-transform: uppercase; letter-spacing: 0.1em;
-}
-.topbar-v2 .file-dropdown .recent {
-  padding: 4px 14px; font-size: 12px; color: var(--text-dim-v2);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-.topbar-v2 .tabs-v2 { display: flex; align-items: center; gap: 2px; }
-.topbar-v2 .tab-v2 {
-  padding: 6px 14px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--text-dim-v2);
-  font-weight: 600;
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  cursor: pointer;
-  font-family: inherit;
-}
-.topbar-v2 .tab-v2:hover { color: var(--text-v2); background: var(--bg-2-v2); }
-.topbar-v2 .tab-v2.is-active {
-  color: var(--text-v2);
-  background: var(--card-2-v2);
-  border-color: var(--border-v2);
-}
-.topbar-v2 .tab-v2 .icon { display: none; }
-
-/* === STATUS BADGES === */
-.topbar-v2 .status-v2 { display: flex; gap: 6px; align-items: center; padding-right: 4px; }
-.badge-status-v2 {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border: 1px solid var(--border-v2);
-  background: var(--bg-2-v2);
-  color: var(--text-dim-v2);
-  line-height: 1;
-}
-.badge-status-v2 .dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--text-faint-v2);
-}
-.badge-status-v2.is-on {
-  color: var(--good-v2);
-  background: rgba(0,184,107,0.15);
-  border-color: rgba(0,184,107,0.35);
-}
-.badge-status-v2.is-on .dot { background: var(--good-v2); box-shadow: 0 0 6px var(--good-v2); }
-.badge-status-v2.is-warn {
-  color: var(--warn-v2);
-  background: rgba(255,184,77,0.13);
-  border-color: rgba(255,184,77,0.35);
-}
-.badge-status-v2.is-warn .dot { background: var(--warn-v2); }
-.badge-status-v2.is-off { color: var(--text-faint-v2); }
-
-/* ====== MAIN GRID with resizable splitter ====== */
-.main-v2 {
-  display: grid;
-  grid-template-columns: var(--sidebar-width, 280px) 4px 1fr;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.splitter-v2 {
-  background: transparent;
-  cursor: col-resize;
-  position: relative;
-  z-index: 10;
-}
-.splitter-v2::before {
-  content: '';
-  position: absolute;
-  left: 1px; top: 0; bottom: 0;
-  width: 1px;
-  background: var(--border-v2);
-  transition: background 0.15s;
-}
-.splitter-v2:hover::before, .splitter-v2.is-dragging::before {
-  background: var(--select-accent-v2);
-  width: 2px;
-}
-
-/* ====== OUTPUTS SIDEBAR ====== */
-.outputs-v2 {
-  background: var(--bg-v2);
-  padding: 10px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-.output-card-v2 {
-  background: var(--card-v2);
-  border: 1px solid var(--border-v2);
-  border-radius: 10px;
-  overflow: hidden;
-  position: relative;
-  transition: border-color 0.15s, background 0.15s;
-  cursor: pointer;
-}
-.output-card-v2:hover { border-color: var(--border-strong-v2); }
-.output-card-v2.is-selected {
-  border-color: var(--select-v2);
-  background: var(--select-bg-v2);
-}
-
-.oc-v2-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 12px 6px;
-  gap: 8px;
-  min-width: 0;
-}
-.oc-v2-head .name {
-  font-weight: 800;
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  line-height: 1;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.oc-v2-head .state {
-  padding: 3px 9px;
-  border-radius: 5px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  border: 1px solid var(--border-strong-v2);
-  color: var(--text-dim-v2);
-  background: var(--bg-2-v2);
-  line-height: 1;
-  flex-shrink: 0;
-}
-.output-card-v2.is-live .oc-v2-head .state {
-  background: var(--live-v2); border-color: var(--live-v2); color: #fff;
-  box-shadow: 0 0 6px rgba(249,50,50,0.45);
-}
-
-.oc-v2-meta {
-  padding: 4px 12px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 12px;
-  line-height: 1.35;
-  min-width: 0;
-}
-.oc-v2-meta .type-row {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 10px;
-  margin-bottom: 2px;
-}
-.oc-v2-meta .badge-type {
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  font-size: 9px;
-}
-.oc-v2-meta .badge-type.is-local {
-  background: rgba(138,138,153,0.18);
-  color: var(--text-dim-v2);
-}
-.oc-v2-meta .badge-type.is-vmix {
-  background: rgba(106,163,255,0.13);
-  color: var(--vmix-v2);
-}
-.oc-v2-meta .input-info {
-  color: var(--vmix-v2);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-.oc-v2-meta .current-data {
-  color: var(--text-v2);
-  font-weight: 600;
-  font-size: 14px;
-  line-height: 1.25;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.oc-v2-meta .current-data.is-none {
-  color: var(--text-faint-v2); font-style: italic; font-weight: 400;
-}
-.oc-v2-meta .title-file {
-  color: var(--text-dim-v2);
-  font-weight: 400;
-  font-size: 11px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  cursor: pointer;
-  margin-top: 4px;
-  padding-top: 6px;
-  border-top: 1px dashed var(--border-v2);
-  position: relative;
-  background: transparent;
-  border-left: 0; border-right: 0; border-bottom: 0;
-  text-align: left;
-  width: 100%;
-  font-family: inherit;
-}
-.oc-v2-meta .title-file:hover { color: var(--vmix-v2); }
-.oc-v2-meta .title-file::after { content: ' \25BE'; color: var(--text-faint-v2); font-size: 10px; }
-.oc-v2-meta .title-file.is-empty { color: var(--text-faint-v2); font-style: italic; }
-
-.oc-v2-controls {
-  display: flex; gap: 6px;
-  padding: 0 12px 12px;
-  align-items: center;
-}
-.oc-v2-controls .play, .oc-v2-controls .stop {
-  flex: 1;
-  height: 34px;
-  border-radius: 6px;
-  border: 1px solid var(--border-strong-v2);
-  background: var(--bg-2-v2);
-  color: var(--text-v2);
-  display: grid; place-items: center;
-  cursor: pointer;
-  transition: background 0.1s, transform 0.05s, border-color 0.15s;
-  font: inherit;
-}
-.oc-v2-controls .play { color: var(--live-v2); }
-.oc-v2-controls .play:hover:not(:disabled) { background: var(--live-v2); border-color: var(--live-v2); color: #fff; }
-.oc-v2-controls .stop:hover:not(:disabled) { background: var(--card-2-v2); border-color: var(--text-dim-v2); }
-.oc-v2-controls .play:disabled, .oc-v2-controls .stop:disabled { opacity: 0.35; cursor: not-allowed; }
-.oc-v2-controls .play:active, .oc-v2-controls .stop:active { transform: scale(0.97); }
-.oc-v2-controls .play svg, .oc-v2-controls .stop svg { width: 14px; height: 14px; }
-.output-card-v2.is-live .oc-v2-controls .play {
-  background: var(--live-v2); border-color: var(--live-v2); color: #fff;
-}
-
-/* Title picker dropdown on output card */
-.title-picker-v2 {
-  position: absolute;
-  top: 100%; left: 0; right: 0;
-  margin-top: 4px;
-  background: #0e0e14;
-  border: 1px solid var(--border-strong-v2);
-  border-radius: 8px;
-  padding: 4px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-  z-index: 50;
-  max-height: 280px;
-  overflow: auto;
-}
-.title-picker-v2 .label {
-  font-size: 9px; color: var(--text-dim-v2); text-transform: uppercase;
-  letter-spacing: 0.1em; padding: 6px 12px 3px;
-}
-.title-picker-v2 button {
-  display: block; width: 100%;
-  padding: 6px 12px;
-  background: transparent;
-  border: none;
-  color: var(--text-v2);
-  text-align: left;
-  border-radius: 4px;
-  font-size: 12px;
-  cursor: pointer;
-  font: inherit;
-}
-.title-picker-v2 button:hover { background: var(--bg-2-v2); }
-.title-picker-v2 button.is-current { color: var(--select-accent-v2); font-weight: 600; }
-.title-picker-v2 button .row-meta { display: block; font-size: 10px; color: var(--text-dim-v2); }
-
 /* ====== CONTENT ====== */
 .content-v2 {
   display: flex;
@@ -398,10 +29,10 @@
   font-size: 10px; text-transform: uppercase; letter-spacing: 0.14em;
   color: var(--text-dim-v2); font-weight: 700;
 }
-.preview-overlay-v2-head .mode-toggle {
+.preview-overlay-v2-head .seg-control-v3 {
   display: inline-flex; background: var(--card-2-v2); border-radius: 6px; padding: 2px;
 }
-.preview-overlay-v2-head .mode-toggle button {
+.preview-overlay-v2-head .seg-control-v3 button {
   background: transparent;
   border: none;
   color: var(--text-dim-v2);
@@ -414,7 +45,7 @@
   cursor: pointer;
   font: inherit;
 }
-.preview-overlay-v2-head .mode-toggle button.is-active {
+.preview-overlay-v2-head .seg-control-v3 button.is-active {
   background: var(--card-v2);
   color: var(--text-v2);
 }
@@ -469,7 +100,7 @@
   flex: 1;
   display: flex; align-items: center; justify-content: center;
   min-height: 0;
-  background: #06060a;
+  background: #060608;
 }
 .preview-frame-v2 .pf-body iframe {
   width: 100%; height: 100%; border: 0; background: transparent;
@@ -486,7 +117,8 @@
 /* === content inner === */
 .content-v2-inner {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;   /* allow inner tabs (TIMERS, etc.) to scroll vertically */
+  overflow-x: hidden;
   display: flex; flex-direction: column;
   padding: 12px 16px;
   gap: 12px;
@@ -544,7 +176,7 @@
 }
 .source-card-v2-head .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
-/* compact controls in source-card-head */
+/* compact controls in source-card-v2-head */
 .compact-select-v2, .compact-btn-v2 {
   background: var(--bg-2-v2);
   border: 1px solid var(--border-v2);
@@ -577,7 +209,7 @@
   top: calc(100% + 6px);
   right: 0;
   min-width: 240px;
-  background: #0e0e14;
+  background: #131316;
   border: 1px solid var(--border-strong-v2);
   border-radius: 8px;
   padding: 6px;
@@ -609,15 +241,48 @@
 
 /* === Excel-style fixed source table === */
 .table-wrap-v2 { overflow: auto; flex: 1; min-height: 0; }
+/* Normalize TEXT rendering for every cell of the Live source table so
+   that file/text imports and Yandex/Google sheet imports look the same.
+   Spreadsheet engines sometimes wrap cell text in <b>/<i>/<span style>
+   markup; we override the typography on every descendant.
+
+   Important: we deliberately do NOT touch `background`, `color`, or
+   `box-shadow` here — those are owned by row state (.is-applied,
+   tbody tr:hover) and must stay clickable/highlightable. The previous
+   aggressive override killed the red active-row highlight, which made
+   it look like clicks weren't registering. */
+.shell-v2 table.source-v2,
+.shell-v2 table.source-v2 *,
+.shell-v2 table.source-v2 th,
+.shell-v2 table.source-v2 td {
+  font-family: "Segoe UI", "YS Text", system-ui, sans-serif !important;
+}
+.shell-v2 table.source-v2 tbody td,
+.shell-v2 table.source-v2 tbody td * {
+  font-weight: 500 !important;
+  font-style: normal !important;
+  text-decoration: none !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  text-shadow: none !important;
+}
+/* Inline children inside cells (spans/b/i/em/strong from spreadsheet
+   imports) should inherit cell typography size and color, never set
+   their own. We exclude the row-timer cell so SegmentedTimerInput keeps
+   its own larger digits. */
+.shell-v2 table.source-v2 tbody td:not(.row-timer-td) * {
+  font-size: inherit !important;
+  color: inherit !important;
+  background: transparent !important;
+}
 table.source-v2 {
   width: max-content;
-  min-width: 100%;
   table-layout: fixed;
   border-collapse: collapse;
   font-size: 13px;
 }
 table.source-v2 th, table.source-v2 td {
-  padding: 8px 14px;
+  padding: 6px 12px;
   text-align: left;
   border-bottom: 1px solid var(--border-v2);
   border-right: 1px solid var(--border-v2);
@@ -715,24 +380,90 @@ table.source-v2 td.idx { color: var(--text-faint-v2); font-weight: 700; width: 5
   border-radius: 8px;
 }
 .config-item-v2.is-selected { border-color: var(--select-v2); background: var(--select-bg-v2); }
+.config-item-v2.is-dragging { opacity: 0.55; }
+.config-item-v2.is-drop-target {
+  border-color: rgba(249, 50, 50, 0.55);
+  box-shadow: 0 -2px 0 0 var(--live-v2) inset;
+}
+.config-item-v2[draggable="true"] { cursor: grab; }
+.config-item-v2[draggable="true"]:active { cursor: grabbing; }
 .config-item-v2 .grip { color: var(--text-faint-v2); cursor: grab; font-size: 14px; line-height: 1; }
+.config-item-v2[draggable="true"]:hover .grip { color: var(--text-v2); }
 .config-item-v2 .main { display: flex; flex-direction: column; gap: 2px; min-width: 0; cursor: pointer; }
 .config-item-v2 .main strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .config-item-v2 .main span { color: var(--text-dim-v2); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.config-item-v2 .actions { display: flex; gap: 4px; }
-.config-item-v2 .actions button {
+.config-item-v2 .actions { display: flex; gap: 4px; align-items: center; }
+
+/* Title + output-binding chips row inside a Config entry.
+   The chips show which outputs currently have THIS entry selected so a
+   director can scan the rundown and see "this title is on OUTPUT 1" at
+   one glance instead of digging into the mapping inspector. Red palette
+   to mirror the LIVE/ACTIVE indication used elsewhere. */
+.config-entry-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.config-entry-title-row strong {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.config-entry-output-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.config-entry-output-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--live-bg-v2);
+  border: 1px solid rgba(249, 50, 50, 0.45);
+  color: var(--live-v2);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shell-v2 .content-v2-inner .cfg-icon-btn-v2,
+.cfg-icon-btn-v2 {
   width: 28px; height: 28px;
-  display: grid; place-items: center;
-  border-radius: 4px;
+  padding: 0;
+  display: inline-grid; place-items: center;
+  border-radius: 6px;
   border: 1px solid var(--border-v2);
   background: transparent;
   color: var(--text-dim-v2);
-  font-size: 13px;
-  cursor: pointer;
   font: inherit;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background 120ms, border-color 120ms, color 120ms;
 }
-.config-item-v2 .actions button:hover { background: var(--card-v2); color: var(--text-v2); }
-.config-item-v2 .actions button.danger:hover { color: var(--live-v2); border-color: rgba(249,50,50,0.5); }
+.shell-v2 .content-v2-inner .cfg-icon-btn-v2 svg,
+.cfg-icon-btn-v2 svg { width: 14px; height: 14px; display: block; }
+.shell-v2 .content-v2-inner .cfg-icon-btn-v2:hover,
+.cfg-icon-btn-v2:hover { background: var(--card-v2); color: var(--text-v2); border-color: var(--border-strong-v2); }
+.shell-v2 .content-v2-inner .cfg-icon-btn-v2.is-danger,
+.cfg-icon-btn-v2.is-danger {
+  color: var(--live-v2);
+  border-color: rgba(249, 50, 50, 0.45);
+}
+.shell-v2 .content-v2-inner .cfg-icon-btn-v2.is-danger:hover,
+.cfg-icon-btn-v2.is-danger:hover {
+  background: rgba(249, 50, 50, 0.12);
+  border-color: var(--live-v2);
+  color: var(--live-v2);
+}
+.shell-v2 .content-v2-inner .cfg-icon-btn-v2:disabled,
+.cfg-icon-btn-v2:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .mapping-card-v2 { grid-column: 1 / -1; }
 .mapping-row-v2 {
@@ -812,3 +543,4 @@ table.source-v2 td.idx { color: var(--text-faint-v2); font-weight: 700; width: 5
   .shell-v2 { min-width: 0; }
   .topbar-v2 .status-v2 { display: none; }
 }
+

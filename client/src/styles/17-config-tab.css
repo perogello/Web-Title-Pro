@@ -1,0 +1,243 @@
+/* ===================================================================
+   CONTROLS (Settings) — unified action editor
+   Search + collapsible sections + per-row inline keyboard/MIDI/companion
+   ================================================================= */
+.shell-v2 .ctl-shell-v2 {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.shell-v2 .ctl-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  flex-wrap: wrap;
+}
+.shell-v2 .ctl-search {
+  flex: 1;
+  min-width: 220px;
+  background: var(--bg-2-v2) !important;
+  border: 1px solid var(--border-v2) !important;
+  color: var(--text-v2) !important;
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  outline: none;
+}
+.shell-v2 .ctl-search:focus {
+  border-color: var(--select-accent-v2) !important;
+}
+.shell-v2 .ctl-legend {
+  display: inline-flex;
+  gap: 12px;
+  color: var(--text-dim-v2);
+  font-size: 11px;
+}
+.shell-v2 .ctl-legend-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  letter-spacing: 0.04em;
+}
+.shell-v2 .ctl-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.shell-v2 .ctl-section {
+  background: var(--card-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.shell-v2 .ctl-section-head {
+  width: 100%;
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-v2) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+.shell-v2 .ctl-section-head:hover {
+  background: var(--bg-2-v2) !important;
+}
+.shell-v2 .ctl-section.is-open .ctl-section-head {
+  border-bottom: 1px solid var(--border-v2) !important;
+}
+.shell-v2 .ctl-section-toggle {
+  width: 14px;
+  color: var(--text-dim-v2);
+  font-size: 10px;
+}
+.shell-v2 .ctl-section-icon {
+  width: 18px;
+  text-align: center;
+  color: var(--select-accent-v2);
+  font-size: 14px;
+}
+.shell-v2 .ctl-section-label {
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: var(--text-v2);
+}
+.shell-v2 .ctl-section-count {
+  padding: 2px 8px;
+  background: var(--bg-2-v2);
+  border-radius: 999px;
+  font-size: 10px;
+  color: var(--text-dim-v2);
+  font-variant-numeric: tabular-nums;
+}
+.shell-v2 .ctl-section-body {
+  display: flex;
+  flex-direction: column;
+}
+.shell-v2 .ctl-row {
+  border-bottom: 1px solid var(--border-v2);
+}
+.shell-v2 .ctl-row:last-child {
+  border-bottom: none;
+}
+.shell-v2 .ctl-row-label {
+  width: 100%;
+  display: grid !important;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text-v2) !important;
+  font-size: 13px !important;
+}
+.shell-v2 .ctl-row-label:hover {
+  background: var(--bg-2-v2) !important;
+}
+.shell-v2 .ctl-row.is-expanded .ctl-row-label {
+  background: var(--bg-2-v2) !important;
+}
+.shell-v2 .ctl-row-name {
+  font-weight: 500;
+  color: var(--text-v2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shell-v2 .ctl-row-summary {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.shell-v2 .ctl-binding-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  color: var(--text-v2);
+  line-height: 1;
+}
+.shell-v2 .ctl-pill-kb { color: var(--text-v2); }
+.shell-v2 .ctl-pill-md { color: var(--vmix-v2); border-color: rgba(106,163,255,0.35); background: rgba(106,163,255,0.06); }
+.shell-v2 .ctl-pill-cp { color: var(--good-v2); border-color: rgba(0,184,107,0.35); background: rgba(0,184,107,0.06); }
+.shell-v2 .ctl-binding-empty {
+  color: var(--text-faint-v2);
+  font-size: 11px;
+  font-style: italic;
+}
+.shell-v2 .ctl-row-chevron {
+  color: var(--text-dim-v2);
+  font-size: 11px;
+  width: 14px;
+  text-align: right;
+}
+.shell-v2 .ctl-row-detail {
+  padding: 6px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg-2-v2);
+}
+.shell-v2 .ctl-detail-row {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.shell-v2 .ctl-detail-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-dim-v2);
+}
+.shell-v2 .ctl-binding-value {
+  font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-size: 12px !important;
+  background: var(--card-v2) !important;
+  border: 1px solid var(--border-v2) !important;
+  border-radius: 4px;
+  padding: 5px 10px !important;
+  color: var(--text-v2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+}
+.shell-v2 .ctl-binding-value.is-unset {
+  color: var(--text-faint-v2);
+  font-style: italic;
+  border-style: dashed !important;
+}
+.shell-v2 .ctl-detail-actions {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+.shell-v2 .ctl-global-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim-v2) !important;
+  padding: 4px 8px !important;
+  border: 1px solid var(--border-v2);
+  border-radius: 4px;
+  background: var(--bg-2-v2);
+  cursor: pointer;
+}
+.shell-v2 .ctl-global-toggle input {
+  margin: 0;
+  accent-color: var(--select-accent-v2);
+}
+.shell-v2 .ctl-global-toggle.is-on {
+  color: var(--good-v2) !important;
+  border-color: rgba(0, 184, 107, 0.4);
+}
+

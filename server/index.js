@@ -138,9 +138,9 @@ export const startServer = async (options = {}) => {
     hub.broadcast('snapshot');
     vmixService.scheduleSyncTimers(store.getTimers());
   });
-  timerManager.on('tick', () => {
-    hub.broadcast('timer-tick');
-    vmixService.scheduleSyncTimers(store.getTimers());
+  timerManager.on('tick', (payload) => {
+    hub.broadcast('timer-tick', payload);
+    vmixService.scheduleSyncTimers(payload?.timers || store.getTimers());
   });
 
   app.use(cors());

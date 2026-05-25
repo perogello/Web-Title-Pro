@@ -159,28 +159,28 @@ export default function TimerColorEditorModal({ timer, onClose, onSave }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="card modal-card modal-card--narrow timer-color-modal" onClick={(event) => event.stopPropagation()}>
-        <div className="card-head">
+      <div className="modal-card modal-card--narrow timer-color-modal" onClick={(event) => event.stopPropagation()}>
+        <div className="panel-head-v3">
           <div>
-            <span className="panel-kicker">Timer Colors</span>
+            <span className="kicker-v3">Timer Colors</span>
             <h3>{timer.name}</h3>
           </div>
           <div className="topbar-actions">
-            <button className="ghost-button compact-button" onClick={onClose}>Cancel</button>
-            <button className="primary-button compact-button" onClick={handleSave}>Save</button>
+            <button className="btn-v3-ghost btn-v3-sm" onClick={onClose}>Cancel</button>
+            <button className="btn-v3-primary btn-v3-sm" onClick={handleSave}>Save</button>
           </div>
         </div>
 
         <div className="timer-color-editor">
-          <div className="meta-card timer-color-preview" style={previewColor ? { borderColor: previewColor } : undefined}>
-            <span className="meta-label">Preview</span>
+          <div className="info-card-v3 timer-color-preview" style={previewColor ? { borderColor: previewColor } : undefined}>
+            <span className="info-label-v3">Preview</span>
             <strong className="timer-readout" style={previewColor ? { color: previewColor } : undefined}>
               {timer.display || formatThreshold(timer.currentMs ?? timer.valueMs ?? 0, timer.displayFormat)}
             </strong>
-            <span className="output-note">Format: {timer.displayFormat || 'mm:ss'} · {timer.mode}</span>
+            <span className="note-v3">Format: {timer.displayFormat || 'mm:ss'} · {timer.mode}</span>
           </div>
 
-          <label className="input-block compact">
+          <label className="field-v3 field-v3-compact">
             <span>Default color</span>
             <div className="color-row">
               <input
@@ -196,7 +196,7 @@ export default function TimerColorEditorModal({ timer, onClose, onSave }) {
               />
               <button
                 type="button"
-                className="ghost-button compact-button"
+                className="btn-v3-ghost btn-v3-sm"
                 onClick={() => setDefaultColor('')}
                 title="Clear (use template default)"
               >
@@ -206,17 +206,17 @@ export default function TimerColorEditorModal({ timer, onClose, onSave }) {
           </label>
 
           <div className="trigger-list-head">
-            <span className="meta-label">
+            <span className="info-label-v3">
               Triggers ({timer.mode === 'countup' ? 'fire when value ≥ threshold' : 'fire when value ≤ threshold'})
             </span>
-            <button className="ghost-button compact-button icon-button" onClick={addTrigger} title="Add trigger">
+            <button className="btn-v3-ghost btn-v3-sm btn-v3-icon" onClick={addTrigger} title="Add trigger">
               <PlusIcon />
             </button>
           </div>
 
           <div className="trigger-list">
             {triggers.length === 0 && (
-              <div className="output-note">No triggers — the timer always uses the default color.</div>
+              <div className="note-v3">No triggers — the timer always uses the default color.</div>
             )}
             {triggers.map((trigger) => (
               <div className="trigger-row" key={trigger.id}>
@@ -240,7 +240,7 @@ export default function TimerColorEditorModal({ timer, onClose, onSave }) {
                 />
                 <button
                   type="button"
-                  className="ghost-button compact-button icon-button danger-button"
+                  className="btn-v3-ghost btn-v3-sm btn-v3-icon btn-v3-danger"
                   onClick={() => removeTrigger(trigger.id)}
                   title="Remove trigger"
                 >

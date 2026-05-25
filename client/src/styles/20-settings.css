@@ -1,0 +1,274 @@
+
+/* ===================================================================
+   TIMERS TAB — stack timer-card and vmix-card vertically (not in grid)
+   timer-grid: cards in a clean grid with consistent padding
+   ================================================================= */
+.shell-v2 .content-v2-inner .timer-card,
+.shell-v2 .content-v2-inner .vmix-card {
+  width: 100%;
+}
+/* .timer-grid and .timer-panel — canonical defs further below in the
+   TIMERS TAB block (flex wrap layout). Earlier grid defs removed. */
+.shell-v2 .content-v2-inner .timer-reminder-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: var(--bg-2-v2);
+}
+.shell-v2 .content-v2-inner .timer-source-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.shell-v2 .content-v2-inner .timer-source-head strong {
+  font-size: 13px;
+  color: var(--text-v2);
+}
+
+/* ===================================================================
+   SETTINGS sub-tabs — force panels to stack vertically (not horizontal grid)
+   This fixes the screenshot bug where Shortcuts/MIDI/Bitfocus overlap.
+   ================================================================= */
+.shell-v2 .settings-body-content .integration-grid {
+  display: flex !important;
+  flex-direction: column;
+  gap: 12px;
+}
+/* Outputs cards stack vertically — they don't compete well as a grid because
+   the long URL chips and inputs prevent tracks from shrinking. Each card now
+   takes the full width of the content area. */
+.shell-v2 .settings-body-content .output-settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  max-width: 720px;
+}
+.shell-v2 .settings-body-content .output-settings-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.shell-v2 .settings-body-content .output-settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  padding: 14px 16px;
+  background: var(--card-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 8px;
+}
+.shell-v2 .settings-body-content .output-settings-card .output-settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.shell-v2 .settings-body-content .output-settings-card .topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.shell-v2 .settings-body-content .output-settings-card .output-url-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.shell-v2 .settings-body-content .output-settings-card .output-url-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 6px;
+  min-width: 0;
+}
+.shell-v2 .settings-body-content .output-settings-card .output-url-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.shell-v2 .settings-body-content .output-settings-card .output-url-copy strong {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-dim-v2);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.shell-v2 .settings-body-content .output-settings-card .output-url-copy code {
+  display: block;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-v2);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.shell-v2 .settings-body-content .output-settings-card .output-url-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.shell-v2 .settings-body-content .shortcut-action-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+.shell-v2 .settings-body-content .shortcut-entry-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ===================================================================
+   NORMALIZE — uniform card padding so title aligns with content
+   ================================================================= */
+.shell-v2 .content-v2-inner .timer-card,
+.shell-v2 .content-v2-inner .vmix-card,
+.shell-v2 .content-v2-inner .output-card,
+.shell-v2 .content-v2-inner .source-import-card,
+.shell-v2 .content-v2-inner .source-replace-card,
+.shell-v2 .content-v2-inner .source-yandex-connect-card,
+.shell-v2 .content-v2-inner .source-table-card,
+.shell-v2 .content-v2-inner .output-settings-card {
+  padding: 16px;
+}
+.shell-v2 .content-v2-inner .panel-head-v3 {
+  margin-bottom: 14px;
+}
+.shell-v2 .content-v2-inner .panel-head-v3 > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.shell-v2 .content-v2-inner .panel-head-v3 .kicker-v3 { margin-bottom: 2px; }
+.shell-v2 .content-v2-inner .panel-head-v3 h3 { font-size: 16px; line-height: 1.2; }
+
+/* ===================================================================
+   UPDATES TAB — hero status card + compact details strip
+   The hero is the only element that pulses / changes color when an
+   update is waiting; the details strip below stays muted so the eye
+   can't confuse "facts" with "alert".
+   ================================================================= */
+.shell-v2 .content-v2-inner .updates-shell-v3 {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 640px;
+}
+.shell-v2 .content-v2-inner .update-hero-v3 {
+  background: var(--card-v2);
+  border: 1px solid var(--border-v2);
+  border-left: 3px solid var(--border-strong-v2);
+  border-radius: 8px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.shell-v2 .content-v2-inner .update-hero-v3.is-live {
+  /* An update is waiting — pull the eye with the same red used for
+     ON AIR indicators across the app. */
+  border-left-color: var(--live-v2);
+  background: linear-gradient(180deg, rgba(249,50,50,0.06) 0%, var(--card-v2) 60%);
+}
+.shell-v2 .content-v2-inner .update-hero-v3.is-good {
+  border-left-color: var(--good-v2);
+}
+.shell-v2 .content-v2-inner .update-hero-v3.is-warn {
+  border-left-color: var(--warn-v2);
+}
+.shell-v2 .content-v2-inner .update-hero-v3-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.shell-v2 .content-v2-inner .update-hero-v3-version {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-dim-v2);
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-variant-numeric: tabular-nums;
+}
+.shell-v2 .content-v2-inner .update-hero-v3-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text-v2);
+}
+.shell-v2 .content-v2-inner .update-hero-v3.is-live .update-hero-v3-title {
+  color: var(--live-v2);
+}
+.shell-v2 .content-v2-inner .update-hero-v3-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-dim-v2);
+}
+.shell-v2 .content-v2-inner .update-hero-v3-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.shell-v2 .content-v2-inner .update-details-v3 {
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 8px;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+.shell-v2 .content-v2-inner .update-detail-row {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-v2);
+  font-size: 12px;
+}
+.shell-v2 .content-v2-inner .update-detail-row:last-child {
+  border-bottom: 0;
+}
+.shell-v2 .content-v2-inner .update-detail-label {
+  color: var(--text-dim-v2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  font-weight: 600;
+}
+.shell-v2 .content-v2-inner .update-detail-value {
+  color: var(--text-v2);
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+}
+.shell-v2 .content-v2-inner code.update-detail-value {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  color: var(--select-accent-v2);
+}

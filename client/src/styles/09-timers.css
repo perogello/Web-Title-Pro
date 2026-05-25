@@ -1,0 +1,206 @@
+/* ===================================================================
+   Timer readout — pure text. No boxes, no chrome, nothing wrapping
+   the digits. Looks identical to plain `00:00` text until you hover
+   a segment (subtle digit-color highlight), at which point you can
+   click to edit or use arrows / mouse-wheel to step.
+
+   The optional ↑/↓ icons (withArrows) sit in a transparent gutter
+   above and below each segment so the digit position never shifts.
+   They only render as outline strokes — no fill, no background.
+   ================================================================= */
+.shell-v2 .seg-timer-v3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  user-select: none;
+  color: var(--text-v2);
+}
+.shell-v2 .seg-timer-v3-group {
+  display: inline-flex;
+  align-items: center;
+}
+.shell-v2 .seg-timer-v3-sep {
+  font-weight: 600;
+  color: var(--text-dim-v2);
+  margin: 0 2px;
+  pointer-events: none;
+}
+
+/* The digit itself — invisible button that just *displays* a number.
+   No background, no border. The `!important`s + double `.content-v2-inner`
+   selector beat the global `input[type="text"]` rule from the form-input
+   block above (which would otherwise draw a 1 px border + background). */
+.shell-v2 .seg-timer-v3-val,
+.shell-v2 .content-v2-inner input.seg-timer-v3-input,
+.shell-v2 input.seg-timer-v3-input {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font: inherit !important;
+  font-weight: 600 !important;
+  color: var(--text-v2) !important;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  line-height: 1 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  cursor: pointer;
+  min-width: 2ch;
+  width: 2ch;
+  height: 1em !important;
+  display: inline-block;
+  vertical-align: baseline;
+  box-sizing: content-box !important;
+  border-radius: 0 !important;
+}
+.shell-v2 .seg-timer-v3-val { cursor: text; }
+.shell-v2 .seg-timer-v3-val:hover {
+  color: #fff !important;
+}
+.shell-v2 .seg-timer-v3-val:focus-visible {
+  color: var(--select-accent-v2) !important;
+}
+.shell-v2 .content-v2-inner input.seg-timer-v3-input,
+.shell-v2 input.seg-timer-v3-input {
+  caret-color: var(--select-accent-v2);
+  color: var(--select-accent-v2) !important;
+}
+/* Kill the focus ring that the global input:focus rule would draw. */
+.shell-v2 input.seg-timer-v3-input:focus,
+.shell-v2 .content-v2-inner input.seg-timer-v3-input:focus {
+  background: transparent !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Sizes — pure font-size, nothing else.
+   size-lg used in TimersTab full editor; size-md is the Live row variant
+   (smaller digits leave more room for the arrow gutter). */
+.shell-v2 .seg-timer-v3.size-lg { font-size: 22px; }
+.shell-v2 .seg-timer-v3.size-md { font-size: 20px; }
+.shell-v2 .seg-timer-v3.size-sm { font-size: 16px; }
+
+/* Arrow variant — chevrons live in a transparent gutter, the digit
+   itself is centred between them. No box around anything.
+   Gutter rows are big enough to actually click in live production. */
+.shell-v2 .seg-timer-v3-stack {
+  display: inline-grid;
+  grid-template-rows: 22px auto 22px;
+  align-items: center;
+  justify-items: center;
+}
+.shell-v2 .seg-timer-v3.size-lg .seg-timer-v3-stack { grid-template-rows: 24px auto 24px; }
+.shell-v2 .seg-timer-v3.size-md .seg-timer-v3-stack { grid-template-rows: 22px auto 22px; }
+.shell-v2 .seg-timer-v3-arrow {
+  width: 32px;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: var(--text-faint-v2);
+  opacity: 0;            /* invisible by default */
+  cursor: pointer;
+  transition: opacity 90ms, color 90ms;
+}
+.shell-v2 .seg-timer-v3-arrow svg { width: 20px; height: 20px; stroke-width: 2.4; }
+.shell-v2 .seg-timer-v3:hover .seg-timer-v3-arrow { opacity: 0.55; }
+.shell-v2 .seg-timer-v3-arrow:hover { opacity: 1; color: var(--text-v2); }
+
+/* Live row timer — outlined coloured buttons + clean readout. */
+.shell-v2 .content-v2-inner .row-timer-td { padding: 0 8px !important; }
+.shell-v2 .content-v2-inner .row-timer-cell-v3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+}
+.shell-v2 .content-v2-inner .row-timer-actions-v3 {
+  display: inline-flex;
+  gap: 4px;
+}
+.shell-v2 .content-v2-inner .row-timer-icon-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 5px;
+  border: 1px solid var(--border-v2);
+  background: var(--bg-2-v2);
+  color: var(--text-v2);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  transition: background 100ms, border-color 100ms, color 100ms;
+  flex: 0 0 auto;
+}
+.shell-v2 .content-v2-inner .row-timer-icon-btn svg { width: 14px; height: 14px; }
+.shell-v2 .content-v2-inner .row-timer-icon-btn:hover {
+  border-color: var(--border-strong-v2);
+}
+.shell-v2 .content-v2-inner .row-timer-icon-btn.is-idle {
+  color: #4cd58c;
+  border-color: rgba(76, 213, 140, 0.45);
+}
+.shell-v2 .content-v2-inner .row-timer-icon-btn.is-idle:hover    { background: rgba(76, 213, 140, 0.12); }
+.shell-v2 .content-v2-inner .row-timer-icon-btn.is-running {
+  color: #f5b942;
+  border-color: rgba(245, 185, 66, 0.55);
+  background: rgba(245, 185, 66, 0.08);
+}
+.shell-v2 .content-v2-inner .row-timer-icon-btn.is-paused {
+  color: #4cd58c;
+  border-color: rgba(76, 213, 140, 0.55);
+}
+.shell-v2 .content-v2-inner .row-timer-icon-btn.is-finished {
+  color: var(--live-v2);
+  border-color: rgba(249, 50, 50, 0.6);
+  background: rgba(249, 50, 50, 0.12);
+  animation: timer-state-pulse 1.6s ease-in-out infinite;
+}
+.shell-v2 .content-v2-inner .row-timer-icon-btn.is-reset {
+  color: #6ba4ff;
+  border-color: rgba(107, 164, 255, 0.45);
+}
+.shell-v2 .content-v2-inner .row-timer-icon-btn.is-reset:hover    { background: rgba(107, 164, 255, 0.12); }
+
+/* TimersTab — large readout aligned left, with breathing room around it. */
+.shell-v2 .timer-readout-edit {
+  margin: 4px 0;
+  color: var(--text-v2);
+}
+.shell-v2 .timer-meta-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.shell-v2 .timer-meta-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 110px;
+}
+.shell-v2 .timer-meta-block .info-label-v3 {
+  color: var(--text-dim-v2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+.shell-v2 .timer-meta-block select {
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  color: var(--text-v2);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+}
+

@@ -1,0 +1,61 @@
+/* Connected-account chip — match the Sign-in button geometry exactly
+   (42px tall, 14px radius) so the two never visually drift when one
+   replaces the other after auth flips. From v0.3.4 release. */
+.shell-v2 .content-v2-inner .yandex-account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border-v2);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-v2);
+  font-weight: 700;
+}
+/* Yandex ID Sign-in button — per https://yandex.ru/dev/id/doc/ru/suggest/but-const
+   White button, weight 800, red round "Y" mark. */
+.shell-v2 .content-v2-inner .yandex-auth-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid #111;
+  border-radius: 14px;
+  background: #fff;
+  color: #111;
+  font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  transition: transform 120ms ease, box-shadow 120ms ease, opacity 120ms ease;
+}
+.shell-v2 .content-v2-inner .yandex-auth-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+}
+.shell-v2 .content-v2-inner .yandex-auth-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+/* Yandex brand "Y" mark — red round badge, white letter. */
+.shell-v2 .content-v2-inner .yandex-auth-button__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #fc3f1d;
+  color: #fff;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  margin: 0;
+  flex-shrink: 0;
+}

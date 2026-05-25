@@ -1,11 +1,5 @@
 import { useState } from 'react';
 
-function previewUrlForOutput(output) {
-  return output?.previewUrl || '';
-}
-function renderUrlForOutput(output) {
-  return output?.renderUrl || '';
-}
 function entryIsVmix(output, entries) {
   const entry = entries.find((e) => e.id === output?.selectedEntryId);
   return entry?.entryType === 'vmix';
@@ -37,16 +31,20 @@ export default function PreviewOverlay({
   outputs,
   entries,
   selectedOutputId,
+  outputRenderTargets,
 }) {
   const [mode, setMode] = useState('selected');
   const selectedOutput = outputs.find((output) => output.id === selectedOutputId) || outputs[0] || null;
+  const targetById = new Map((outputRenderTargets || []).map((target) => [target.id, target]));
+  const renderUrlFor = (output) => targetById.get(output?.id)?.renderUrl || '';
+  const previewUrlFor = (output) => targetById.get(output?.id)?.previewUrl || '';
 
   return (
     <div className={`preview-overlay-v2 ${isOpen ? 'is-open' : ''}`}>
       <div className="preview-overlay-v2-head">
         <div className="title-block">
           <span className="kicker">Preview</span>
-          <div className="mode-toggle">
+          <div className="seg-control-v3">
             <button
               className={mode === 'selected' ? 'is-active' : ''}
               onClick={() => setMode('selected')}
@@ -70,14 +68,14 @@ export default function PreviewOverlay({
             title="Preview"
             state="off"
             name={selectedOutput.name}
-            url={previewUrlForOutput(selectedOutput)}
+            url={previewUrlFor(selectedOutput)}
             isVmix={entryIsVmix(selectedOutput, entries)}
           />
           <PreviewFrame
             title="Live"
             state={selectedOutput?.program?.visible ? 'on' : 'off'}
             name={`${selectedOutput.name} · ${selectedOutput?.program?.visible ? 'ON AIR' : 'OFF'}`}
-            url={renderUrlForOutput(selectedOutput)}
+            url={renderUrlFor(selectedOutput)}
             isVmix={entryIsVmix(selectedOutput, entries)}
           />
         </div>
@@ -91,7 +89,7 @@ export default function PreviewOverlay({
               title={output?.program?.visible ? 'ON AIR' : 'OFF'}
               state={output?.program?.visible ? 'on' : 'off'}
               name={output.name}
-              url={renderUrlForOutput(output)}
+              url={renderUrlFor(output)}
               isVmix={entryIsVmix(output, entries)}
             />
           ))}
