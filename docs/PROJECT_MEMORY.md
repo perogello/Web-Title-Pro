@@ -1,0 +1,83 @@
+# Project Memory
+
+Last updated: 2026-05-25
+
+## Current Branch Context
+
+- Active branch: `staging/0.4.0`.
+- GitHub branches:
+  - `origin/main` is still the public `0.3.4` line.
+  - `origin/staging/0.4.0` contains the current `0.4.0` release work.
+- Local `main` is an intermediate redesign branch and is not the GitHub default branch.
+- Local `.claude/worktrees/exciting-cerf-fb0314` is older than current `staging/0.4.0`.
+- Current recurring untracked local items: `templates/google-timer/`, `templates/google-timer-2/`, `templates/google-timer-3/`.
+
+## Current Architecture
+
+- Frontend: React control shell in `client/src/ControlShell.jsx`, with UI components under `client/src/control-shell/`.
+- Current UI surface:
+  - `control-shell/v2/TopBar.jsx`
+  - `control-shell/v2/OutputsSidebar.jsx`
+  - `control-shell/v2/LiveTabV2.jsx`
+  - `control-shell/v2/ConfigTab.jsx`
+  - `control-shell/v2/PreviewOverlay.jsx`
+- Desktop shell:
+  - Main Electron window is frameless (`frame: false`).
+  - TopBar renders desktop-only in-app window controls when `window.webTitleDesktop` is present.
+  - Window controls use preload IPC: `window:minimize`, `window:toggle-maximize`, `window:close`, and `window:get-state`.
+  - CSS uses `-webkit-app-region: drag` on the top bar and `no-drag` on interactive controls.
+- CSS is split into `client/src/styles/*.css`, imported via `client/src/styles/index.css`.
+- Backend: Express + WebSocket in `server/`.
+- Renderer: `renderer/render.js`.
+- Desktop shell: Electron files under `desktop/`.
+- Project bundle support: `server/templates/bundle-service.js`.
+
+## Recent Fixes
+
+- WebSocket `timer-tick` now sends only `{ serverTime, timers }`, not the full project snapshot.
+- Live Data Source row selection updates only title `fields`; it must not overwrite the title `name`.
+- vMix title input display:
+  - New vMix entries store `vmixInputNumber`.
+  - Existing vMix entries are enriched from current `vmixState.inputs` when possible.
+  - UI must not display UUID-like `vmixInputKey` values as `Input #...`.
+- Config visually separates local and vMix titles:
+  - local: neutral left accent.
+  - vMix: blue left accent and subtle blue background.
+- MIDI Learn:
+  - UI action IDs are `previousTitle`, `nextTitle`, `selectOutput:<id>`, `selectEntry:<id>`, `timerToggle:<id>`, `timerReset:<id>`.
+  - Backend dispatch normalizes those to old command IDs where needed.
+  - `midiState.bindings` is an array; Controls builds a lookup map with old/new aliases.
+  - Controls includes MIDI status and `Refresh MIDI`.
+- Live Notes:
+  - `LiveTabV2` has a `Notes` toggle beside `Preview`.
+  - Notes panel opens on the right and persists per output/source in localStorage.
+  - Notes editor is `contentEditable`, not `textarea`; saved shape supports `{ html, text }` and migrates old plain-text notes.
+  - Formatting applies to the selected text fragment, not the whole note.
+  - Supported formatting: bold, italic, font size, text color, background color.
+  - Color UI has two buttons: `Text` and `Fill`; they open native color inputs.
+  - Notes panel width is resizable from its left splitter, persisted in `web-title-pro.liveNotesWidth`, clamped to 260-620 px.
+
+## Tests
+
+- Unit/regression tests:
+  - `npm.cmd test`
+  - `npm.cmd run test:unit`
+- Production build:
+  - `npm.cmd run build`
+- Playwright browser smoke:
+  - Install browser once: `npm.cmd run test:ui:install`
+  - Run smoke: `npm.cmd run test:ui`
+  - Config: `playwright.config.cjs`
+  - Specs: `tests/ui/`
+  - Playwright starts `npm run dev` automatically through `webServer`.
+  - Current UI smoke covers Notes open, selected-text rich formatting, color application, and Notes panel resize.
+- `dev:server` uses a narrowed nodemon watch (`server`, `package.json`) so Playwright `test-results/`, Vite build output, and local files do not restart the backend during UI tests.
+- Full verification:
+  - `npm.cmd run test:all`
+
+## Known Limitations
+
+- vMix ON AIR is still not read back from vMix; UI reflects the last command issued by this app.
+- MIDI actions are based on `noteon` and positive-value `cc` messages.
+- GitHub Releases API is queried without a token and may hit the public 60 req/h IP limit.
+- Browser/plugin automation may not be available in every Codex session; project-level Playwright smoke is the reliable fallback.

@@ -120,3 +120,29 @@ export const DownloadIcon = () => (
     <path d="M12 15V3" />
   </svg>
 );
+
+export const WindowMinimizeIcon = () => (
+  <svg {...iconProps}>
+    <path d="M5 19h14" />
+  </svg>
+);
+
+export const WindowMaximizeIcon = () => (
+  <svg {...iconProps}>
+    <rect x="5" y="5" width="14" height="14" rx="1.5" />
+  </svg>
+);
+
+export const WindowRestoreIcon = () => (
+  <svg {...iconProps}>
+    <path d="M8 8V5h11v11h-3" />
+    <rect x="5" y="8" width="11" height="11" rx="1.5" />
+  </svg>
+);
+
+export const WindowCloseIcon = () => (
+  <svg {...iconProps}>
+    <path d="M6 6l12 12" />
+    <path d="M18 6L6 18" />
+  </svg>
+);

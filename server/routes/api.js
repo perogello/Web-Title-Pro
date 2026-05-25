@@ -309,7 +309,13 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
         `attachment; filename="${getBundleFilename(project)}"`,
       );
       response.setHeader('X-Bundle-Included-Templates', String(manifest.includedTemplateIds.length));
-      stream.on('error', (error) => sendError(response, error));
+      stream.on('error', (error) => {
+        if (response.headersSent) {
+          response.destroy(error);
+          return;
+        }
+        sendError(response, error);
+      });
       stream.pipe(response);
     } catch (error) {
       sendError(response, error);

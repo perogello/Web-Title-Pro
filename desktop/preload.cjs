@@ -11,6 +11,15 @@ contextBridge.exposeInMainWorld('webTitleDesktop', {
   createNewProject: () => ipcRenderer.invoke('project:new'),
   requestAppClose: () => ipcRenderer.invoke('project:request-close'),
   setWindowTitle: (payload) => ipcRenderer.invoke('window:set-title', payload),
+  getWindowState: () => ipcRenderer.invoke('window:get-state'),
+  minimizeWindow: () => ipcRenderer.invoke('window:minimize'),
+  toggleMaximizeWindow: () => ipcRenderer.invoke('window:toggle-maximize'),
+  closeWindow: () => ipcRenderer.invoke('window:close'),
+  onWindowStateChanged: (callback) => {
+    const listener = (_event, payload) => callback?.(payload);
+    ipcRenderer.on('window:state-changed', listener);
+    return () => ipcRenderer.removeListener('window:state-changed', listener);
+  },
   installAvailableUpdate: (payload) => ipcRenderer.invoke('updates:install-available', payload),
   getYandexAuthSettings: () => ipcRenderer.invoke('settings:get-yandex-auth'),
   saveYandexAuthSettings: (payload) => ipcRenderer.invoke('settings:save-yandex-auth', payload),

@@ -73,6 +73,9 @@
 .shell-v2 .content-v2-inner .source-list-item.is-dragging {
   opacity: 0.55;
 }
+.shell-v2 .content-v2-inner .source-list-item.source-manage-item {
+  min-width: 0;
+}
 
 /* Drag handle — 14×14 area, mute by default, brightens on row hover. */
 .shell-v2 .content-v2-inner .source-manage-handle {
@@ -216,6 +219,10 @@
   border-color: var(--select-accent-v2) !important;
   outline: none;
 }
+.shell-v2 .content-v2-inner .source-current-actions {
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
 
 .shell-v2 .content-v2-inner .source-list-head {
   font-size: 11px;
@@ -258,6 +265,29 @@
 .shell-v2 .content-v2-inner .source-import-card .panel-head-v3 h3,
 .shell-v2 .content-v2-inner .source-replace-card .panel-head-v3 h3 {
   font-size: 13px;
+}
+.shell-v2 .content-v2-inner .source-remote-settings {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 8px;
+}
+.shell-v2 .content-v2-inner .source-sheet-toggle {
+  max-width: 100%;
+  overflow: auto;
+}
+.shell-v2 .content-v2-inner .source-remote-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.shell-v2 .content-v2-inner .source-column-actions-head {
+  width: 86px;
+  min-width: 86px;
 }
 
 /* ===================================================================

@@ -1,4 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import {
+  WindowCloseIcon,
+  WindowMaximizeIcon,
+  WindowMinimizeIcon,
+  WindowRestoreIcon,
+} from '../icons.jsx';
 
 // Bundle import — hidden file input fired from the menu item below. Keeps
 // the picker out of the layout tree until the user actually clicks Import.
@@ -46,6 +52,69 @@ function StatusBadge({ tone, label, title, onClick }) {
       <span className="dot" />
       <span>{label}</span>
     </span>
+  );
+}
+
+function WindowControls() {
+  const desktopBridge = typeof window !== 'undefined' ? window.webTitleDesktop : null;
+  const [windowState, setWindowState] = useState({ isMaximized: false });
+
+  useEffect(() => {
+    if (!desktopBridge?.getWindowState) return undefined;
+
+    let cancelled = false;
+    desktopBridge.getWindowState()
+      .then((payload) => {
+        if (!cancelled && payload?.ok) setWindowState(payload);
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [desktopBridge]);
+
+  useEffect(() => {
+    if (!desktopBridge?.onWindowStateChanged) return undefined;
+    return desktopBridge.onWindowStateChanged((payload) => {
+      if (payload?.ok) setWindowState(payload);
+    });
+  }, [desktopBridge]);
+
+  if (!desktopBridge?.minimizeWindow || !desktopBridge?.toggleMaximizeWindow || !desktopBridge?.closeWindow) {
+    return null;
+  }
+
+  return (
+    <div className="window-controls-v2" aria-label="Window controls">
+      <button
+        type="button"
+        className="window-control-btn-v2"
+        onClick={() => desktopBridge.minimizeWindow()}
+        title="Minimize"
+        aria-label="Minimize window"
+      >
+        <WindowMinimizeIcon />
+      </button>
+      <button
+        type="button"
+        className="window-control-btn-v2"
+        onClick={() => desktopBridge.toggleMaximizeWindow()}
+        title={windowState.isMaximized ? 'Restore' : 'Maximize'}
+        aria-label={windowState.isMaximized ? 'Restore window' : 'Maximize window'}
+      >
+        {windowState.isMaximized ? <WindowRestoreIcon /> : <WindowMaximizeIcon />}
+      </button>
+      <button
+        type="button"
+        className="window-control-btn-v2 is-close"
+        onClick={() => desktopBridge.closeWindow()}
+        title="Close"
+        aria-label="Close window"
+      >
+        <WindowCloseIcon />
+      </button>
+    </div>
   );
 }
 
@@ -116,7 +185,7 @@ export default function TopBar({
         ))}
       </nav>
 
-      <div />
+      <div className="titlebar-drag-v2" aria-hidden="true" />
 
       <div className="status-v2">
         {/* Connection chip is a status-only indicator — no settings page for it.
@@ -148,6 +217,8 @@ export default function TopBar({
           onClick={() => onOpenSettingsTab?.('integrations')}
         />
       </div>
+
+      <WindowControls />
 
       {menuOpen && (
         <div className="file-dropdown">

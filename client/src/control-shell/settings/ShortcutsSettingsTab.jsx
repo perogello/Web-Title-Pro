@@ -12,6 +12,7 @@ export default function ShortcutsSettingsTab({
   onClearShortcut,
   onCancelLearning,
   onToggleGlobal,
+  onRefreshMidiState,
   onStartMidiLearn,
   onStopMidiLearn,
   onClearMidiBinding,
@@ -23,7 +24,43 @@ export default function ShortcutsSettingsTab({
 
   const isMouseShortcut = (value = '') => /Mouse(\s|$)/i.test(value);
   const globalActions = shortcutBindings?.globalActions || {};
-  const midiBindings = midiState?.bindings || {};
+  const midiStatusLabel = midiState?.enabled
+    ? `${midiState?.inputs?.length || 0} MIDI device(s)`
+    : midiState?.error || 'MIDI offline';
+  const midiBindings = useMemo(() => {
+    const rawBindings = midiState?.bindings || [];
+    const map = {};
+    const addBinding = (action, binding) => {
+      if (action && !map[action]) {
+        map[action] = binding;
+      }
+    };
+    const addAliases = (action, binding) => {
+      addBinding(action, binding);
+      if (action === 'previous-title') addBinding('previousTitle', binding);
+      if (action === 'next-title') addBinding('nextTitle', binding);
+
+      const outputMatch = action.match(/^select-output:(.+)$/);
+      if (outputMatch) addBinding(`selectOutput:${outputMatch[1]}`, binding);
+
+      const entryMatch = action.match(/^entry-select:(.+)$/);
+      if (entryMatch) addBinding(`selectEntry:${entryMatch[1]}`, binding);
+
+      const timerToggleMatch = action.match(/^timer-toggle:(.+)$/);
+      if (timerToggleMatch) addBinding(`timerToggle:${timerToggleMatch[1]}`, binding);
+
+      const timerResetMatch = action.match(/^timer-reset:(.+)$/);
+      if (timerResetMatch) addBinding(`timerReset:${timerResetMatch[1]}`, binding);
+    };
+
+    if (Array.isArray(rawBindings)) {
+      rawBindings.forEach((binding) => addAliases(String(binding?.action || ''), binding));
+    } else {
+      Object.entries(rawBindings).forEach(([action, binding]) => addAliases(action, binding));
+    }
+
+    return map;
+  }, [midiState?.bindings]);
 
   // Bitfocus actions are built in ControlShell with kebab-case ids (e.g.
   // `select-output-${outputId}`, `previous-title`, `timer-toggle-${id}`).
@@ -162,7 +199,8 @@ export default function ShortcutsSettingsTab({
     .filter((s) => s.items.length > 0);
 
   const isLearningKey = (action) => learningShortcut?.action === action;
-  const isLearningMidi = (action) => midiState?.learnTarget?.action === action;
+  const isLearningMidi = (action) =>
+    midiState?.learnTarget?.action === action || midiState?.learningAction === action;
 
   return (
     <div className="ctl-shell-v2">
@@ -178,6 +216,13 @@ export default function ShortcutsSettingsTab({
           <span className="ctl-legend-chip"><span className="kb">⌨</span> Keyboard</span>
           <span className="ctl-legend-chip"><span className="md">🎹</span> MIDI</span>
           <span className="ctl-legend-chip"><span className="cp">🔗</span> Companion</span>
+        </div>
+        <div className="ctl-midi-status" title={midiState?.error || midiStatusLabel}>
+          <span className={`ctl-midi-dot ${midiState?.enabled ? 'is-on' : 'is-off'}`} />
+          <span>{midiStatusLabel}</span>
+          <button type="button" className="btn-v3-ghost btn-v3-sm" onClick={onRefreshMidiState}>
+            Refresh MIDI
+          </button>
         </div>
       </div>
 

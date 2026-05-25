@@ -13,6 +13,13 @@ const truncate = (value, max = 80) => {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 };
 
+const formatVmixInputInfo = (entry) => {
+  if (entry?.entryType !== 'vmix') return '';
+  if (entry.vmixInputNumber) return `Input #${entry.vmixInputNumber}`;
+  if (entry.vmixInputTitle || entry.vmixInputKey) return 'Input configured';
+  return '';
+};
+
 export default function OutputCard({
   output,
   entries,
@@ -66,7 +73,7 @@ export default function OutputCard({
         : currentEntry.templateName || currentEntry.name || 'Local Title')
     : '';
 
-  const inputInfo = isVmix && currentEntry?.vmixInputKey ? `Input #${currentEntry.vmixInputKey}` : '';
+  const inputInfo = isVmix ? formatVmixInputInfo(currentEntry) : '';
 
   const handleSelect = (event) => {
     if (event.target.closest('button')) return;

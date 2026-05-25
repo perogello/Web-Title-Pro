@@ -513,6 +513,65 @@ ipcMain.handle('window:set-title', async (_event, payload = {}) => {
   return { ok: true };
 });
 
+const getWindowStatePayload = (windowRef = mainWindow) => {
+  if (!windowRef || windowRef.isDestroyed()) {
+    return {
+      ok: false,
+      isMaximized: false,
+      isMinimized: false,
+      isFullScreen: false,
+    };
+  }
+
+  return {
+    ok: true,
+    isMaximized: windowRef.isMaximized(),
+    isMinimized: windowRef.isMinimized(),
+    isFullScreen: windowRef.isFullScreen(),
+  };
+};
+
+const emitWindowState = (windowRef = mainWindow) => {
+  if (!windowRef || windowRef.isDestroyed()) return;
+  try {
+    windowRef.webContents.send('window:state-changed', getWindowStatePayload(windowRef));
+  } catch {}
+};
+
+const getIpcWindow = (event) => {
+  const windowRef = BrowserWindow.fromWebContents(event.sender);
+  return windowRef && !windowRef.isDestroyed() ? windowRef : mainWindow;
+};
+
+ipcMain.handle('window:get-state', async (event) => getWindowStatePayload(getIpcWindow(event)));
+
+ipcMain.handle('window:minimize', async (event) => {
+  const windowRef = getIpcWindow(event);
+  if (!windowRef || windowRef.isDestroyed()) return { ok: false };
+  windowRef.minimize();
+  return getWindowStatePayload(windowRef);
+});
+
+ipcMain.handle('window:toggle-maximize', async (event) => {
+  const windowRef = getIpcWindow(event);
+  if (!windowRef || windowRef.isDestroyed()) return { ok: false };
+
+  if (windowRef.isMaximized()) {
+    windowRef.unmaximize();
+  } else {
+    windowRef.maximize();
+  }
+  emitWindowState(windowRef);
+  return getWindowStatePayload(windowRef);
+});
+
+ipcMain.handle('window:close', async (event) => {
+  const windowRef = getIpcWindow(event);
+  if (!windowRef || windowRef.isDestroyed()) return { ok: false };
+  windowRef.close();
+  return { ok: true };
+});
+
 const setWindowMeta = async (windowRef, { title, eyebrow, version } = {}) => {
   if (!windowRef || windowRef.isDestroyed()) {
     return;
@@ -790,6 +849,7 @@ const createMainWindow = async () => {
     minHeight: 480,
     backgroundColor: '#090a0d',
     autoHideMenuBar: true,
+    frame: false,
     show: false,
     title: 'Web Title Pro',
     webPreferences: {
@@ -804,6 +864,11 @@ const createMainWindow = async () => {
     mainWindow = null;
     allowMainWindowClose = false;
   });
+
+  mainWindow.on('maximize', () => emitWindowState(mainWindow));
+  mainWindow.on('unmaximize', () => emitWindowState(mainWindow));
+  mainWindow.on('enter-full-screen', () => emitWindowState(mainWindow));
+  mainWindow.on('leave-full-screen', () => emitWindowState(mainWindow));
 
   mainWindow.on('close', async (event) => {
     if (allowMainWindowClose) {
@@ -838,6 +903,7 @@ const createMainWindow = async () => {
 
   mainWindow.webContents.on('did-finish-load', () => {
     log('window:did-finish-load');
+    emitWindowState(mainWindow);
   });
 
   mainWindow.webContents.on('did-fail-load', (_event, code, description) => {

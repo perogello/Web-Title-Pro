@@ -4,6 +4,7 @@ release/
 storage/
 .tmp-test/
 tmp-verify/
+test-results/
 *.log
 desktop-*.log
 Thumbs.db

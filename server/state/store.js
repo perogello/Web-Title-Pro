@@ -540,6 +540,7 @@ export class TitleStore extends EventEmitter {
           ...entry,
           templateId: null,
           fields: this.buildEntryFields(null, entry.fields || {}),
+          vmixInputNumber: entry.vmixInputNumber || null,
           vmixShowAction: normalizeVmixAction(entry.vmixShowAction, 'TransitionIn'),
           vmixHideAction: normalizeVmixAction(entry.vmixHideAction, 'TransitionOut'),
           shortcuts: normalizeEntryShortcuts(entry.shortcuts),
@@ -988,6 +989,7 @@ export class TitleStore extends EventEmitter {
         name: payload.name?.trim() || payload.vmixInputTitle || 'vMix Title',
         fields: initialFields,
         vmixInputKey: payload.vmixInputKey || null,
+        vmixInputNumber: payload.vmixInputNumber || null,
         vmixInputTitle: payload.vmixInputTitle || 'vMix Title',
         vmixFieldMap: Array.isArray(payload.vmixFieldMap) ? payload.vmixFieldMap : buildVmixFieldDefinitions({ fields: initialFields }),
         vmixShowAction: normalizeVmixAction(payload.vmixShowAction, 'TransitionIn'),
@@ -1044,6 +1046,10 @@ export class TitleStore extends EventEmitter {
 
       if (payload.vmixInputKey !== undefined) {
         entry.vmixInputKey = payload.vmixInputKey || null;
+      }
+
+      if (payload.vmixInputNumber !== undefined) {
+        entry.vmixInputNumber = payload.vmixInputNumber || null;
       }
 
       if (payload.vmixInputTitle !== undefined) {

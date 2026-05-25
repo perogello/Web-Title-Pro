@@ -84,6 +84,19 @@ release/WebTitlePro-<version>.exe
 release/WebTitlePro.exe
 ```
 
+### Тесты и проверка
+
+```bash
+npm.cmd test
+npm.cmd run build
+npm.cmd run test:ui
+```
+
+- `npm.cmd test` / `npm.cmd run test:unit` запускает быстрые Node regression-тесты.
+- `npm.cmd run test:ui` запускает Playwright smoke-тесты Control UI и сам поднимает `npm run dev`.
+- Перед первым UI-тестом на машине установи браузер Playwright: `npm.cmd run test:ui:install`.
+- `npm.cmd run test:all` выполняет unit-тесты, production build и UI smoke.
+
 ### Базовый workflow
 
 1. Запусти `WebTitlePro.exe`.
@@ -162,19 +175,21 @@ desktop/                                # Electron shell
 templates/                              # built-in HTML шаблоны
 scripts/                                # Build and helper scripts
 docs/                                   # Product and integration docs
-tests/                                  # Node test suite
+tests/                                  # Node + Playwright smoke tests
 ```
+
+Актуальная память проекта для дальнейшей разработки: [docs/PROJECT_MEMORY.md](docs/PROJECT_MEMORY.md).
 
 ### UI после v0.4.0
 
 - **Тонкий top-bar** с табами LIVE / CONFIG / DATA / TIMERS / SETTINGS и статус-чипами OFFLINE/VMIX/MIDI/YANDEX справа.
 - **OutputsSidebar** слева на всех вкладках кроме SETTINGS — карточки outputs с ON AIR-индикаторами и кнопками play/stop, ширина регулируется ресайзером.
-- **LIVE** — Live Data Source с ресайзящимися колонками и таймерами на строках, кнопки play/pause/reset с цветовыми состояниями.
-- **CONFIG** — outputs, titles и mapping в одном экране, render/preview URL прячутся под выбранный output.
+- **LIVE** — Live Data Source с ресайзящимися колонками, таймерами на строках и toggle-панелью Notes справа: rich-text заметки сохраняются per output/source, поддерживают форматирование выделенного текста, две кнопки цвета (`Text` / `Fill`) и ресайз ширины панели.
+- **CONFIG** — outputs, titles и mapping в одном экране, render/preview URL прячутся под выбранный output; local/vMix титры визуально разделены.
 - **DATA** — источники данных (Text / TXT / CSV URL / Google Sheets / Yandex Disk) с маппингом колонок и Auto-refresh.
 - **TIMERS** — локальные таймеры и vMix-таймеры с цветовыми триггерами и vmix/local индикацией.
 - **SETTINGS** — вертикальный sub-nav (Outputs / Controls / Integrations / System) с красной полосой и фоном на активной секции.
-  - **Controls** — единый редактор биндингов: поиск, секции (Commands / Outputs / Title entries / Timers), на каждый action три пилюли (⌨ Keyboard / 🎹 MIDI / 🔗 Companion) с inline Learn/Clear.
+  - **Controls** — единый редактор биндингов: поиск, секции (Commands / Outputs / Title entries / Timers), на каждый action три пилюли (⌨ Keyboard / 🎹 MIDI / 🔗 Companion) с inline Learn/Clear, статусом MIDI и Refresh MIDI.
   - **Integrations** — карточка vMix (host + статус) и Yandex OAuth.
   - **System** — обновления + about + Control UI URL.
 
@@ -264,6 +279,19 @@ release/WebTitlePro-<version>.exe
 release/WebTitlePro.exe
 ```
 
+### Testing
+
+```bash
+npm.cmd test
+npm.cmd run build
+npm.cmd run test:ui
+```
+
+- `npm.cmd test` / `npm.cmd run test:unit` runs the fast Node regression suite.
+- `npm.cmd run test:ui` runs Playwright Control UI smoke tests and starts `npm run dev` automatically.
+- Before the first UI test on a machine, install the Playwright browser: `npm.cmd run test:ui:install`.
+- `npm.cmd run test:all` runs unit tests, production build, and UI smoke.
+
 ### Basic Workflow
 
 1. Start `WebTitlePro.exe`.
@@ -342,18 +370,20 @@ desktop/                                # Electron shell
 templates/                              # Built-in HTML templates
 scripts/                                # Build and helper scripts
 docs/                                   # Product and integration docs
-tests/                                  # Node test suite
+tests/                                  # Node + Playwright smoke tests
 ```
+
+Project context for future maintenance is tracked in [docs/PROJECT_MEMORY.md](docs/PROJECT_MEMORY.md).
 
 ### UI After v0.4.0
 
 - **Thin top bar** with LIVE / CONFIG / DATA / TIMERS / SETTINGS tabs and OFFLINE/VMIX/MIDI/YANDEX status chips on the right.
 - **OutputsSidebar** on the left on every tab except SETTINGS — output cards with ON AIR markers and play/stop buttons, resizable width.
-- **LIVE** — Live Data Source with resizable columns and per-row timers, play/pause/reset buttons with state colors.
-- **CONFIG** — outputs, titles, and mapping on one screen; render/preview URL chips reveal under the selected output.
+- **LIVE** — Live Data Source with resizable columns, per-row timers, and a right-side Notes toggle: rich-text notes persist per output/source, support selected-text formatting, two color buttons (`Text` / `Fill`), and a resizable panel width.
+- **CONFIG** — outputs, titles, and mapping on one screen; render/preview URL chips reveal under the selected output; local/vMix titles are visually distinct.
 - **DATA** — data sources (Text / TXT / CSV URL / Google Sheets / Yandex Disk) with column mapping and Auto-refresh.
 - **TIMERS** — local and vMix-bound timers with color triggers and vmix/local indication.
 - **SETTINGS** — vertical sub-nav (Outputs / Controls / Integrations / System) with a red accent bar and tint on the active section.
-  - **Controls** — unified binding editor: search box, collapsible sections (Commands / Outputs / Title entries / Timers), and per-action pills (⌨ Keyboard / 🎹 MIDI / 🔗 Companion) with inline Learn/Clear.
+  - **Controls** — unified binding editor: search box, collapsible sections (Commands / Outputs / Title entries / Timers), and per-action pills (⌨ Keyboard / 🎹 MIDI / 🔗 Companion) with inline Learn/Clear, MIDI status, and Refresh MIDI.
   - **Integrations** — vMix card (host + status) and Yandex OAuth.
   - **System** — updates + about + Control UI URL.

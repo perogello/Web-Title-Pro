@@ -118,6 +118,7 @@ export default function SettingsPanel({
               onClearShortcut={onClearShortcut}
               onCancelLearning={onCancelLearningShortcut}
               onToggleGlobal={onToggleGlobalShortcut}
+              onRefreshMidiState={onRefreshMidiState}
               onStartMidiLearn={onStartMidiLearn}
               onStopMidiLearn={onStopMidiLearn}
               onClearMidiBinding={onClearMidiBinding}

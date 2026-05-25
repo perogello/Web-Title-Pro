@@ -18,6 +18,13 @@
   margin-bottom: 12px;
   background: var(--bg-2-v2);
 }
+.shell-v2 .content-v2-inner .reminder-delay-input {
+  width: 150px;
+  flex: 0 0 150px;
+}
+.shell-v2 .content-v2-inner .reminder-timer-readout {
+  width: 100%;
+}
 .shell-v2 .content-v2-inner .timer-source-head {
   display: flex;
   justify-content: space-between;
@@ -53,6 +60,9 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
+}
+.shell-v2 .settings-body-content .yandex-auth-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 .shell-v2 .settings-body-content .output-settings-card {
   display: flex;

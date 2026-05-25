@@ -218,6 +218,7 @@ export const buildPersistedEntry = (entry = {}) => {
     return {
       ...base,
       vmixInputKey: entry.vmixInputKey || null,
+      vmixInputNumber: entry.vmixInputNumber || null,
       vmixInputTitle: entry.vmixInputTitle || '',
       vmixFieldMap: Array.isArray(entry.vmixFieldMap) ? entry.vmixFieldMap : [],
       vmixShowAction: entry.vmixShowAction || 'TransitionIn',

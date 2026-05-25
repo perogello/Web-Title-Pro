@@ -1,13 +1,24 @@
 /* ====== TOP BAR ====== */
 .topbar-v2 {
   display: grid;
-  grid-template-columns: auto auto 1fr auto;
+  grid-template-columns: auto auto minmax(24px, 1fr) auto auto;
   align-items: center;
   gap: 14px;
-  padding: 0 12px;
+  padding: 0 0 0 12px;
   background: #08080a;
   border-bottom: 1px solid var(--border-v2);
   position: relative;
+  -webkit-app-region: drag;
+}
+.topbar-v2 button,
+.topbar-v2 select,
+.topbar-v2 input,
+.topbar-v2 .file-dropdown {
+  -webkit-app-region: no-drag;
+}
+.topbar-v2 .titlebar-drag-v2 {
+  align-self: stretch;
+  min-width: 24px;
 }
 .topbar-v2 .app-menu {
   display: flex; align-items: center; gap: 8px;
@@ -91,7 +102,7 @@
 .topbar-v2 .tab-v2 .icon { display: none; }
 
 /* === STATUS BADGES === */
-.topbar-v2 .status-v2 { display: flex; gap: 6px; align-items: center; padding-right: 4px; }
+.topbar-v2 .status-v2 { display: flex; gap: 6px; align-items: center; padding-right: 0; }
 .badge-status-v2 {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 4px 10px;
@@ -143,3 +154,34 @@ button.badge-status-v2.is-clickable:active {
   transform: translateY(1px);
 }
 
+.topbar-v2 .window-controls-v2 {
+  display: flex;
+  align-self: stretch;
+  margin-left: -6px;
+}
+.topbar-v2 .window-control-btn-v2 {
+  width: 46px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-left: 1px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-dim-v2);
+  cursor: pointer;
+  font: inherit;
+}
+.topbar-v2 .window-control-btn-v2 svg {
+  width: 14px;
+  height: 14px;
+}
+.topbar-v2 .window-control-btn-v2:hover {
+  background: var(--bg-2-v2);
+  color: var(--text-v2);
+}
+.topbar-v2 .window-control-btn-v2.is-close:hover {
+  background: #c42b1c;
+  color: #fff;
+}

@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseMidiMessage, normalizeMidiBindings } from '../server/midi/midi-service.js';
+import {
+  parseMidiMessage,
+  normalizeMidiBindings,
+  normalizeMidiActionForDispatch,
+} from '../server/midi/midi-service.js';
 
 test('parseMidiMessage: note on with velocity > 0', () => {
   const result = parseMidiMessage([0x90, 60, 127]);
@@ -56,6 +60,32 @@ test('normalizeMidiBindings: accepts entry-select / timer-toggle / timer-reset',
   ]);
   assert.equal(result.length, 3);
   assert.deepEqual(result.map((b) => b.action), ['entry-select:abc-123', 'timer-toggle:main', 'timer-reset:main']);
+});
+
+test('normalizeMidiBindings: accepts current UI action ids', () => {
+  const result = normalizeMidiBindings([
+    { device: 'any', type: 'noteon', note: 54, action: 'previousTitle' },
+    { device: 'any', type: 'noteon', note: 55, action: 'selectOutput:output-main' },
+    { device: 'any', type: 'noteon', note: 56, action: 'selectEntry:title-1' },
+    { device: 'any', type: 'noteon', note: 57, action: 'timerToggle:main' },
+    { device: 'any', type: 'noteon', note: 58, action: 'timerReset:main' },
+  ]);
+  assert.equal(result.length, 5);
+  assert.deepEqual(result.map((b) => b.action), [
+    'previousTitle',
+    'selectOutput:output-main',
+    'selectEntry:title-1',
+    'timerToggle:main',
+    'timerReset:main',
+  ]);
+});
+
+test('normalizeMidiActionForDispatch maps UI ids to command ids', () => {
+  assert.equal(normalizeMidiActionForDispatch('previousTitle'), 'previous-title');
+  assert.equal(normalizeMidiActionForDispatch('selectOutput:output-main'), 'select-output:output-main');
+  assert.equal(normalizeMidiActionForDispatch('selectEntry:title-1'), 'entry-select:title-1');
+  assert.equal(normalizeMidiActionForDispatch('timerToggle:main'), 'timer-toggle:main');
+  assert.equal(normalizeMidiActionForDispatch('timerReset:main'), 'timer-reset:main');
 });
 
 test('normalizeMidiBindings: rejects select-output without id', () => {

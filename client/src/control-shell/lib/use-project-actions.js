@@ -432,7 +432,7 @@ export function useProjectActions({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
       pushFeedback(
         includedCount > 0
           ? `Bundle exported with ${includedCount} custom template${includedCount === 1 ? '' : 's'}`

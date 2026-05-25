@@ -185,10 +185,13 @@ function ControlShell() {
     () =>
       selectedEntry?.entryType === 'vmix'
         ? (vmixState?.inputs || []).find(
-            (input) => (input.key || input.number) === selectedEntry.vmixInputKey,
+            (input) =>
+              input.key === selectedEntry.vmixInputKey ||
+              input.number === selectedEntry.vmixInputKey ||
+              input.number === selectedEntry.vmixInputNumber,
           ) || null
         : null,
-    [selectedEntry?.entryType, selectedEntry?.vmixInputKey, vmixState?.inputs],
+    [selectedEntry?.entryType, selectedEntry?.vmixInputKey, selectedEntry?.vmixInputNumber, vmixState?.inputs],
   );
   const selectedVmixTextFields = useMemo(
     () => (selectedVmixInput?.textFields?.length ? selectedVmixInput.textFields : [{ name: 'Text', index: '0' }]),
@@ -215,6 +218,31 @@ function ControlShell() {
         (input) => (input.key || input.number) === newVmixInputKey,
       ) || null,
     [newVmixInputKey, vmixTitleInputs],
+  );
+  const displayEntries = useMemo(() => {
+    const inputs = vmixState?.inputs || [];
+    return (snapshot?.entries || []).map((entry) => {
+      if (entry.entryType !== 'vmix') {
+        return entry;
+      }
+
+      const input = inputs.find(
+        (item) =>
+          item.key === entry.vmixInputKey ||
+          item.number === entry.vmixInputKey ||
+          item.number === entry.vmixInputNumber,
+      );
+
+      return {
+        ...entry,
+        vmixInputNumber: entry.vmixInputNumber || input?.number || null,
+        vmixInputTitle: entry.vmixInputTitle || input?.title || input?.shortTitle || 'vMix Title',
+      };
+    });
+  }, [snapshot?.entries, vmixState?.inputs]);
+  const displaySelectedEntry = useMemo(
+    () => displayEntries.find((entry) => entry.id === selectedEntry?.id) || selectedEntry,
+    [displayEntries, selectedEntry],
   );
   const selectedSource = sourceLibrary.find((item) => item.id === selectedSourceId) || null;
   const selectedEntryFieldMap = useMemo(
@@ -1033,7 +1061,6 @@ function ControlShell() {
     const nextFields = boundRow
       ? applyRowToFields(selectedEntryFields, boundRow.values, selectedEntry.fields || {}, nextFieldMap)
       : null;
-    const nextName = boundRow?.values?.[0] || selectedEntry.name;
     const patch = selectedEntry.entryType === 'vmix' ? { vmixFieldMap: nextFieldMap } : { localFieldMap: nextFieldMap };
 
     try {
@@ -1041,13 +1068,12 @@ function ControlShell() {
         method: 'PUT',
         body: {
           ...patch,
-          ...(nextFields ? { fields: nextFields, name: nextName } : {}),
+          ...(nextFields ? { fields: nextFields } : {}),
         },
       });
 
       if (nextFields) {
         setDraftFields(nextFields);
-        setDraftName(nextName);
 
         if (autoUpdate) {
           if (selectedEntry.entryType === 'vmix') {
@@ -1221,6 +1247,7 @@ function ControlShell() {
             name: newEntryName || selectedNewVmixInput?.title || selectedNewVmixInput?.shortTitle || 'vMix Title',
             vmixInputKey:
               newVmixInputKey || selectedNewVmixInput?.key || selectedNewVmixInput?.number || '',
+            vmixInputNumber: selectedNewVmixInput?.number || null,
             vmixInputTitle:
               selectedNewVmixInput?.title || selectedNewVmixInput?.shortTitle || 'vMix Title',
             vmixFieldMap: vmixConfig.fieldMap,
@@ -1828,11 +1855,9 @@ function ControlShell() {
           outputEntry.fields || {},
           outputFieldMap,
         );
-        const nextName = row.values[0] || outputEntry.name;
-
         await api(`/api/entries/${outputEntry.id}`, {
           method: 'PUT',
-          body: { name: nextName, fields: nextFields },
+          body: { fields: nextFields },
         });
 
         if (autoUpdate && (outputEntry.entryType === 'vmix' || output.program?.visible)) {
@@ -1859,7 +1884,6 @@ function ControlShell() {
 
         if (outputId === selectedOutput.id) {
           setDraftFields(nextFields);
-          setDraftName(nextName);
         }
       }
 
@@ -1980,11 +2004,9 @@ function ControlShell() {
         outputEntry.fields || {},
         outputFieldMap,
       );
-      const nextName = rowValues[0] || outputEntry.name;
-
       await api(`/api/entries/${outputEntry.id}`, {
         method: 'PUT',
-        body: { name: nextName, fields: nextFields },
+        body: { fields: nextFields },
       });
 
       if (autoUpdate && (outputEntry.entryType === 'vmix' || output.program?.visible)) {
@@ -2002,7 +2024,6 @@ function ControlShell() {
       }
 
       if (outputId === selectedOutput?.id) {
-        setDraftName(nextName);
         setDraftFields(nextFields);
       }
     }
@@ -2836,7 +2857,7 @@ function ControlShell() {
       <div className="main-v2">
         <OutputsSidebar
           outputs={outputs}
-          entries={snapshot?.entries || []}
+          entries={displayEntries}
           selectedOutputId={selectedOutput?.id}
           busyAction={busyAction}
           onSelectOutput={selectOutput}
@@ -2856,7 +2877,7 @@ function ControlShell() {
             isOpen={showPreviewOverlay}
             onClose={() => setShowPreviewOverlay(false)}
             outputs={outputs}
-            entries={snapshot?.entries || []}
+            entries={displayEntries}
             selectedOutputId={selectedOutput?.id}
             outputRenderTargets={outputRenderTargets}
           />
@@ -2897,9 +2918,9 @@ function ControlShell() {
       {effectiveTab === 'config' && (
         <ConfigTab
           outputs={outputs}
-          entries={snapshot?.entries || []}
+          entries={displayEntries}
           selectedOutputId={selectedOutput?.id}
-          selectedEntry={selectedEntry}
+          selectedEntry={displaySelectedEntry}
           selectedEntryFieldMap={effectiveSelectedEntryFieldMap}
           sourceColumnChoices={sourceColumnChoices}
           busyAction={busyAction}
@@ -2956,7 +2977,7 @@ function ControlShell() {
           outputs={outputs}
           learningShortcut={learningShortcut}
           shortcutBindings={shortcutBindings}
-          shortcutEntries={snapshot?.entries || []}
+          shortcutEntries={displayEntries}
           shortcutTimers={snapshot?.timers || []}
           bitfocusActions={bitfocusActions}
           midiState={midiState}

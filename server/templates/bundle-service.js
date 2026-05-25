@@ -21,6 +21,7 @@ const BUNDLE_VERSION = 1;
 const BUNDLE_TEMPLATES_DIR = 'templates';
 const BUNDLE_MANIFEST_FILE = 'manifest.json';
 const BUNDLE_PROJECT_FILE = 'project.json';
+const SAFE_ARCHIVE_SEGMENT_RE = /^[a-z0-9][a-z0-9._-]*$/i;
 
 const collectReferencedTemplateIds = (project) => {
   const entries = project?.state?.entries || [];
@@ -35,6 +36,41 @@ const collectReferencedTemplateIds = (project) => {
 
 const sanitizeProjectName = (name = '') =>
   String(name || 'WebTitleProject').replace(/[<>:"/\\|?*]+/g, ' ').trim() || 'WebTitleProject';
+
+const normalizeArchivePath = (archivePath = '') => {
+  const normalized = String(archivePath || '').replace(/\\/g, '/');
+  const parts = normalized.split('/').filter((segment) => segment && segment !== '.');
+
+  if (
+    normalized.includes('\0') ||
+    normalized.startsWith('/') ||
+    parts.some((segment) => segment === '..')
+  ) {
+    throw new Error(`Unsafe bundle path: ${archivePath}`);
+  }
+
+  return parts.join('/');
+};
+
+const normalizeTemplateArchiveSlug = (value = '') => {
+  const slug = String(value || '').trim();
+  if (!SAFE_ARCHIVE_SEGMENT_RE.test(slug) || slug === '.' || slug === '..') {
+    throw new Error(`Unsafe template slug in project bundle: ${slug || '(empty)'}`);
+  }
+  return slug;
+};
+
+const safeJoin = (baseDirectory, relativePath) => {
+  const base = path.resolve(baseDirectory);
+  const target = path.resolve(base, relativePath);
+  const relative = path.relative(base, target);
+
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    throw new Error(`Unsafe bundle extraction path: ${relativePath}`);
+  }
+
+  return target;
+};
 
 /**
  * Stream a .wtpkg archive of the supplied project document.
@@ -75,7 +111,7 @@ export const createProjectBundleStream = ({ project, templateService }) => {
   // archiver emits 'error' on per-entry failure — propagate up to the caller.
   archive.on('warning', (error) => {
     if (error.code !== 'ENOENT') {
-      throw error;
+      archive.emit('error', error);
     }
   });
 
@@ -84,7 +120,8 @@ export const createProjectBundleStream = ({ project, templateService }) => {
 
   for (const template of customTemplatesToBundle) {
     if (template.directory && fs.existsSync(template.directory)) {
-      archive.directory(template.directory, `${BUNDLE_TEMPLATES_DIR}/${template.slug || template.id}`);
+      const slug = normalizeTemplateArchiveSlug(template.slug || template.id);
+      archive.directory(template.directory, `${BUNDLE_TEMPLATES_DIR}/${slug}`);
     }
   }
 
@@ -114,10 +151,15 @@ export const importProjectBundle = async ({ buffer, templateService }) => {
   }
 
   const directory = await unzipper.Open.buffer(buffer);
-  const files = directory.files.filter((file) => file.type === 'File');
+  const files = directory.files
+    .filter((file) => file.type === 'File')
+    .map((file) => {
+      file.safePath = normalizeArchivePath(file.path);
+      return file;
+    });
 
-  const manifestFile = files.find((file) => file.path === BUNDLE_MANIFEST_FILE);
-  const projectFile = files.find((file) => file.path === BUNDLE_PROJECT_FILE);
+  const manifestFile = files.find((file) => file.safePath === BUNDLE_MANIFEST_FILE);
+  const projectFile = files.find((file) => file.safePath === BUNDLE_PROJECT_FILE);
 
   if (!manifestFile || !projectFile) {
     throw new Error(
@@ -140,14 +182,15 @@ export const importProjectBundle = async ({ buffer, templateService }) => {
   const templateGroups = new Map();
   const templatePrefix = `${BUNDLE_TEMPLATES_DIR}/`;
   for (const file of files) {
-    if (!file.path.startsWith(templatePrefix)) {
+    if (!file.safePath.startsWith(templatePrefix)) {
       continue;
     }
-    const relative = file.path.slice(templatePrefix.length);
+    const relative = file.safePath.slice(templatePrefix.length);
     const [slug, ...rest] = relative.split('/');
     if (!slug || !rest.length) {
       continue;
     }
+    normalizeTemplateArchiveSlug(slug);
     if (!templateGroups.has(slug)) {
       templateGroups.set(slug, []);
     }
@@ -155,7 +198,7 @@ export const importProjectBundle = async ({ buffer, templateService }) => {
   }
 
   for (const [slug, items] of templateGroups) {
-    const targetDirectory = path.join(templateService.customTemplatesDir, slug);
+    const targetDirectory = safeJoin(templateService.customTemplatesDir, slug);
     const alreadyExists = await fs.pathExists(targetDirectory);
 
     if (alreadyExists) {
@@ -166,7 +209,7 @@ export const importProjectBundle = async ({ buffer, templateService }) => {
     try {
       await fs.ensureDir(targetDirectory);
       for (const item of items) {
-        const targetFile = path.join(targetDirectory, item.innerPath);
+        const targetFile = safeJoin(targetDirectory, item.innerPath);
         await fs.ensureDir(path.dirname(targetFile));
         await fs.writeFile(targetFile, await item.file.buffer());
       }

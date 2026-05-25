@@ -43,6 +43,27 @@
   gap: 4px;
   letter-spacing: 0.04em;
 }
+.shell-v2 .ctl-midi-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-dim-v2);
+  font-size: 11px;
+  margin-left: auto;
+}
+.shell-v2 .ctl-midi-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint-v2);
+}
+.shell-v2 .ctl-midi-dot.is-on {
+  background: var(--good-v2);
+  box-shadow: 0 0 6px rgba(0, 184, 107, 0.55);
+}
+.shell-v2 .ctl-midi-dot.is-off {
+  background: var(--live-v2);
+}
 .shell-v2 .ctl-list {
   display: flex;
   flex-direction: column;
@@ -240,4 +261,3 @@
   color: var(--good-v2) !important;
   border-color: rgba(0, 184, 107, 0.4);
 }
-

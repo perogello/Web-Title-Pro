@@ -235,12 +235,134 @@
 
 /* preview toggle */
 .preview-toggle-btn-v2 { text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; }
-.preview-toggle-btn-v2 .chev { transition: transform 0.2s; font-size: 11px; }
-.preview-toggle-btn-v2.is-open .chev { transform: rotate(180deg); }
-.preview-toggle-btn-v2.is-open { color: var(--select-accent-v2); border-color: rgba(139,158,255,0.5); }
+.preview-toggle-btn-v2 .chev,
+.notes-toggle-btn-v2 .chev { transition: transform 0.2s; font-size: 11px; }
+.preview-toggle-btn-v2.is-open .chev,
+.notes-toggle-btn-v2.is-open .chev { transform: rotate(180deg); }
+.preview-toggle-btn-v2.is-open,
+.notes-toggle-btn-v2.is-open { color: var(--select-accent-v2); border-color: rgba(139,158,255,0.5); }
+.notes-toggle-btn-v2 { text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; }
 
 /* === Excel-style fixed source table === */
+.live-source-body-v2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+.live-source-body-v2.has-notes {
+  grid-template-columns: minmax(0, 1fr) 4px var(--notes-width, 340px);
+}
 .table-wrap-v2 { overflow: auto; flex: 1; min-height: 0; }
+.notes-splitter-v2 {
+  position: relative;
+  z-index: 5;
+  cursor: col-resize;
+  background: transparent;
+}
+.notes-splitter-v2::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 1px;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-v2);
+  transition: background 0.15s, width 0.15s;
+}
+.notes-splitter-v2:hover::before,
+.notes-splitter-v2.is-dragging::before {
+  width: 2px;
+  background: var(--select-accent-v2);
+}
+.live-notes-v2 {
+  background: var(--bg-2-v2);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.live-notes-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px;
+  border-bottom: 1px solid var(--border-v2);
+}
+.live-notes-toolbar select,
+.note-tool-btn {
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-v2);
+  background: var(--card-v2);
+  color: var(--text-v2);
+  font: inherit;
+  font-size: 12px;
+}
+.note-tool-btn {
+  width: 30px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.note-tool-btn.is-italic {
+  font-style: italic;
+}
+.note-color-btn {
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-v2);
+  background: var(--card-v2);
+  color: var(--text-v2);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.note-color-btn:hover,
+.note-tool-btn:hover,
+.live-notes-toolbar select:hover {
+  border-color: var(--select-accent-v2);
+}
+.note-color-chip {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: var(--swatch);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.note-hidden-color {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.live-notes-editor {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  overflow: auto;
+  outline: none;
+  padding: 14px;
+  line-height: 1.45;
+  font-family: "Segoe UI", "YS Text", system-ui, sans-serif;
+  font-size: 16px;
+  color: #f5f5f7;
+  background: #15151a;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.live-notes-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-faint-v2);
+  pointer-events: none;
+}
 /* Normalize TEXT rendering for every cell of the Live source table so
    that file/text imports and Yandex/Google sheet imports look the same.
    Spreadsheet engines sometimes wrap cell text in <b>/<i>/<span style>
@@ -380,6 +502,26 @@ table.source-v2 td.idx { color: var(--text-faint-v2); font-weight: 700; width: 5
   border-radius: 8px;
 }
 .config-item-v2.is-selected { border-color: var(--select-v2); background: var(--select-bg-v2); }
+.config-item-v2.is-local-entry {
+  border-left: 3px solid rgba(138, 138, 153, 0.45);
+}
+.config-item-v2.is-vmix-entry {
+  border-left: 3px solid var(--vmix-v2);
+  background:
+    linear-gradient(90deg, rgba(106, 163, 255, 0.08), transparent 42%),
+    var(--bg-2-v2);
+}
+.config-item-v2.is-vmix-entry.is-selected {
+  background:
+    linear-gradient(90deg, rgba(106, 163, 255, 0.12), transparent 46%),
+    var(--select-bg-v2);
+}
+.config-item-v2.is-vmix-entry .main > span {
+  color: var(--vmix-v2);
+}
+.config-item-v2.is-local-entry .main > span {
+  color: var(--text-dim-v2);
+}
 .config-item-v2.is-dragging { opacity: 0.55; }
 .config-item-v2.is-drop-target {
   border-color: rgba(249, 50, 50, 0.55);
@@ -534,6 +676,8 @@ table.source-v2 td.idx { color: var(--text-faint-v2); font-weight: 700; width: 5
 }
 @media (max-width: 800px) {
   .config-layout-v2 { grid-template-columns: 1fr; }
+  .live-source-body-v2.has-notes { grid-template-columns: 1fr; grid-template-rows: minmax(260px, 1fr) 260px; }
+  .notes-splitter-v2 { display: none; }
   .topbar-v2 .tab-v2 .label { display: none; }
   .topbar-v2 .tab-v2 .icon { display: inline; font-size: 14px; }
   .topbar-v2 .tab-v2 { padding: 6px 10px; }
@@ -543,4 +687,3 @@ table.source-v2 td.idx { color: var(--text-faint-v2); font-weight: 700; width: 5
   .shell-v2 { min-width: 0; }
   .topbar-v2 .status-v2 { display: none; }
 }
-

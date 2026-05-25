@@ -1,0 +1,125 @@
+:root {
+  --g2-orange: #ff8c00;
+  --g2-orange-soft: #ffb066;
+  --g2-orange-glow: rgba(255, 140, 0, 0.55);
+  --g2-white: #ffffff;
+  --g2-shadow: rgba(0, 0, 0, 0.34);
+  --g2-font: "YS Text", "YS Text Wide", "YS Display", "Segoe UI", sans-serif;
+  /* Скорость вращения точек: время на один полный оборот.
+     Меньше = быстрее. Подгоняется под референс из видео. */
+  --g2-spin-duration: 2.4s;
+}
+
+.google-timer-2 {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  filter: blur(8px);
+  transition:
+    opacity 360ms ease,
+    transform 520ms cubic-bezier(0.16, 1, 0.3, 1),
+    filter 520ms ease;
+}
+
+.render-stage.is-visible .google-timer-2 {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+.render-stage.is-hiding .google-timer-2 {
+  opacity: 0;
+  transform: translateY(-12px) scale(0.99);
+  filter: blur(6px);
+}
+
+.google-timer-2__raw {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.google-timer-2__visual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(18px, 1.55vw, 34px);
+  font-family: var(--g2-font);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  line-height: 0.9;
+  text-shadow: 0 14px 46px var(--g2-shadow);
+  transform-origin: center;
+  /* нужно для корректного rotateY у потомков */
+  perspective: 900px;
+}
+
+.google-timer-2__part {
+  min-width: 1.78em;
+  color: var(--g2-white);
+  font-size: clamp(92px, 12vw, 210px);
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  text-align: center;
+}
+
+.google-timer-2__colon {
+  position: relative;
+  width: 0.36em;
+  height: 0.98em;
+  display: inline-block;
+  color: var(--g2-orange);
+  font-size: clamp(92px, 12vw, 210px);
+  transform: translateY(-0.02em);
+  transform-style: preserve-3d;
+}
+
+.google-timer-2__colon-dot {
+  position: absolute;
+  left: 50%;
+  width: 0.18em;
+  height: 0.18em;
+  border-radius: 50%;
+  background: var(--g2-orange);
+  /* Плоский диск: при rotateY=90° он окажется ребром к камере и пропадёт. */
+  backface-visibility: hidden;
+  /* Сдвиг по X компенсируем через translate, чтобы transform-origin
+     остался в центре точки и вращение было ровно вокруг её оси. */
+  transform: translateX(-50%) rotateY(0deg);
+  transform-origin: 50% 50%;
+  /* Обе точки используют одну и ту же анимацию без delay — синхрон. */
+  animation: g2-dot-spin var(--g2-spin-duration) linear infinite;
+}
+
+.google-timer-2__colon-dot--top {
+  top: 0.22em;
+}
+
+.google-timer-2__colon-dot--bottom {
+  bottom: 0.22em;
+  /* НИКАКОГО animation-delay — точки крутятся синхронно. */
+}
+
+@keyframes g2-dot-spin {
+  from {
+    transform: translateX(-50%) rotateY(0deg);
+  }
+  to {
+    transform: translateX(-50%) rotateY(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .google-timer-2__colon-dot {
+    animation: none;
+    transform: translateX(-50%);
+  }
+}

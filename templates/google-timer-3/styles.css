@@ -1,0 +1,109 @@
+:root {
+  --g3-orange: #ff8c00;
+  --g3-white: #ffffff;
+  --g3-font: "YS Text", "YS Text Wide", "YS Display", "Segoe UI", sans-serif;
+  --g3-spin-duration: 2.4s;
+}
+
+.google-timer-3 {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
+  transition:
+    opacity 360ms ease,
+    transform 520ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.render-stage.is-visible .google-timer-3 {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.render-stage.is-hiding .google-timer-3 {
+  opacity: 0;
+  transform: translateY(-12px) scale(0.99);
+}
+
+.google-timer-3__raw {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.google-timer-3__visual {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(2px, 0.25vw, 6px);
+  font-family: var(--g3-font);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  line-height: 0.9;
+  transform-origin: center;
+  perspective: 900px;
+}
+
+.google-timer-3__part {
+  min-width: 1.14em;
+  color: var(--g3-white);
+  font-size: clamp(92px, 12vw, 210px);
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  text-align: center;
+}
+
+.google-timer-3__colon {
+  position: relative;
+  width: 0.2em;
+  height: 0.98em;
+  display: inline-block;
+  color: var(--g3-orange);
+  font-size: clamp(92px, 12vw, 210px);
+  transform: translateY(-0.02em);
+  transform-style: preserve-3d;
+}
+
+.google-timer-3__colon-dot {
+  position: absolute;
+  left: 50%;
+  width: 0.18em;
+  height: 0.18em;
+  border-radius: 50%;
+  background: var(--g3-orange);
+  backface-visibility: hidden;
+  transform: translateX(-50%) rotateY(0deg);
+  transform-origin: 50% 50%;
+  animation: g3-dot-spin var(--g3-spin-duration) linear infinite;
+}
+
+.google-timer-3__colon-dot--top {
+  top: 0.22em;
+}
+
+.google-timer-3__colon-dot--bottom {
+  bottom: 0.22em;
+}
+
+@keyframes g3-dot-spin {
+  from {
+    transform: translateX(-50%) rotateY(0deg);
+  }
+  to {
+    transform: translateX(-50%) rotateY(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .google-timer-3__colon-dot {
+    animation: none;
+    transform: translateX(-50%);
+  }
+}

@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { EditIcon, TrashIcon } from '../icons.jsx';
 
+const formatVmixInputRef = (entry) => {
+  if (!entry) return 'Input ?';
+  if (entry.vmixInputNumber) return `Input #${entry.vmixInputNumber}`;
+  if (entry.vmixInputTitle || entry.vmixInputKey) return 'Input configured';
+  return 'Input ?';
+};
+
 export default function ConfigTab({
   outputs,
   entries,
@@ -143,7 +150,7 @@ export default function ConfigTab({
               const currentEntry = entries.find((entry) => entry.id === output.selectedEntryId);
               const isVmix = currentEntry?.entryType === 'vmix';
               const subline = isVmix
-                ? `VMIX · Input #${currentEntry?.vmixInputKey || '?'} · ${currentEntry?.vmixInputTitle || ''}`
+                ? `VMIX · ${formatVmixInputRef(currentEntry)} · ${currentEntry?.vmixInputTitle || ''}`
                 : currentEntry
                   ? `LOCAL · ${currentEntry.templateName || currentEntry.name}`
                   : 'No title assigned';
@@ -155,7 +162,7 @@ export default function ConfigTab({
               return (
                 <div
                   key={output.id}
-                  className={`config-item-v2 ${isSelected ? 'is-selected has-urls' : ''} ${isDragging ? 'is-dragging' : ''} ${isDropTarget ? 'is-drop-target' : ''}`}
+                  className={`config-item-v2 ${isSelected ? 'is-selected has-urls' : ''} ${isVmix ? 'is-vmix-entry' : currentEntry ? 'is-local-entry' : ''} ${isDragging ? 'is-dragging' : ''} ${isDropTarget ? 'is-drop-target' : ''}`}
                   draggable
                   onDragStart={onOutputDragStart(output)}
                   onDragOver={onOutputDragOver(output)}
@@ -230,7 +237,7 @@ export default function ConfigTab({
               // chips next to the entry name so director can scan a column
               // of titles and see "this one's on OUTPUT 1" in one glance.
               const subline = isVmix
-                ? `VMIX · Input #${entry.vmixInputKey || '?'}`
+                ? `VMIX · ${formatVmixInputRef(entry)}`
                 : `LOCAL · ${entry.templateName || entry.name || 'untitled'}`;
               const isSelected = entry.id === selectedEntry?.id;
               const isDragging = entry.id === draggingEntryId;
@@ -239,7 +246,7 @@ export default function ConfigTab({
               return (
                 <div
                   key={entry.id}
-                  className={`config-item-v2 ${isSelected ? 'is-selected' : ''} ${isDragging ? 'is-dragging' : ''} ${isDropTarget ? 'is-drop-target' : ''}`}
+                  className={`config-item-v2 ${isSelected ? 'is-selected' : ''} ${isVmix ? 'is-vmix-entry' : 'is-local-entry'} ${isDragging ? 'is-dragging' : ''} ${isDropTarget ? 'is-drop-target' : ''}`}
                   draggable
                   onDragStart={onEntryDragStart(entry)}
                   onDragOver={onEntryDragOver(entry)}

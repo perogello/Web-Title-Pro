@@ -9,7 +9,7 @@ import { config } from './config.js';
 import { TemplateService } from './templates/template-service.js';
 import { TitleStore } from './state/store.js';
 import { TimerManager } from './timers/timer-manager.js';
-import { MidiService } from './midi/midi-service.js';
+import { MidiService, normalizeMidiActionForDispatch } from './midi/midi-service.js';
 import { createApiRouter } from './routes/api.js';
 import { WebSocketHub } from './ws/hub.js';
 import { VmixService } from './vmix/vmix-service.js';
@@ -70,36 +70,38 @@ export const startServer = async (options = {}) => {
   });
   midiService.on('action', ({ action }) => {
     try {
-      if (action === 'show') {
+      const normalizedAction = normalizeMidiActionForDispatch(action);
+
+      if (normalizedAction === 'show') {
         store.showSelected();
       }
 
-      if (action === 'update' || action === 'live') {
+      if (normalizedAction === 'update' || normalizedAction === 'live') {
         store.updateProgram();
       }
 
-      if (action === 'hide') {
+      if (normalizedAction === 'hide') {
         store.hideProgram();
       }
 
-      if (action === 'next-title') {
+      if (normalizedAction === 'next-title') {
         store.selectAdjacentEntry('next');
       }
 
-      if (action === 'previous-title') {
+      if (normalizedAction === 'previous-title') {
         store.selectAdjacentEntry('previous');
       }
 
-      if (action.startsWith('select-output:')) {
-        store.selectOutput(action.slice('select-output:'.length));
+      if (normalizedAction.startsWith('select-output:')) {
+        store.selectOutput(normalizedAction.slice('select-output:'.length));
       }
 
-      if (action.startsWith('entry-select:')) {
-        store.selectEntry(action.slice('entry-select:'.length));
+      if (normalizedAction.startsWith('entry-select:')) {
+        store.selectEntry(normalizedAction.slice('entry-select:'.length));
       }
 
-      if (action.startsWith('timer-toggle:')) {
-        const timerId = action.slice('timer-toggle:'.length);
+      if (normalizedAction.startsWith('timer-toggle:')) {
+        const timerId = normalizedAction.slice('timer-toggle:'.length);
         const timer = store.getTimers().find((item) => item.id === timerId);
         if (timer?.running) {
           store.stopTimer(timerId);
@@ -108,8 +110,8 @@ export const startServer = async (options = {}) => {
         }
       }
 
-      if (action.startsWith('timer-reset:')) {
-        store.resetTimer(action.slice('timer-reset:'.length));
+      if (normalizedAction.startsWith('timer-reset:')) {
+        store.resetTimer(normalizedAction.slice('timer-reset:'.length));
       }
     } catch (error) {
       console.warn(`MIDI action skipped: ${error.message}`);

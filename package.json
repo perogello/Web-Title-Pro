@@ -6,14 +6,18 @@
   "main": "desktop/main.cjs",
   "scripts": {
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\"",
-    "dev:server": "nodemon server/index.js",
+    "dev:server": "nodemon --watch server --watch package.json --ext js,json server/index.js",
     "dev:client": "vite",
     "build": "vite build",
     "start": "node server/index.js",
     "desktop": "npm run build && node scripts/run-desktop.cjs",
     "desktop:dev": "node scripts/run-desktop.cjs",
     "package:win": "npm run build && electron-builder --win portable && node scripts/finalize-portable.cjs",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "test:unit": "node --test tests/*.test.js",
+    "test:ui": "playwright test",
+    "test:ui:install": "playwright install chromium",
+    "test:all": "npm run test:unit && npm run build && npm run test:ui"
   },
   "keywords": [
     "vmix",
@@ -34,6 +38,7 @@
     "url": "https://github.com/perogello/Web-Title-Pro/issues"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@vitejs/plugin-react": "^6.0.1",
     "concurrently": "^9.2.1",
     "electron": "^41.0.4",
