@@ -150,7 +150,7 @@ function ControlShell() {
     setProjectBaselineSignature,
     setDirty: setProjectDirty,
   } = useProjectState({ snapshot, sourceLibrary, selectedSourceId });
-  const updateState = appMeta?.updates || snapshot?.integrations?.updates || null;
+  const updateState = snapshot?.integrations?.updates || appMeta?.updates || null;
   const effectiveSelectedOutputId = localSelectedOutputId || snapshot?.selectedOutputId || outputs[0]?.id || null;
   const selectedOutput =
     outputs.find((output) => output.id === effectiveSelectedOutputId) || snapshot?.selectedOutput || null;
