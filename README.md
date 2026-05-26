@@ -73,6 +73,7 @@ npm.cmd run test:all
 - [Bitfocus Companion](docs/BITFOCUS.md)
 - [Bitfocus Companion RU](docs/BITFOCUS_RU.md)
 - [Project Memory](docs/PROJECT_MEMORY.md)
+- [Release 0.4.4](docs/RELEASE_0.4.4.md)
 - [Release 0.4.3](docs/RELEASE_0.4.3.md)
 
 ## Русский
@@ -146,6 +147,7 @@ npm.cmd run test:all
 - [Bitfocus Companion](docs/BITFOCUS.md)
 - [Bitfocus Companion RU](docs/BITFOCUS_RU.md)
 - [Project Memory](docs/PROJECT_MEMORY.md)
+- [Release 0.4.4](docs/RELEASE_0.4.4.md)
 - [Release 0.4.3](docs/RELEASE_0.4.3.md)
 
 ## Project Structure

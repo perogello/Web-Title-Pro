@@ -4,11 +4,11 @@ Last updated: 2026-05-26
 
 ## Current Branch Context
 
-- Active branch during release prep: `staging/0.4.0`; release should be pushed to `main`.
-- Current release target: `v0.4.3`.
+- Active release branch: `main`.
+- Current release target: `v0.4.4`.
 - GitHub branches:
 - `origin/main` is the release target for the current `0.4.x` line.
-- `origin/staging/0.4.0` was used for prerelease work and should not remain the primary release target.
+- `origin/staging/0.4.0` was used for prerelease work and has been retired as the primary release target.
 - Local `.claude/worktrees/exciting-cerf-fb0314` is older than current `0.4.x` work.
 - Current recurring untracked local items: `templates/google-timer/`, `templates/google-timer-2/`, `templates/google-timer-3/`.
 
@@ -75,6 +75,11 @@ Last updated: 2026-05-26
   - Project-level app settings are persisted in `project.json.state.integrations`: vMix host/selected timer input, update settings, keyboard/global shortcuts, and MIDI bindings.
   - `project.json.runtime.vmix.inputs` carries the discovered vMix input list from export time; importing still applies the regular persisted project state and source library.
   - Not project-bundle state: window size/position, recent-project history, and browser-local Live Notes stored in localStorage.
+- Updater:
+  - Default update channel is `stable`.
+  - `v0.4.4` adds validation for partial downloads: response `content-length`, GitHub asset size, and Windows PE signature are checked before the app quits for install.
+  - The PowerShell helper also checks source/target size before replacing `WebTitlePro.exe`; this prevents a truncated `.download` from silently replacing the launcher.
+  - If `0.4.2` or `0.4.3` already replaced `WebTitlePro.exe` with a partial file, the user must download a fresh portable `.exe` manually once because older updater code cannot be patched retroactively.
 
 ## Tests
 
@@ -92,6 +97,7 @@ Last updated: 2026-05-26
   - Current UI smoke covers Notes open, selected-text rich formatting, color application, and Notes panel resize.
   - Add Title modal styling is covered: segmented mode switch, vMix accent, hidden native file input, styled upload picker.
   - Bundle tests cover custom template inclusion, zip-slip rejection, project summary counts, local/vMix title preservation, data sources, vMix discovered input export, keyboard/global shortcuts, and MIDI bindings.
+  - Updater tests cover stable/prerelease release selection, incomplete download streams, truncated executable packages, and invalid executable signatures.
 - `dev:server` uses a narrowed nodemon watch (`server`, `package.json`) so Playwright `test-results/`, Vite build output, and local files do not restart the backend during UI tests.
 - Full verification:
   - `npm.cmd run test:all`

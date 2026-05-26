@@ -100,8 +100,34 @@ const createUpdaterIntegration = ({
           onProgress({ received, total: contentLength, percent });
         }
       }
+
+      if (contentLength > 0 && received !== contentLength) {
+        throw new Error(`Downloaded update is incomplete: received ${received} of ${contentLength} bytes.`);
+      }
     } finally {
       await fileHandle.close();
+    }
+  };
+
+  const validatePortableUpdatePackage = async (filePath, expectedSize = 0) => {
+    const stat = await fsp.stat(filePath);
+    const safeExpectedSize = Number(expectedSize) || 0;
+
+    if (safeExpectedSize > 0 && stat.size !== safeExpectedSize) {
+      throw new Error(`Downloaded update size mismatch: expected ${safeExpectedSize} bytes, got ${stat.size}.`);
+    }
+
+    const fileHandle = await fsp.open(filePath, 'r');
+    const signature = Buffer.alloc(2);
+
+    try {
+      await fileHandle.read(signature, 0, 2, 0);
+    } finally {
+      await fileHandle.close();
+    }
+
+    if (signature[0] !== 0x4d || signature[1] !== 0x5a) {
+      throw new Error('Downloaded update is not a valid Windows executable.');
     }
   };
 
@@ -158,7 +184,7 @@ const createUpdaterIntegration = ({
     return currentPath;
   };
 
-  const createUpdateScript = async ({ sourcePath, targetPath, taskName }) => {
+  const createUpdateScript = async ({ sourcePath, targetPath, taskName, expectedSize = 0 }) => {
     const timestamp = Date.now();
     const scriptPath = path.join(app.getPath('temp'), `web-title-pro-apply-update-${timestamp}.ps1`);
     const statusScriptPath = path.join(app.getPath('temp'), `web-title-pro-update-status-${timestamp}.ps1`);
@@ -172,7 +198,8 @@ const createUpdaterIntegration = ({
       '  [int]$PidToWait,',
       '  [string]$LogPath,',
       '  [string]$StatePath,',
-      '  [string]$TaskName',
+      '  [string]$TaskName,',
+      '  [long]$ExpectedSize',
       ')',
       "$ErrorActionPreference = 'Stop'",
       'function Write-UpdateLog([string]$Message) {',
@@ -198,11 +225,29 @@ const createUpdaterIntegration = ({
       '  if ($TaskName) { try { schtasks /delete /tn $TaskName /f | Out-Null } catch {} }',
       '  exit 1',
       '}',
+      '$sourceSize = (Get-Item -LiteralPath $Source).Length',
+      'if ($ExpectedSize -gt 0 -and $sourceSize -ne $ExpectedSize) {',
+      '  Write-UpdateLog "Update package size mismatch before copy. Expected=$ExpectedSize Actual=$sourceSize"',
+      "  Write-UpdateState 'error' 'The downloaded update package is incomplete.' 100",
+      '  if ($TaskName) { try { schtasks /delete /tn $TaskName /f | Out-Null } catch {} }',
+      '  exit 1',
+      '}',
+      '$stream = [System.IO.File]::OpenRead($Source)',
+      '$header = New-Object byte[] 2',
+      'try { [void]$stream.Read($header, 0, 2) } finally { $stream.Dispose() }',
+      'if ($header[0] -ne 0x4D -or $header[1] -ne 0x5A) {',
+      "  Write-UpdateLog 'Update package is not a Windows executable.'",
+      "  Write-UpdateState 'error' 'The downloaded update package is not a valid executable.' 100",
+      '  if ($TaskName) { try { schtasks /delete /tn $TaskName /f | Out-Null } catch {} }',
+      '  exit 1',
+      '}',
       "Write-UpdateState 'copying' 'Applying the update package...' 99",
       '$copySucceeded = $false',
       'for ($i = 0; $i -lt 240; $i++) {',
       '  try {',
       '    Copy-Item -LiteralPath $Source -Destination $Target -Force',
+      '    $targetSize = (Get-Item -LiteralPath $Target).Length',
+      "    if ($ExpectedSize -gt 0 -and $targetSize -ne $ExpectedSize) { throw \"Copied executable size mismatch. Expected=$ExpectedSize Actual=$targetSize\" }",
       '    Remove-Item -LiteralPath $Source -Force -ErrorAction SilentlyContinue',
       "    Write-UpdateLog 'Copied update package successfully.'",
       '    $copySucceeded = $true',
@@ -375,6 +420,8 @@ const createUpdaterIntegration = ({
       `"${escapeVbsValue(statePath)}"`,
       '-TaskName',
       `"${escapeVbsValue(taskName)}"`,
+      '-ExpectedSize',
+      String(Number(expectedSize) || 0),
     ].join(' ');
     const launchStatusCommand = [
       'powershell.exe',
@@ -460,7 +507,7 @@ const createUpdaterIntegration = ({
     throw new Error('The updater helper could not be started in the background.');
   };
 
-  const applyDownloadedUpdate = async (downloadPath) => {
+  const applyDownloadedUpdate = async (downloadPath, expectedSize = 0) => {
     const targetPath = resolveStablePortableExePath();
     log(
       `updates:apply target=${targetPath} exec=${process.execPath} portableFile=${process.env.PORTABLE_EXECUTABLE_FILE || ''} portableDir=${process.env.PORTABLE_EXECUTABLE_DIR || ''}`,
@@ -470,6 +517,7 @@ const createUpdaterIntegration = ({
       sourcePath: downloadPath,
       targetPath,
       taskName,
+      expectedSize,
     });
     await scheduleUpdateHelper({
       launcherPath,
@@ -521,9 +569,10 @@ const createUpdaterIntegration = ({
         void setWindowProgress(progressWindow, 'Downloading update package...', safePercent);
       });
 
+      await validatePortableUpdatePackage(tempDownloadPath, updateState.assetSize);
       await setWindowProgress(progressWindow, 'Preparing update handoff...', 96);
       await setWindowProgress(progressWindow, 'Closing Web Title Pro to finish the update...', 99);
-      await applyDownloadedUpdate(tempDownloadPath);
+      await applyDownloadedUpdate(tempDownloadPath, updateState.assetSize);
     } catch (error) {
       // Drop the half-written .download so the next attempt starts clean
       // (downloadFileWithProgress opens the file with mode 'w' but a
@@ -648,6 +697,7 @@ const createUpdaterIntegration = ({
       resolveStablePortableExePath,
       createUpdateScript,
       downloadFileWithProgress,
+      validatePortableUpdatePackage,
       scheduleUpdateHelper,
     },
   };
