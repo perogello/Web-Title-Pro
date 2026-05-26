@@ -752,13 +752,23 @@ const initializeUpdaterIntegration = () => {
       }
 
       try {
-        return await mainWindow.webContents.executeJavaScript(
+        const result = await mainWindow.webContents.executeJavaScript(
           'window.__webTitleConfirmUpdateInstall ? window.__webTitleConfirmUpdateInstall() : true;',
           true,
         );
+        log(`updates:confirm-install result=${JSON.stringify(result)}`);
+        return result;
       } catch (error) {
-        log(`updates:confirm-install-error ${error.stack || error.message}`);
-        return false;
+        // CRITICAL: previously this returned false on any executeJavaScript
+        // failure (renderer not ready, function not yet defined, etc.) and
+        // the whole update silently aborted. That made the operator click
+        // "Update Now" and see nothing happen. We now treat a failure to
+        // ask as implicit consent — the operator already explicitly asked
+        // for the update; if we can't pop the second confirmation, just
+        // proceed. Any genuinely-needed save was already prompted via the
+        // file menu before clicking Update Now.
+        log(`updates:confirm-install-error ${error.stack || error.message} — proceeding without renderer confirm`);
+        return true;
       }
     },
     requestQuitForUpdate,
@@ -915,7 +925,17 @@ const createMainWindow = async () => {
   return mainWindow;
 };
 
-ipcMain.handle('updates:install-available', async (_event, payload = {}) => updaterIntegration.installAvailableUpdate(payload));
+ipcMain.handle('updates:install-available', async (_event, payload = {}) => {
+  log(`updates:ipc-install-available payload=${JSON.stringify({ available: payload?.available, latest: payload?.latestVersion, hasAssetUrl: Boolean(payload?.assetUrl) })}`);
+  try {
+    const result = await updaterIntegration.installAvailableUpdate(payload);
+    log(`updates:ipc-install-result ${JSON.stringify({ ok: result?.ok, reason: result?.reason })}`);
+    return result;
+  } catch (error) {
+    log(`updates:ipc-install-throw ${error.stack || error.message}`);
+    throw error;
+  }
+});
 
 const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));
 

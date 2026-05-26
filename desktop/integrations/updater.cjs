@@ -620,7 +620,12 @@ const createUpdaterIntegration = ({
   };
 
   const installUpdateFromRelease = async (updateState) => {
+    log(
+      `updates:install-start latest=${updateState?.latestVersion || ''} asset=${updateState?.assetName || ''} size=${updateState?.assetSize || 0}`,
+    );
+
     if (!updateState?.assetUrl || !updateState?.assetName) {
+      log('updates:install-no-asset — opening release page in browser');
       if (updateState?.releaseUrl) {
         await shell.openExternal(updateState.releaseUrl);
       }
@@ -640,6 +645,7 @@ const createUpdaterIntegration = ({
 
     const updatesDir = path.join(app.getPath('userData'), 'updates');
     const tempDownloadPath = path.join(updatesDir, `${updateState.assetName}.download`);
+    log(`updates:install-paths updatesDir=${updatesDir} download=${tempDownloadPath}`);
 
     // Clear stale .download files from previous aborted attempts before
     // starting a new one. Without this, every cancelled / network-failed
@@ -656,20 +662,27 @@ const createUpdaterIntegration = ({
     }
 
     try {
+      log(`updates:download-start url=${updateState.assetUrl}`);
       await downloadFileWithProgress(updateState.assetUrl, tempDownloadPath, ({ percent }) => {
         const safePercent = percent === null ? 50 : Math.max(12, Math.min(92, percent));
         void setWindowProgress(progressWindow, 'Downloading update package...', safePercent);
       });
+      log(`updates:download-complete size=${updateState.assetSize || 0}`);
 
       await validatePortableUpdatePackage(tempDownloadPath, updateState.assetSize);
+      log('updates:download-validated');
       await setWindowProgress(progressWindow, 'Preparing update handoff...', 96);
       await setWindowProgress(progressWindow, 'Closing Web Title Pro to finish the update...', 99);
       await applyDownloadedUpdate(tempDownloadPath, updateState.assetSize);
+      log('updates:install-helper-scheduled');
     } catch (error) {
-      // Drop the half-written .download so the next attempt starts clean
-      // (downloadFileWithProgress opens the file with mode 'w' but a
-      // network-aborted write can still leave a partial truncated file).
+      log(`updates:install-error ${error.stack || error.message}`);
+      // Drop the half-written .download AND clean up any leftover scratch
+      // so a retry starts on a clean slate. Without the broader cleanup
+      // the user reported "works once, then fails silently" — orphaned
+      // helper scripts and partial downloads were piling up.
       await fsp.unlink(tempDownloadPath).catch(() => {});
+      await cleanupUpdaterScratch().catch(() => {});
       closeUpdateWindow();
       await dialog.showMessageBox(getMainWindow(), {
         type: 'error',
@@ -711,12 +724,80 @@ const createUpdaterIntegration = ({
     };
   };
 
+  /**
+   * Remove stale updater scratch files that survived a previous run:
+   *   - userData/updates/*.download   (interrupted downloads, ~91 MB each)
+   *   - %TEMP%/web-title-pro-apply-update-*.{ps1,vbs,log,json}
+   *   - %TEMP%/web-title-pro-update-status-*.ps1
+   * Each apply attempt creates one of each in TEMP and they were never
+   * cleaned, so power users who triggered the updater repeatedly ended up
+   * with hundreds of MB of orphan helper scripts and download blobs.
+   *
+   * Called on every cold start AND after a failed install so the disk
+   * doesn't slowly fill up.
+   */
+  const cleanupUpdaterScratch = async () => {
+    const cleaned = { downloads: 0, scripts: 0, errors: [] };
+
+    const updatesDir = path.join(app.getPath('userData'), 'updates');
+    try {
+      const entries = await fsp.readdir(updatesDir);
+      await Promise.all(
+        entries
+          .filter((name) => name.endsWith('.download'))
+          .map(async (name) => {
+            try {
+              await fsp.unlink(path.join(updatesDir, name));
+              cleaned.downloads += 1;
+            } catch (error) {
+              cleaned.errors.push(`${name}: ${error.message}`);
+            }
+          }),
+      );
+    } catch {
+      // directory may not exist yet, that's fine
+    }
+
+    const tempDir = app.getPath('temp');
+    try {
+      const entries = await fsp.readdir(tempDir);
+      const ours = entries.filter((name) =>
+        /^web-title-pro-(apply-update|update-status)-\d+\.(ps1|vbs|log|json)$/i.test(name),
+      );
+      await Promise.all(
+        ours.map(async (name) => {
+          try {
+            await fsp.unlink(path.join(tempDir, name));
+            cleaned.scripts += 1;
+          } catch (error) {
+            cleaned.errors.push(`${name}: ${error.message}`);
+          }
+        }),
+      );
+    } catch {
+      // ignore
+    }
+
+    log(
+      `updates:scratch-cleanup downloads=${cleaned.downloads} scripts=${cleaned.scripts}` +
+        (cleaned.errors.length ? ` errors=${cleaned.errors.length}` : ''),
+    );
+
+    return cleaned;
+  };
+
   const runStartupUpdateCheck = async () => {
     if (startupUpdateCheckStarted || !app.isPackaged) {
       return;
     }
 
     startupUpdateCheckStarted = true;
+
+    // Always clean up leftover updater scratch from previous runs at the
+    // very start — even if we're about to be told there's no update.
+    await cleanupUpdaterScratch().catch((error) => {
+      log(`updates:scratch-cleanup-error ${error.message || error}`);
+    });
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 900));
@@ -785,7 +866,9 @@ const createUpdaterIntegration = ({
     checkForUpdates,
     installAvailableUpdate,
     runStartupUpdateCheck,
+    cleanupUpdaterScratch,
     __private: {
+      cleanupUpdaterScratch,
       resolveStablePortableExePath,
       resolveLaunchedPortableExePath,
       resolvePortableUpdateTargets,
