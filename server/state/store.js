@@ -271,7 +271,7 @@ const createDefaultState = () => ({
     },
     updates: {
       repoUrl: 'https://github.com/perogello/Web-Title-Pro',
-      channel: 'prerelease',
+      channel: 'stable',
       fixedRepo: true,
       lastCheckAt: null,
       latestVersion: null,

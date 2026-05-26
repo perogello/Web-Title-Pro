@@ -2,7 +2,7 @@ import fs from 'fs-extra';
 import path from 'node:path';
 
 export const BUILTIN_REPO_URL = 'https://github.com/perogello/Web-Title-Pro';
-const DEFAULT_UPDATE_CHANNEL = 'prerelease';
+const DEFAULT_UPDATE_CHANNEL = 'stable';
 
 export const normalizeRepoUrl = (value = '') => value.trim().replace(/\/+$/, '');
 
@@ -38,6 +38,13 @@ export const compareVersions = (left = '', right = '') => {
   }
 
   return 0;
+};
+
+export const selectGithubRelease = (releases = [], channel = DEFAULT_UPDATE_CHANNEL) => {
+  const published = Array.isArray(releases) ? releases.filter((release) => !release.draft) : [];
+  return channel === 'prerelease'
+    ? published[0] || null
+    : published.find((release) => !release.prerelease) || null;
 };
 
 export class UpdateService {
@@ -128,11 +135,7 @@ export class UpdateService {
       }
 
       const payload = await response.json();
-      const releases = Array.isArray(payload) ? payload.filter((release) => !release.draft) : [];
-      const selectedRelease =
-        channel === 'stable'
-          ? releases.find((release) => !release.prerelease)
-          : releases[0] || null;
+      const selectedRelease = selectGithubRelease(payload, channel);
 
       if (!selectedRelease) {
         return this.updateConfig({

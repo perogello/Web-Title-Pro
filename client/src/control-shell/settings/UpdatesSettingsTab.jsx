@@ -69,7 +69,7 @@ export default function UpdatesSettingsTab({
         </div>
         <div className="update-detail-row">
           <span className="update-detail-label">Channel</span>
-          <span className="update-detail-value">{updateState?.channel || 'prerelease'}</span>
+          <span className="update-detail-value">{updateState?.channel || 'stable'}</span>
         </div>
         <div className="update-detail-row">
           <span className="update-detail-label">Latest release</span>
