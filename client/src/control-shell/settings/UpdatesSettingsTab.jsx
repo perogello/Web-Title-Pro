@@ -14,6 +14,7 @@ export default function UpdatesSettingsTab({
   onInstallUpdate,
 }) {
   const currentVersion = appMeta?.version || updateState?.currentVersion || '0.0.0';
+  const isUpdaterSmokeTest = currentVersion.includes('test');
   const status = updateState?.status || 'idle';
   const available = Boolean(updateState?.available);
 
@@ -38,6 +39,13 @@ export default function UpdatesSettingsTab({
 
   return (
     <div className="updates-shell-v3">
+      {isUpdaterSmokeTest && (
+        <section className="update-smoke-banner-v3" data-testid="updater-smoke-banner">
+          <span>Updater smoke test build</span>
+          <strong>v{currentVersion}</strong>
+        </section>
+      )}
+
       <section className={`update-hero-v3 is-${tone}`}>
         <div className="update-hero-v3-head">
           <span className="kicker-v3">Application updates</span>

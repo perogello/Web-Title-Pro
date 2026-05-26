@@ -181,6 +181,31 @@
   gap: 14px;
   max-width: 640px;
 }
+.shell-v2 .content-v2-inner .update-smoke-banner-v3 {
+  border: 1px solid rgba(255, 184, 77, 0.44);
+  border-left: 3px solid var(--warn-v2);
+  border-radius: 8px;
+  background: rgba(255, 184, 77, 0.08);
+  color: var(--text-v2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  font-size: 12px;
+}
+.shell-v2 .content-v2-inner .update-smoke-banner-v3 span {
+  color: var(--text-dim-v2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  font-weight: 700;
+}
+.shell-v2 .content-v2-inner .update-smoke-banner-v3 strong {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  color: var(--warn-v2);
+}
 .shell-v2 .content-v2-inner .update-hero-v3 {
   background: var(--card-v2);
   border: 1px solid var(--border-v2);
