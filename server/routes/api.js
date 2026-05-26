@@ -291,7 +291,7 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     response.json(templateService.getTemplates());
   });
 
-  // Project bundle (.wtpkg) — full self-contained export and import. The
+  // Project bundle (.wtpkg): full self-contained export and import. The
   // export endpoint accepts the project document built by the client (it
   // already knows the data-source library; the server doesn't). The import
   // endpoint installs any bundled custom templates and returns the project
@@ -309,6 +309,10 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
         `attachment; filename="${getBundleFilename(project)}"`,
       );
       response.setHeader('X-Bundle-Included-Templates', String(manifest.includedTemplateIds.length));
+      response.setHeader('X-Bundle-Outputs', String(manifest.projectCounts?.outputs || 0));
+      response.setHeader('X-Bundle-Entries', String(manifest.projectCounts?.entries || 0));
+      response.setHeader('X-Bundle-Sources', String(manifest.projectCounts?.sources || 0));
+      response.setHeader('X-Bundle-Vmix-Inputs', String(manifest.projectCounts?.vmixDiscoveredInputs || 0));
       stream.on('error', (error) => {
         if (response.headersSent) {
           response.destroy(error);

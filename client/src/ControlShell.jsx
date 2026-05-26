@@ -1037,6 +1037,7 @@ function ControlShell() {
     projectStatus,
     sourceLibrary,
     selectedSourceId,
+    vmixState,
     setProjectBaselineSignature,
     setProjectDirty,
     setProjectStatus,

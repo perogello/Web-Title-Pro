@@ -5,13 +5,14 @@ import { ZipArchive } from 'archiver';
 import unzipper from 'unzipper';
 
 /**
- * Project bundle (.wtpkg) — a self-contained ZIP that carries:
+ * Project bundle (.wtpkg) - a self-contained ZIP that carries:
  *   - manifest.json    { version, projectName, exportedAt, includedTemplateIds }
+ *   - project-summary.json human-readable counts + vMix discovered input list
  *   - project.json     the regular project document (state + sources + meta)
  *   - templates/<id>/  the on-disk custom-template directories for every
  *                      custom template referenced by entries in the project.
  *
- * Built-in templates are NOT bundled — they ship with the app and exist on
+ * Built-in templates are NOT bundled - they ship with the app and exist on
  * every install. If an entry references a built-in template that doesn't
  * exist on the importing machine, the entry just won't render until that
  * built-in is installed; we surface that as a missingTemplates report on
@@ -20,11 +21,42 @@ import unzipper from 'unzipper';
 const BUNDLE_VERSION = 1;
 const BUNDLE_TEMPLATES_DIR = 'templates';
 const BUNDLE_MANIFEST_FILE = 'manifest.json';
+const BUNDLE_SUMMARY_FILE = 'project-summary.json';
 const BUNDLE_PROJECT_FILE = 'project.json';
 const SAFE_ARCHIVE_SEGMENT_RE = /^[a-z0-9][a-z0-9._-]*$/i;
 
+const asArray = (value) => (Array.isArray(value) ? value : []);
+
+const readProjectBundleData = (project) => {
+  const entries = asArray(project?.state?.entries);
+  const outputs = asArray(project?.state?.outputs);
+  const timers = asArray(project?.state?.timers);
+  const sources = asArray(project?.sources?.items);
+  const vmixRuntimeInputs = asArray(project?.runtime?.vmix?.inputs);
+  const vmixEntries = entries.filter((entry) => entry?.entryType === 'vmix');
+  const localEntries = entries.filter((entry) => entry?.entryType !== 'vmix');
+
+  return {
+    entries,
+    localEntries,
+    outputs,
+    sources,
+    timers,
+    vmixEntries,
+    vmixRuntimeInputs,
+  };
+};
+
+const buildManifestProjectCounts = (projectData) => ({
+  outputs: projectData.outputs.length,
+  entries: projectData.entries.length,
+  sources: projectData.sources.length,
+  timers: projectData.timers.length,
+  vmixDiscoveredInputs: projectData.vmixRuntimeInputs.length,
+});
+
 const collectReferencedTemplateIds = (project) => {
-  const entries = project?.state?.entries || [];
+  const entries = asArray(project?.state?.entries);
   const ids = new Set();
   for (const entry of entries) {
     if (entry?.templateId) {
@@ -36,6 +68,88 @@ const collectReferencedTemplateIds = (project) => {
 
 const sanitizeProjectName = (name = '') =>
   String(name || 'WebTitleProject').replace(/[<>:"/\\|?*]+/g, ' ').trim() || 'WebTitleProject';
+
+const buildProjectBundleSummary = ({
+  project,
+  projectData = readProjectBundleData(project),
+  includedTemplateIds = [],
+  referencedBuiltinTemplateIds = [],
+  referencedUnknownTemplateIds = [],
+}) => {
+  const {
+    entries,
+    localEntries,
+    outputs,
+    sources,
+    timers,
+    vmixEntries,
+    vmixRuntimeInputs,
+  } = projectData;
+
+  return {
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    projectName: sanitizeProjectName(project?.meta?.name),
+    appVersion: project?.meta?.appVersion || null,
+    counts: {
+      outputs: outputs.length,
+      titles: entries.length,
+      localTitles: localEntries.length,
+      vmixTitles: vmixEntries.length,
+      timers: timers.length,
+      dataSources: sources.length,
+      bundledCustomTemplates: includedTemplateIds.length,
+      referencedBuiltinTemplates: referencedBuiltinTemplateIds.length,
+      referencedUnknownTemplates: referencedUnknownTemplateIds.length,
+      vmixDiscoveredInputs: vmixRuntimeInputs.length,
+    },
+    outputs: outputs.map((output) => ({
+      id: output.id ?? '',
+      key: output.key ?? '',
+      name: output.name ?? '',
+      selectedEntryId: output.selectedEntryId || null,
+    })),
+    titles: entries.map((entry) => ({
+      id: entry.id ?? '',
+      type: entry.entryType === 'vmix' ? 'vmix' : 'local',
+      name: entry.name ?? '',
+      templateId: entry.templateId || null,
+      vmixInputKey: entry.vmixInputKey || null,
+      vmixInputNumber: entry.vmixInputNumber ?? null,
+      vmixInputTitle: entry.vmixInputTitle || null,
+      fieldCount:
+        entry.fields && typeof entry.fields === 'object' ? Object.keys(entry.fields).length : 0,
+    })),
+    dataSources: sources.map((source) => ({
+      id: source.id ?? '',
+      name: source.name ?? '',
+      columns: asArray(source.columns).length,
+      rows: asArray(source.rows).length,
+      remoteType: source.remote?.type || null,
+    })),
+    vmix: {
+      connected: Boolean(project?.runtime?.vmix?.connected),
+      host: project?.runtime?.vmix?.host || project?.state?.integrations?.vmix?.host || '',
+      lastUpdatedAt: project?.runtime?.vmix?.lastUpdatedAt || null,
+      discoveredInputs: vmixRuntimeInputs.map((input) => ({
+        key: input.key ?? '',
+        number: input.number ?? '',
+        type: input.type ?? '',
+        title: input.title ?? '',
+        shortTitle: input.shortTitle ?? '',
+        textFields: asArray(input.textFields).map((field) => ({
+          index: field.index ?? '',
+          name: field.name ?? '',
+        })),
+      })),
+    },
+    templates: {
+      includedCustomTemplateIds: includedTemplateIds,
+      referencedBuiltinTemplateIds,
+      referencedUnknownTemplateIds,
+    },
+  };
+};
 
 const normalizeArchivePath = (archivePath = '') => {
   const normalized = String(archivePath || '').replace(/\\/g, '/');
@@ -93,22 +207,31 @@ export const createProjectBundleStream = ({ project, templateService }) => {
     return template?.source === 'builtin';
   });
   const unknownTemplateIds = referencedIds.filter((id) => !allTemplates.find((item) => item.id === id));
+  const projectData = readProjectBundleData(project);
 
   const manifest = {
     version: BUNDLE_VERSION,
     kind: 'web-title-pro:project-bundle',
     exportedAt: new Date().toISOString(),
     projectName: sanitizeProjectName(project?.meta?.name),
+    projectCounts: buildManifestProjectCounts(projectData),
     includedTemplateIds,
     referencedBuiltinTemplateIds: skippedBuiltinIds,
     referencedUnknownTemplateIds: unknownTemplateIds,
   };
+  const summary = buildProjectBundleSummary({
+    project,
+    projectData,
+    includedTemplateIds,
+    referencedBuiltinTemplateIds: skippedBuiltinIds,
+    referencedUnknownTemplateIds: unknownTemplateIds,
+  });
 
-  // archiver v8 is pure ESM and dropped its CJS factory function — use
+  // archiver v8 is pure ESM and dropped its CJS factory function; use
   // the named ZipArchive class directly.
   const archive = new ZipArchive({ zlib: { level: 6 } });
 
-  // archiver emits 'error' on per-entry failure — propagate up to the caller.
+  // archiver emits 'error' on per-entry failure; propagate up to the caller.
   archive.on('warning', (error) => {
     if (error.code !== 'ENOENT') {
       archive.emit('error', error);
@@ -116,6 +239,7 @@ export const createProjectBundleStream = ({ project, templateService }) => {
   });
 
   archive.append(JSON.stringify(manifest, null, 2), { name: BUNDLE_MANIFEST_FILE });
+  archive.append(JSON.stringify(summary, null, 2), { name: BUNDLE_SUMMARY_FILE });
   archive.append(JSON.stringify(project, null, 2), { name: BUNDLE_PROJECT_FILE });
 
   for (const template of customTemplatesToBundle) {
@@ -125,7 +249,7 @@ export const createProjectBundleStream = ({ project, templateService }) => {
     }
   }
 
-  // Finalize asynchronously — caller pipes the readable side first.
+  // Finalize asynchronously; caller pipes the readable side first.
   archive.finalize();
 
   return {
@@ -142,7 +266,7 @@ export const createProjectBundleStream = ({ project, templateService }) => {
  * Conflict policy (MVP): if a custom template directory with the same
  * slug already exists, skip extraction and report it. The project file
  * still references the original template id, so the existing copy is
- * used — which is the right behaviour when two operators share the same
+ * used, which is the right behaviour when two operators share the same
  * library and the importer already has the templates installed.
  */
 export const importProjectBundle = async ({ buffer, templateService }) => {
@@ -163,7 +287,7 @@ export const importProjectBundle = async ({ buffer, templateService }) => {
 
   if (!manifestFile || !projectFile) {
     throw new Error(
-      'This .wtpkg is missing manifest.json or project.json — not a valid Web Title Pro project bundle.',
+      'This .wtpkg is missing manifest.json or project.json; not a valid Web Title Pro project bundle.',
     );
   }
 

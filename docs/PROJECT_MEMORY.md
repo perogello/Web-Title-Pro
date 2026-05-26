@@ -1,11 +1,11 @@
 # Project Memory
 
-Last updated: 2026-05-25
+Last updated: 2026-05-26
 
 ## Current Branch Context
 
 - Active branch: `staging/0.4.0`.
-- Current pre-release target: `v0.4.1`, continuing the `0.4.x` line after `v0.4.0`.
+- Current pre-release target: `v0.4.2`, continuing the `0.4.x` line after `v0.4.0`.
 - GitHub branches:
   - `origin/main` is still the public `0.3.4` line.
   - `origin/staging/0.4.0` contains the current `0.4.0` release work.
@@ -63,6 +63,13 @@ Last updated: 2026-05-25
   - `Local / vMix Title` uses modal-scoped segmented-control styling.
   - Active vMix mode uses the vMix blue accent.
   - Template package upload hides the native gray file input and shows a styled `Choose files` chip plus selected-file text.
+- Project bundle export/import:
+  - `.wtpkg` contains `manifest.json`, `project-summary.json`, `project.json`, and `templates/<slug>/...` only for referenced custom templates.
+  - Seeing only a few files in the archive is expected when no custom templates are referenced; full project data lives in `project.json`.
+  - `project-summary.json` is a readable verification file with counts/lists for outputs, local/vMix titles, data sources, timers, templates, and discovered vMix inputs.
+  - Project-level app settings are persisted in `project.json.state.integrations`: vMix host/selected timer input, update settings, keyboard/global shortcuts, and MIDI bindings.
+  - `project.json.runtime.vmix.inputs` carries the discovered vMix input list from export time; importing still applies the regular persisted project state and source library.
+  - Not project-bundle state: window size/position, recent-project history, and browser-local Live Notes stored in localStorage.
 
 ## Tests
 
@@ -79,6 +86,7 @@ Last updated: 2026-05-25
   - Playwright starts `npm run dev` automatically through `webServer`.
   - Current UI smoke covers Notes open, selected-text rich formatting, color application, and Notes panel resize.
   - Add Title modal styling is covered: segmented mode switch, vMix accent, hidden native file input, styled upload picker.
+  - Bundle tests cover custom template inclusion, zip-slip rejection, project summary counts, local/vMix title preservation, data sources, vMix discovered input export, keyboard/global shortcuts, and MIDI bindings.
 - `dev:server` uses a narrowed nodemon watch (`server`, `package.json`) so Playwright `test-results/`, Vite build output, and local files do not restart the backend during UI tests.
 - Full verification:
   - `npm.cmd run test:all`

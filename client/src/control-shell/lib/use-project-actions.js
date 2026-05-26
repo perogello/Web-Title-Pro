@@ -8,6 +8,9 @@ import {
   getSuggestedProjectName,
 } from './project-utils.js';
 
+const formatBundleCount = (count, singular, plural = `${singular}s`) =>
+  `${count} ${count === 1 ? singular : plural}`;
+
 export function useProjectActions({
   desktopBridge,
   appVersion,
@@ -16,6 +19,7 @@ export function useProjectActions({
   projectStatus,
   sourceLibrary,
   selectedSourceId,
+  vmixState,
   setProjectBaselineSignature,
   setProjectDirty,
   setProjectStatus,
@@ -28,6 +32,11 @@ export function useProjectActions({
   pushFeedback,
 }) {
   const appCloseAuthorizedRef = useRef(false);
+  const vmixStateRef = useRef(vmixState || null);
+
+  useEffect(() => {
+    vmixStateRef.current = vmixState || null;
+  }, [vmixState]);
 
   const resetSourceRuntimeState = useCallback(() => {
     setActiveSourceRows({});
@@ -44,6 +53,7 @@ export function useProjectActions({
       appVersion: appVersion || null,
       selectedSourceId,
       sourceLibrary,
+      vmixState: vmixStateRef.current,
     });
   }, [appVersion, currentProjectDisplayName, selectedSourceId, sourceLibrary]);
 
@@ -404,10 +414,10 @@ export function useProjectActions({
   }, [confirmProceedWithUnsavedProject]);
 
   // ----------------------------------------------------------------------
-  // .wtpkg project bundle — single-file archive that carries the project
+  // .wtpkg project bundle: single-file archive that carries the project
   // document + every custom template referenced by entries. Lets a user
   // ship one file to a colleague without separately copying the templates
-  // folder. Build-in templates are NOT bundled (assumed present on every
+  // folder. Built-in templates are NOT bundled (assumed present on every
   // installation).
   // ----------------------------------------------------------------------
   const exportProjectBundle = useCallback(async () => {
@@ -425,6 +435,10 @@ export function useProjectActions({
       }
       const blob = await response.blob();
       const includedCount = Number(response.headers.get('X-Bundle-Included-Templates') || 0);
+      const outputCount = Number(response.headers.get('X-Bundle-Outputs') || 0);
+      const entryCount = Number(response.headers.get('X-Bundle-Entries') || 0);
+      const sourceCount = Number(response.headers.get('X-Bundle-Sources') || 0);
+      const vmixInputCount = Number(response.headers.get('X-Bundle-Vmix-Inputs') || 0);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -433,17 +447,23 @@ export function useProjectActions({
       link.click();
       document.body.removeChild(link);
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
-      pushFeedback(
+      const projectSummary = [
+        formatBundleCount(outputCount, 'output'),
+        formatBundleCount(entryCount, 'title'),
+        formatBundleCount(sourceCount, 'data source'),
+        formatBundleCount(vmixInputCount, 'vMix input'),
+      ].join(', ');
+      const templateSummary =
         includedCount > 0
-          ? `Bundle exported with ${includedCount} custom template${includedCount === 1 ? '' : 's'}`
-          : 'Bundle exported (project only — no custom templates referenced)',
-      );
+          ? formatBundleCount(includedCount, 'custom template')
+          : 'no custom templates referenced';
+      pushFeedback(`Bundle exported: ${projectSummary}, ${templateSummary}`);
     } catch (requestError) {
       pushFeedback(requestError.message);
     }
   }, [buildProjectDocument, persistDraft, pushFeedback]);
 
-  // Bundle import — accepts a File object (caller provides the picker).
+  // Bundle import accepts a File object (caller provides the picker).
   // Uploads as multipart, lets the server unpack templates, then applies
   // the returned project document via the regular load flow so signatures
   // and dirty-state stay consistent with Save/Open.
@@ -481,7 +501,7 @@ export function useProjectActions({
 
         pushFeedback(
           parts.length
-            ? `Bundle imported — templates: ${parts.join(', ')}`
+            ? `Bundle imported with templates: ${parts.join(', ')}`
             : 'Bundle imported (no bundled templates)',
         );
       } catch (requestError) {

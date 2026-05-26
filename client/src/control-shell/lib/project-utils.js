@@ -75,6 +75,7 @@ export const buildProjectDocumentPayload = ({
   appVersion,
   selectedSourceId,
   sourceLibrary,
+  vmixState,
   updatedAt = new Date().toISOString(),
 }) => ({
   version: 1,
@@ -87,6 +88,32 @@ export const buildProjectDocumentPayload = ({
   sources: {
     selectedSourceId: selectedSourceId || null,
     items: sourceLibrary || [],
+  },
+  runtime: {
+    vmix: vmixState
+      ? {
+          connected: Boolean(vmixState.connected),
+          host: vmixState.config?.host || vmixState.host || '',
+          lastUpdatedAt: vmixState.lastUpdatedAt || null,
+          error: vmixState.error || '',
+          inputs: Array.isArray(vmixState.inputs)
+            ? vmixState.inputs.map((input) => ({
+                key: input.key ?? '',
+                number: input.number ?? '',
+                type: input.type ?? '',
+                title: input.title ?? '',
+                shortTitle: input.shortTitle ?? '',
+                textFields: Array.isArray(input.textFields)
+                  ? input.textFields.map((field) => ({
+                      index: field.index ?? '',
+                      name: field.name ?? '',
+                      value: field.value ?? '',
+                    }))
+                  : [],
+              }))
+            : [],
+        }
+      : null,
   },
 });
 

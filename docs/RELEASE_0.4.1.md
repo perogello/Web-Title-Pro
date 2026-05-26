@@ -22,6 +22,11 @@ Patch release on top of `0.4.0`, focused on Live Notes reliability and small UI 
   - Active vMix mode uses the vMix blue accent.
   - Template upload file picker no longer shows the native gray browser control.
   - Upload drop zone now uses a styled `Choose files` chip and selected-file label.
+- Project bundle export/import:
+  - `.wtpkg` now always includes `project-summary.json` next to `project.json` and `manifest.json`.
+  - Summary lists outputs, local/vMix titles, timers, data sources, bundled custom templates, and discovered vMix inputs.
+  - `project.json` now carries a runtime vMix snapshot so the exported archive contains the discovered input list from the export moment.
+  - Export feedback now reports how many outputs, titles, data sources, vMix inputs, and custom templates were included.
 - Test/build workflow:
   - UI regression coverage expanded for Notes and Add Title modal styling.
 
@@ -53,6 +58,11 @@ Patch release on top of `0.4.0`, focused on Live Notes reliability and small UI 
   - Активный vMix-режим подсвечивается синим vMix-акцентом.
   - Нативная серая кнопка выбора файла больше не отображается.
   - Зона загрузки шаблона использует стилизованную плашку `Choose files` и подпись выбранных файлов.
+- Export/import project bundle:
+  - `.wtpkg` теперь всегда содержит `project-summary.json` рядом с `project.json` и `manifest.json`.
+  - Summary показывает outputs, локальные/vMix титры, таймеры, data sources, вложенные custom templates и обнаруженные vMix inputs.
+  - `project.json` теперь содержит runtime-снимок vMix, поэтому в архиве есть список обнаруженных inputs на момент экспорта.
+  - После экспорта UI показывает, сколько outputs, titles, data sources, vMix inputs и custom templates попало в bundle.
 - Тесты и сборка:
   - Расширено UI-регрессионное покрытие для Notes и стилей Add Title.
 
