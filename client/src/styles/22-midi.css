@@ -1,4 +1,4 @@
-/* MIDI device list / monitor / bitfocus rows — same vertical pattern */
+/* MIDI device list / monitor / bitfocus rows - same vertical pattern */
 .shell-v2 .midi-device-list,
 .shell-v2 .midi-monitor,
 .shell-v2 .bitfocus-action-list {
@@ -16,3 +16,57 @@
   border-radius: 6px;
 }
 
+.shell-v2 .ctl-midi-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: center;
+  margin: -4px 0 10px;
+  color: var(--text-dim-v2);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.shell-v2 .ctl-midi-details > div {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.shell-v2 .ctl-midi-details .is-error {
+  color: var(--live-v2);
+}
+
+.shell-v2 .ctl-midi-details-label {
+  color: var(--text-faint-v2);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.shell-v2 .ctl-midi-value-rule {
+  display: grid;
+  grid-template-columns: 110px minmax(150px, 1fr) 76px;
+  gap: 8px;
+  align-items: center;
+  padding: 0 0 6px;
+}
+
+.shell-v2 .ctl-midi-value-rule select,
+.shell-v2 .ctl-midi-value-rule input {
+  min-width: 0;
+  height: 30px;
+  color: var(--text-v2);
+  background: var(--bg-2-v2);
+  border: 1px solid var(--border-v2);
+  border-radius: 6px;
+  padding: 0 8px;
+  font: inherit;
+}
+
+.shell-v2 .ctl-midi-value-rule input:disabled {
+  color: var(--text-faint-v2);
+  opacity: 0.55;
+}

@@ -1,19 +1,63 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  MidiService,
   parseMidiMessage,
   normalizeMidiBindings,
   normalizeMidiActionForDispatch,
 } from '../server/midi/midi-service.js';
 
+const createFakeJzz = ({ inputNames = ['AKAI MPK mini'], passPortToAnd = false } = {}) => {
+  const ports = [];
+  const jzzFactory = () => () => ({
+    info: () => ({
+      inputs: inputNames.map((name) => ({ name })),
+    }),
+    openMidiIn: (name) => {
+      const port = {
+        inputName: name,
+        handler: null,
+        closed: false,
+        connect(handler) {
+          this.handler = handler;
+          return this;
+        },
+        disconnect() {
+          this.handler = null;
+          return this;
+        },
+        close() {
+          this.closed = true;
+          return this;
+        },
+        or() {
+          return this;
+        },
+        and(handler) {
+          handler.call(this, passPortToAnd ? this : undefined);
+          return this;
+        },
+        emit(bytes) {
+          this.handler?.(bytes);
+        },
+      };
+      ports.push(port);
+      return port;
+    },
+  });
+
+  return { jzzFactory, ports };
+};
+
 test('parseMidiMessage: note on with velocity > 0', () => {
   const result = parseMidiMessage([0x90, 60, 127]);
-  assert.deepEqual(result, { type: 'noteon', note: 60, velocity: 127 });
+  assert.deepEqual(result, { type: 'noteon', channel: 1, note: 60, velocity: 127 });
 });
 
 test('parseMidiMessage: note on with velocity 0 is treated as note off', () => {
   const result = parseMidiMessage([0x90, 60, 0]);
   assert.equal(result.type, 'noteoff');
+  assert.equal(result.channel, 1);
 });
 
 test('parseMidiMessage: explicit note off', () => {
@@ -23,7 +67,12 @@ test('parseMidiMessage: explicit note off', () => {
 
 test('parseMidiMessage: control change', () => {
   const result = parseMidiMessage([0xB0, 7, 100]);
-  assert.deepEqual(result, { type: 'cc', controller: 7, value: 100 });
+  assert.deepEqual(result, { type: 'cc', channel: 1, controller: 7, value: 100 });
+});
+
+test('parseMidiMessage: channel is decoded from status byte', () => {
+  const result = parseMidiMessage([0x92, 64, 100]);
+  assert.equal(result.channel, 3);
 });
 
 test('parseMidiMessage: program change is unsupported', () => {
@@ -104,8 +153,165 @@ test('normalizeMidiBindings: normalizes type to noteon when invalid', () => {
 
 test('normalizeMidiBindings: keeps numeric note + controller', () => {
   const result = normalizeMidiBindings([
-    { device: 'APC', type: 'cc', controller: 7, action: 'live' },
+    {
+      device: 'APC',
+      deviceName: 'APC Mini',
+      type: 'cc',
+      channel: 2,
+      controller: 7,
+      valueMode: 'gte',
+      value: 100,
+      action: 'live',
+    },
   ]);
   assert.equal(result[0].controller, 7);
+  assert.equal(result[0].channel, 2);
+  assert.equal(result[0].valueMode, 'gte');
+  assert.equal(result[0].value, 100);
+  assert.equal(result[0].deviceName, 'APC Mini');
   assert.equal(result[0].type, 'cc');
+});
+
+test('normalizeMidiBindings: drops invalid numeric fields', () => {
+  const result = normalizeMidiBindings([
+    { device: 'any', type: 'noteon', channel: 99, note: 'bad', controller: -1, action: 'show' },
+  ]);
+  assert.deepEqual(result[0], { device: 'any', type: 'noteon', action: 'show' });
+});
+
+test('MidiService.refresh opens JZZ input even when and() does not pass a port argument', async () => {
+  const fake = createFakeJzz({ passPortToAnd: false });
+  const service = new MidiService({ jzzFactory: fake.jzzFactory });
+
+  const state = await service.refresh();
+
+  assert.equal(state.enabled, true);
+  assert.equal(state.inputs[0].name, 'AKAI MPK mini');
+  assert.equal(fake.ports.length, 1);
+  assert.equal(service.ports.length, 1);
+});
+
+test('MidiService learn stores portable binding and does not fire action immediately', async () => {
+  const fake = createFakeJzz();
+  const savedBindings = [];
+  const firedActions = [];
+  const service = new MidiService({
+    jzzFactory: fake.jzzFactory,
+    onBindingsChange: (bindings) => savedBindings.push(bindings),
+  });
+  service.on('action', (event) => firedActions.push(event.action));
+
+  await service.refresh();
+  service.startLearn('selectEntry:title-1');
+  fake.ports[0].emit([0x91, 64, 100]);
+
+  assert.equal(firedActions.length, 0);
+  assert.equal(savedBindings.length, 1);
+  assert.deepEqual(savedBindings[0][0], {
+    device: 'any',
+    deviceName: 'AKAI MPK mini',
+    type: 'noteon',
+    action: 'selectEntry:title-1',
+    channel: 2,
+    note: 64,
+  });
+});
+
+test('MidiService dispatches learned bindings on later MIDI press', async () => {
+  const fake = createFakeJzz();
+  const firedActions = [];
+  const service = new MidiService({
+    jzzFactory: fake.jzzFactory,
+    bindings: [{ device: 'any', type: 'noteon', channel: 2, note: 64, action: 'selectEntry:title-1' }],
+  });
+  service.on('action', (event) => firedActions.push(event.action));
+
+  await service.refresh();
+  fake.ports[0].emit([0x91, 64, 100]);
+
+  assert.deepEqual(firedActions, ['selectEntry:title-1']);
+});
+
+test('MidiService learn stores CC value rule for faders', async () => {
+  const fake = createFakeJzz();
+  const savedBindings = [];
+  const service = new MidiService({
+    jzzFactory: fake.jzzFactory,
+    onBindingsChange: (bindings) => savedBindings.push(bindings),
+  });
+
+  await service.refresh();
+  service.startLearn('live');
+  fake.ports[0].emit([0xB0, 7, 96]);
+
+  assert.equal(savedBindings.length, 1);
+  assert.deepEqual(savedBindings[0][0], {
+    device: 'any',
+    deviceName: 'AKAI MPK mini',
+    type: 'cc',
+    action: 'live',
+    channel: 1,
+    controller: 7,
+    valueMode: 'eq',
+    value: 96,
+  });
+});
+
+test('MidiService CC binding can require value at or above threshold', async () => {
+  const fake = createFakeJzz();
+  const firedActions = [];
+  const service = new MidiService({
+    jzzFactory: fake.jzzFactory,
+    bindings: [{ device: 'any', type: 'cc', channel: 1, controller: 7, valueMode: 'gte', value: 100, action: 'live' }],
+  });
+  service.on('action', (event) => firedActions.push(event.action));
+
+  await service.refresh();
+  fake.ports[0].emit([0xB0, 7, 99]);
+  fake.ports[0].emit([0xB0, 7, 100]);
+
+  assert.deepEqual(firedActions, ['live']);
+});
+
+test('MidiService can update CC value rule', async () => {
+  const fake = createFakeJzz();
+  let savedBindings = [];
+  const service = new MidiService({
+    jzzFactory: fake.jzzFactory,
+    bindings: [{ device: 'any', type: 'cc', channel: 1, controller: 7, valueMode: 'eq', value: 64, action: 'live' }],
+    onBindingsChange: (bindings) => {
+      savedBindings = bindings;
+    },
+  });
+
+  await service.refresh();
+  const state = service.updateBinding('live', { valueMode: 'lte', value: 10 });
+
+  assert.equal(state.bindings[0].valueMode, 'lte');
+  assert.equal(state.bindings[0].value, 10);
+  assert.equal(savedBindings[0].valueMode, 'lte');
+});
+
+test('MidiService updateBinding can create a CC binding', async () => {
+  const fake = createFakeJzz();
+  const service = new MidiService({ jzzFactory: fake.jzzFactory });
+
+  await service.refresh();
+  const state = service.updateBinding('live', {
+    type: 'cc',
+    channel: 1,
+    controller: 7,
+    valueMode: 'gte',
+    value: 100,
+  });
+
+  assert.deepEqual(state.bindings[0], {
+    device: 'any',
+    type: 'cc',
+    controller: 7,
+    channel: 1,
+    valueMode: 'gte',
+    value: 100,
+    action: 'live',
+  });
 });

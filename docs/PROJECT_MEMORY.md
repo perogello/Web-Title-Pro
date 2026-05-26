@@ -4,13 +4,12 @@ Last updated: 2026-05-26
 
 ## Current Branch Context
 
-- Active branch: `staging/0.4.0`.
-- Current pre-release target: `v0.4.2`, continuing the `0.4.x` line after `v0.4.0`.
+- Active branch during release prep: `staging/0.4.0`; release should be pushed to `main`.
+- Current release target: `v0.4.3`.
 - GitHub branches:
-  - `origin/main` is still the public `0.3.4` line.
-  - `origin/staging/0.4.0` contains the current `0.4.0` release work.
-- Local `main` is an intermediate redesign branch and is not the GitHub default branch.
-- Local `.claude/worktrees/exciting-cerf-fb0314` is older than current `staging/0.4.0`.
+- `origin/main` is the release target for the current `0.4.x` line.
+- `origin/staging/0.4.0` was used for prerelease work and should not remain the primary release target.
+- Local `.claude/worktrees/exciting-cerf-fb0314` is older than current `0.4.x` work.
 - Current recurring untracked local items: `templates/google-timer/`, `templates/google-timer-2/`, `templates/google-timer-3/`.
 
 ## Current Architecture
@@ -49,6 +48,12 @@ Last updated: 2026-05-26
   - Backend dispatch normalizes those to old command IDs where needed.
   - `midiState.bindings` is an array; Controls builds a lookup map with old/new aliases.
   - Controls includes MIDI status and `Refresh MIDI`.
+  - JZZ input ports must be used as the returned chainable port (`openMidiIn(...).connect(...)`); `and()` does not reliably pass the port as an argument.
+  - Learned MIDI bindings are stored as `device: "any"` plus `deviceName` for display, so Akai/other controllers keep working after reconnects where the OS port name changes.
+  - MIDI parser stores channel for note/CC messages; matching honors channel when present.
+  - CC/fader bindings can include a `valueMode` rule (`any`, `eq`, `gte`, `lte`) plus `value` 0-127, so faders can trigger only at a threshold instead of every movement.
+  - Controls shows detected MIDI inputs, last received MIDI message, and any open error for operator diagnostics.
+  - External reference checked: vMixUTC MIDI mapping stores event type + channel + note/control and uses a Learn flow that copies the learned event into the mapping row.
 - Live Notes:
   - `LiveTabV2` has a `Notes` toggle beside `Preview`.
   - Notes panel opens on the right and persists per output/source in localStorage.
@@ -94,6 +99,6 @@ Last updated: 2026-05-26
 ## Known Limitations
 
 - vMix ON AIR is still not read back from vMix; UI reflects the last command issued by this app.
-- MIDI actions are based on `noteon` and positive-value `cc` messages.
+- MIDI action dispatch supports `noteon` and positive-value `cc`; CC bindings can further restrict `value` through `any` / `eq` / `gte` / `lte`.
 - GitHub Releases API is queried without a token and may hit the public 60 req/h IP limit.
 - Browser/plugin automation may not be available in every Codex session; project-level Playwright smoke is the reliable fallback.

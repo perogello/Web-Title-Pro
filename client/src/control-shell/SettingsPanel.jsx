@@ -51,6 +51,7 @@ export default function SettingsPanel({
   onStartMidiLearn,
   onStopMidiLearn,
   onClearMidiBinding,
+  onUpdateMidiBinding,
   onCheckForUpdates,
   onInstallUpdate,
   onRefreshAppMeta,
@@ -122,6 +123,7 @@ export default function SettingsPanel({
               onStartMidiLearn={onStartMidiLearn}
               onStopMidiLearn={onStopMidiLearn}
               onClearMidiBinding={onClearMidiBinding}
+              onUpdateMidiBinding={onUpdateMidiBinding}
               onCopyBitfocusUrl={onCopyBitfocusUrl}
             />
           )}

@@ -16,6 +16,7 @@ export default function ShortcutsSettingsTab({
   onStartMidiLearn,
   onStopMidiLearn,
   onClearMidiBinding,
+  onUpdateMidiBinding,
   onCopyBitfocusUrl,
 }) {
   const [query, setQuery] = useState('');
@@ -27,6 +28,21 @@ export default function ShortcutsSettingsTab({
   const midiStatusLabel = midiState?.enabled
     ? `${midiState?.inputs?.length || 0} MIDI device(s)`
     : midiState?.error || 'MIDI offline';
+  const midiDeviceNames = (midiState?.inputs || [])
+    .map((input) => input?.name || input?.id || '')
+    .filter(Boolean);
+  const lastMidiMessage = midiState?.lastMessage
+    ? [
+        midiState.lastMessage.device || '',
+        midiState.lastMessage.type || '',
+        midiState.lastMessage.channel ? `Ch ${midiState.lastMessage.channel}` : '',
+        midiState.lastMessage.note != null ? `Note ${midiState.lastMessage.note}` : '',
+        midiState.lastMessage.controller != null ? `CC ${midiState.lastMessage.controller}` : '',
+        midiState.lastMessage.value != null ? `Value ${midiState.lastMessage.value}` : '',
+      ]
+        .filter(Boolean)
+        .join(' / ')
+    : '';
   const midiBindings = useMemo(() => {
     const rawBindings = midiState?.bindings || [];
     const map = {};
@@ -121,7 +137,25 @@ export default function ShortcutsSettingsTab({
     const channel = binding.channel != null ? `Ch${binding.channel}` : '';
     const note = binding.note != null ? `Note ${binding.note}` : '';
     const cc = binding.controller != null ? `CC ${binding.controller}` : '';
-    return [channel, note, cc].filter(Boolean).join(' · ');
+    const value =
+      binding.type === 'cc' && binding.valueMode && binding.valueMode !== 'any' && binding.value != null
+        ? `Value ${binding.valueMode === 'eq' ? '=' : binding.valueMode === 'gte' ? '>=' : '<='} ${binding.value}`
+        : '';
+    const device = binding.deviceName || (binding.device && binding.device !== 'any' ? binding.device : '');
+    return [channel, note, cc, value, device].filter(Boolean).join(' / ');
+  };
+
+  const updateMidiValueRule = (action, binding, field, value) => {
+    if (!binding || binding.type !== 'cc') {
+      return;
+    }
+
+    const nextMode = field === 'valueMode' ? value : binding.valueMode || 'any';
+    const nextValue = field === 'value' ? Number(value) : binding.value ?? 1;
+    onUpdateMidiBinding?.(action, {
+      valueMode: nextMode,
+      value: nextMode === 'any' ? undefined : nextValue,
+    });
   };
 
   const sections = [
@@ -225,6 +259,24 @@ export default function ShortcutsSettingsTab({
           </button>
         </div>
       </div>
+      <div className="ctl-midi-details">
+        <div>
+          <span className="ctl-midi-details-label">Inputs</span>
+          <span>{midiDeviceNames.length ? midiDeviceNames.join(', ') : 'No MIDI inputs detected'}</span>
+        </div>
+        {lastMidiMessage && (
+          <div>
+            <span className="ctl-midi-details-label">Last</span>
+            <span>{lastMidiMessage}</span>
+          </div>
+        )}
+        {midiState?.error && (
+          <div className="is-error">
+            <span className="ctl-midi-details-label">Error</span>
+            <span>{midiState.error}</span>
+          </div>
+        )}
+      </div>
 
       <div className="ctl-list">
         {filtered.map((section) => {
@@ -307,6 +359,32 @@ export default function ShortcutsSettingsTab({
                                 )}
                               </div>
                             </div>
+                            {row.midi?.type === 'cc' && (
+                              <div className="ctl-midi-value-rule">
+                                <span className="ctl-detail-label">CC Value</span>
+                                <select
+                                  value={row.midi.valueMode || 'any'}
+                                  onChange={(event) =>
+                                    updateMidiValueRule(row.action, row.midi, 'valueMode', event.target.value)
+                                  }
+                                >
+                                  <option value="any">Any movement</option>
+                                  <option value="gte">At or above</option>
+                                  <option value="lte">At or below</option>
+                                  <option value="eq">Exactly</option>
+                                </select>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="127"
+                                  value={row.midi.value ?? 1}
+                                  disabled={!row.midi.valueMode || row.midi.valueMode === 'any'}
+                                  onChange={(event) =>
+                                    updateMidiValueRule(row.action, row.midi, 'value', event.target.value)
+                                  }
+                                />
+                              </div>
+                            )}
                             {/* COMPANION */}
                             {row.url && (
                               <div className="ctl-detail-row">

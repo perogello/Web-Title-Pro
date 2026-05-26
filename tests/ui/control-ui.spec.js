@@ -200,10 +200,38 @@ test('Controls exposes MIDI status, refresh, and Learn button', async ({ page, r
 
   await expect(page.getByText(/MIDI (offline|device)/i)).toBeVisible();
   await expect(page.getByRole('button', { name: /Refresh MIDI/i })).toBeVisible();
+  await expect(page.getByText('Inputs', { exact: true })).toBeVisible();
 
   const titleInRow = page.locator('.ctl-row').filter({ has: page.locator('.ctl-row-name', { hasText: 'Title In' }) });
   await titleInRow.locator('.ctl-row-label').click();
   await expect(titleInRow.getByRole('button', { name: 'Learn' }).first()).toBeVisible();
+});
+
+test('Controls exposes MIDI CC value rule controls for fader bindings', async ({ page, request }) => {
+  await seedSourceLibrary(page);
+  await waitForBackend(request);
+  await page.goto('/');
+  await request.patch('http://127.0.0.1:4000/api/midi/bindings/live', {
+    data: {
+      device: 'any',
+      deviceName: 'AKAI MPK mini',
+      type: 'cc',
+      channel: 1,
+      controller: 7,
+      valueMode: 'gte',
+      value: 100,
+    },
+  });
+
+  await page.getByRole('button', { name: /SETTINGS/i }).click();
+  await page.getByRole('button', { name: /Controls/i }).click();
+
+  const liveRow = page.locator('.ctl-row').filter({ has: page.locator('.ctl-row-name', { hasText: 'Live' }) });
+  await liveRow.locator('.ctl-row-label').click();
+
+  await expect(liveRow.getByText('CC Value')).toBeVisible();
+  await expect(liveRow.locator('select')).toHaveValue('gte');
+  await expect(liveRow.locator('input[type="number"]')).toHaveValue('100');
 });
 
 test('Add Title modal uses app-styled mode and upload controls', async ({ page, request }) => {

@@ -2586,6 +2586,19 @@ function ControlShell() {
     }
   };
 
+  const updateMidiBinding = async (action, patch) => {
+    try {
+      const nextState = await api(`/api/midi/bindings/${encodeURIComponent(action)}`, {
+        method: 'PATCH',
+        body: patch,
+      });
+      setMidiState(nextState);
+      pushFeedback('MIDI binding updated');
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    }
+  };
+
   const saveGlobalShortcut = async (action, value) => {
     try {
       const prefixMap = [
@@ -3027,6 +3040,7 @@ function ControlShell() {
           onStartMidiLearn={startMidiLearn}
           onStopMidiLearn={stopMidiLearn}
           onClearMidiBinding={clearMidiBinding}
+          onUpdateMidiBinding={updateMidiBinding}
           onCheckForUpdates={checkForUpdates}
           onInstallUpdate={installAvailableUpdate}
           onRefreshAppMeta={refreshAppMeta}

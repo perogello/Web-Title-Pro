@@ -594,6 +594,14 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     }
   });
 
+  router.patch('/midi/bindings/:action', (request, response) => {
+    try {
+      response.json(midiService.updateBinding(request.params.action, request.body || {}));
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
   router.delete('/midi/bindings/:action', (request, response) => {
     try {
       response.json(midiService.clearBinding(request.params.action));

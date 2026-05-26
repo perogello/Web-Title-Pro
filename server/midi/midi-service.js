@@ -9,13 +9,30 @@ const loadJZZ = async () => {
   return JZZ;
 };
 
-const normalizeBinding = (binding = {}) => ({
-  device: typeof binding.device === 'string' && binding.device ? binding.device : 'any',
-  type: ['noteon', 'cc'].includes(binding.type) ? binding.type : 'noteon',
-  ...(binding.note !== undefined ? { note: Number(binding.note) } : {}),
-  ...(binding.controller !== undefined ? { controller: Number(binding.controller) } : {}),
-  action: typeof binding.action === 'string' ? binding.action : '',
-});
+const toMidiNumber = (value, { min = 0, max = 127 } = {}) => {
+  const number = Number(value);
+  return Number.isInteger(number) && number >= min && number <= max ? number : undefined;
+};
+
+const normalizeBinding = (binding = {}) => {
+  const note = toMidiNumber(binding.note);
+  const controller = toMidiNumber(binding.controller);
+  const channel = toMidiNumber(binding.channel, { min: 1, max: 16 });
+  const value = toMidiNumber(binding.value);
+  const rawValueMode = typeof binding.valueMode === 'string' ? binding.valueMode : '';
+  const valueMode = ['any', 'eq', 'gte', 'lte'].includes(rawValueMode) ? rawValueMode : 'any';
+
+  return {
+    device: typeof binding.device === 'string' && binding.device ? binding.device : 'any',
+    ...(typeof binding.deviceName === 'string' && binding.deviceName ? { deviceName: binding.deviceName } : {}),
+    type: ['noteon', 'cc'].includes(binding.type) ? binding.type : 'noteon',
+    ...(note !== undefined ? { note } : {}),
+    ...(controller !== undefined ? { controller } : {}),
+    ...(channel !== undefined ? { channel } : {}),
+    ...(binding.type === 'cc' && valueMode !== 'any' && value !== undefined ? { valueMode, value } : {}),
+    action: typeof binding.action === 'string' ? binding.action : '',
+  };
+};
 
 export const normalizeMidiBindings = (bindings = []) =>
   (Array.isArray(bindings) ? bindings : [])
@@ -36,18 +53,23 @@ export const normalizeMidiActionForDispatch = (action = '') => {
 
 export const parseMidiMessage = (data = []) => {
   const [status, data1, data2] = data;
+  if (typeof status !== 'number') {
+    return null;
+  }
+
   const command = status >> 4;
+  const channel = (status & 0x0f) + 1;
 
   if (command === 9 && data2 > 0) {
-    return { type: 'noteon', note: data1, velocity: data2 };
+    return { type: 'noteon', channel, note: data1, velocity: data2 };
   }
 
   if (command === 8 || (command === 9 && data2 === 0)) {
-    return { type: 'noteoff', note: data1, velocity: data2 };
+    return { type: 'noteoff', channel, note: data1, velocity: data2 };
   }
 
   if (command === 11) {
-    return { type: 'cc', controller: data1, value: data2 };
+    return { type: 'cc', channel, controller: data1, value: data2 };
   }
 
   return null;
@@ -72,16 +94,44 @@ const isPressTrigger = (parsed = {}) => {
   return false;
 };
 
+const matchesValueRule = (binding = {}, parsed = {}) => {
+  if (binding.type !== 'cc' || binding.valueMode === undefined || binding.valueMode === 'any') {
+    return true;
+  }
+
+  const bindingValue = toMidiNumber(binding.value);
+  const parsedValue = toMidiNumber(parsed.value);
+  if (bindingValue === undefined || parsedValue === undefined) {
+    return false;
+  }
+
+  if (binding.valueMode === 'eq') {
+    return parsedValue === bindingValue;
+  }
+
+  if (binding.valueMode === 'gte') {
+    return parsedValue >= bindingValue;
+  }
+
+  if (binding.valueMode === 'lte') {
+    return parsedValue <= bindingValue;
+  }
+
+  return true;
+};
+
 export class MidiService extends EventEmitter {
-  constructor({ bindings, onBindingsChange } = {}) {
+  constructor({ bindings, onBindingsChange, jzzFactory } = {}) {
     super();
     this.enabled = false;
     this.inputs = [];
     this.bindings = normalizeMidiBindings(bindings);
     this.onBindingsChange = typeof onBindingsChange === 'function' ? onBindingsChange : null;
+    this.jzzFactory = typeof jzzFactory === 'function' ? jzzFactory : null;
     this.error = null;
     this.engine = null;
     this.ports = [];
+    this.refreshPromise = null;
     this.learningAction = null;
     this.lastMessage = null;
     this.lastActionKeys = new Map();
@@ -120,6 +170,20 @@ export class MidiService extends EventEmitter {
     this.ports = [];
   }
 
+  normalizeInputInfo(input, index) {
+    if (typeof input === 'string') {
+      return { id: input, name: input };
+    }
+
+    const name = input?.name || input?.id || `MIDI Input ${index + 1}`;
+    return {
+      id: input?.id || name,
+      name,
+      manufacturer: input?.manufacturer || '',
+      version: input?.version || '',
+    };
+  }
+
   handleParsedMessage(inputName, parsed) {
     this.lastMessage = {
       ...parsed,
@@ -131,10 +195,15 @@ export class MidiService extends EventEmitter {
 
     if (this.learningAction && canTriggerAction) {
       const nextBinding = {
-        device: inputName,
+        device: 'any',
+        deviceName: inputName,
         type: parsed.type,
         action: this.learningAction,
       };
+
+      if (parsed.channel !== undefined) {
+        nextBinding.channel = parsed.channel;
+      }
 
       if (parsed.note !== undefined) {
         nextBinding.note = parsed.note;
@@ -144,6 +213,11 @@ export class MidiService extends EventEmitter {
         nextBinding.controller = parsed.controller;
       }
 
+      if (parsed.type === 'cc' && parsed.value !== undefined) {
+        nextBinding.valueMode = 'eq';
+        nextBinding.value = parsed.value;
+      }
+
       this.bindings = [
         ...this.bindings.filter((binding) => binding.action !== this.learningAction),
         nextBinding,
@@ -151,6 +225,7 @@ export class MidiService extends EventEmitter {
       this.onBindingsChange?.(this.bindings);
       this.learningAction = null;
       this.emit('state', this.getState());
+      return;
     }
 
     if (!canTriggerAction) {
@@ -161,11 +236,13 @@ export class MidiService extends EventEmitter {
     for (const binding of this.bindings) {
       const deviceMatches = binding.device === 'any' || binding.device === inputName;
       const typeMatches = binding.type === parsed.type;
+      const channelMatches = binding.channel === undefined || binding.channel === parsed.channel;
       const noteMatches = binding.note === undefined || binding.note === parsed.note;
       const controllerMatches = binding.controller === undefined || binding.controller === parsed.controller;
+      const valueMatches = matchesValueRule(binding, parsed);
 
-      if (deviceMatches && typeMatches && noteMatches && controllerMatches) {
-        const actionKey = `${binding.action}:${inputName}:${parsed.type}:${parsed.note ?? parsed.controller ?? ''}`;
+      if (deviceMatches && typeMatches && channelMatches && noteMatches && controllerMatches && valueMatches) {
+        const actionKey = `${binding.action}:${inputName}:${parsed.type}:${parsed.channel ?? ''}:${parsed.note ?? parsed.controller ?? ''}:${binding.valueMode ?? ''}:${binding.value ?? ''}`;
         const now = Date.now();
         const previousAt = this.lastActionKeys.get(actionKey) || 0;
         if (now - previousAt < 140) {
@@ -178,42 +255,84 @@ export class MidiService extends EventEmitter {
   }
 
   async refresh() {
+    if (this.refreshPromise) {
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = this.performRefresh().finally(() => {
+      this.refreshPromise = null;
+    });
+
+    return this.refreshPromise;
+  }
+
+  async performRefresh() {
     try {
       await this.closePorts();
 
-      const JZZCtor = await loadJZZ();
+      const JZZCtor = this.jzzFactory ? await this.jzzFactory() : await loadJZZ();
       this.engine = JZZCtor();
       const info = this.engine.info?.() || {};
-      this.inputs = info.inputs || [];
-      this.error = null;
+      this.inputs = (Array.isArray(info.inputs) ? info.inputs : []).map((input, index) =>
+        this.normalizeInputInfo(input, index),
+      );
+      const openErrors = [];
 
       for (const input of this.inputs) {
         await new Promise((resolve) => {
-          this.engine
-            .openMidiIn(input.name)
-            .or(() => resolve())
-            .and((port) => {
-              this.ports.push(port);
-
-              port.connect((message) => {
-                const raw = Array.from(message);
-                const parsed = parseMidiMessage(raw);
-                this.recordRawMessage(input.name, raw, parsed);
-
-                if (!parsed) {
-                  this.emit('state', this.getState());
-                  return;
-                }
-
-                this.handleParsedMessage(input.name, parsed);
-              });
-
+          try {
+            const port = this.engine.openMidiIn(input.name);
+            if (!port || typeof port.connect !== 'function') {
+              openErrors.push(`${input.name}: input port unavailable`);
               resolve();
+              return;
+            }
+
+            port.connect((message) => {
+              const raw = Array.from(message);
+              const parsed = parseMidiMessage(raw);
+              this.recordRawMessage(input.name, raw, parsed);
+
+              if (!parsed) {
+                this.emit('state', this.getState());
+                return;
+              }
+
+              this.handleParsedMessage(input.name, parsed);
             });
+
+            let portOpened = false;
+            const markPortOpened = () => {
+              if (!portOpened) {
+                this.ports.push(port);
+                portOpened = true;
+              }
+              resolve();
+            };
+
+            if (typeof port.or === 'function') {
+              port.or((error) => {
+                openErrors.push(`${input.name}: ${error?.message || 'failed to open'}`);
+                resolve();
+              });
+            }
+
+            if (typeof port.and === 'function') {
+              port.and(function onMidiPortOpen() {
+                markPortOpened();
+              });
+            } else {
+              markPortOpened();
+            }
+          } catch (error) {
+            openErrors.push(`${input.name}: ${error.message}`);
+            resolve();
+          }
         });
       }
 
-      this.enabled = true;
+      this.enabled = this.inputs.length === 0 || this.ports.length > 0;
+      this.error = openErrors.length ? openErrors.join('; ') : null;
       this.emit('state', this.getState());
       return this.getState();
     } catch (error) {
@@ -250,6 +369,27 @@ export class MidiService extends EventEmitter {
     if (this.learningAction === action) {
       this.learningAction = null;
     }
+    this.emit('state', this.getState());
+    return this.getState();
+  }
+
+  updateBinding(action, patch = {}) {
+    if (!isSupportedAction(action)) {
+      throw new Error('Unsupported MIDI binding action.');
+    }
+
+    const current = this.bindings.find((binding) => binding.action === action);
+
+    const nextBinding = normalizeBinding({
+      ...(current || { device: 'any', type: patch?.type || 'noteon' }),
+      ...patch,
+      action,
+    });
+
+    this.bindings = current
+      ? this.bindings.map((binding) => (binding.action === action ? nextBinding : binding))
+      : [...this.bindings, nextBinding];
+    this.onBindingsChange?.(this.bindings);
     this.emit('state', this.getState());
     return this.getState();
   }
