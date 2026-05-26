@@ -5,7 +5,7 @@ Last updated: 2026-05-26
 ## Current Branch Context
 
 - Active release branch: `main`.
-- Current release target: `v0.4.4`.
+- Current release target: `v0.4.5`.
 - GitHub branches:
 - `origin/main` is the release target for the current `0.4.x` line.
 - `origin/staging/0.4.0` was used for prerelease work and has been retired as the primary release target.
@@ -79,6 +79,7 @@ Last updated: 2026-05-26
   - Default update channel is `stable`.
   - `v0.4.4` adds validation for partial downloads: response `content-length`, GitHub asset size, and Windows PE signature are checked before the app quits for install.
   - The PowerShell helper also checks source/target size before replacing `WebTitlePro.exe`; this prevents a truncated `.download` from silently replacing the launcher.
+  - `v0.4.5` updates both `WebTitlePro.exe` and the launched versioned portable file (`WebTitlePro-<version>.exe`) when they are different, so manually reopening the old file does not relaunch the old version.
   - If `0.4.2` or `0.4.3` already replaced `WebTitlePro.exe` with a partial file, the user must download a fresh portable `.exe` manually once because older updater code cannot be patched retroactively.
 
 ## Tests

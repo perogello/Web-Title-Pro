@@ -131,6 +131,24 @@ const createUpdaterIntegration = ({
     }
   };
 
+  const isWebTitlePortableExe = (value = '') => /^WebTitlePro(-[\w.-]+)?\.exe$/i.test(path.basename(value));
+
+  const normalizePortablePath = (value = '') => {
+    const trimmed = typeof value === 'string' ? value.trim() : '';
+    return trimmed && /\.exe$/i.test(trimmed) ? path.normalize(trimmed) : '';
+  };
+
+  const resolveLaunchedPortableExePath = () => {
+    const fileFromEnv = normalizePortablePath(process.env.PORTABLE_EXECUTABLE_FILE);
+
+    if (fileFromEnv && isWebTitlePortableExe(fileFromEnv)) {
+      return fileFromEnv;
+    }
+
+    const currentPath = normalizePortablePath(process.execPath);
+    return currentPath && isWebTitlePortableExe(currentPath) ? currentPath : '';
+  };
+
   /**
    * Update target should ALWAYS be the stable launcher (`WebTitlePro.exe`),
    * regardless of which file the operator actually clicked to launch.
@@ -143,8 +161,12 @@ const createUpdaterIntegration = ({
    * old version. The next click on the stable shortcut then launched
    * the OLD app, producing the "update didn't apply" report.
    *
-   * Now we resolve the *directory* and always target `WebTitlePro.exe`
-   * inside it. Resolution order:
+   * Now we always update and restart the stable `WebTitlePro.exe`.
+   * If the user launched a versioned portable file such as
+   * `WebTitlePro-0.4.4.exe`, the helper also updates that launcher as a
+   * secondary target so a later manual click does not reopen the old app.
+   *
+   * Stable target resolution order:
    *   1. PORTABLE_EXECUTABLE_DIR — set by electron-builder portable target
    *      to the folder containing the launcher.
    *   2. dirname(PORTABLE_EXECUTABLE_FILE) — fallback for builds that
@@ -177,14 +199,33 @@ const createUpdaterIntegration = ({
     const currentDir = path.dirname(currentPath);
     const currentBase = path.basename(currentPath);
 
-    if (/^WebTitlePro(-\d+\.\d+\.\d+)?\.exe$/i.test(currentBase)) {
+    if (isWebTitlePortableExe(currentBase)) {
       return path.join(currentDir, stablePortableExeName);
     }
 
     return currentPath;
   };
 
-  const createUpdateScript = async ({ sourcePath, targetPath, taskName, expectedSize = 0 }) => {
+  const resolvePortableUpdateTargets = () => {
+    const primaryTarget = resolveStablePortableExePath();
+    const launchedTarget = resolveLaunchedPortableExePath();
+    const sameTarget =
+      launchedTarget &&
+      path.normalize(launchedTarget).toLowerCase() === path.normalize(primaryTarget).toLowerCase();
+
+    return {
+      primaryTarget,
+      secondaryTarget: launchedTarget && !sameTarget ? launchedTarget : '',
+    };
+  };
+
+  const createUpdateScript = async ({
+    sourcePath,
+    targetPath,
+    secondaryTargetPath = '',
+    taskName,
+    expectedSize = 0,
+  }) => {
     const timestamp = Date.now();
     const scriptPath = path.join(app.getPath('temp'), `web-title-pro-apply-update-${timestamp}.ps1`);
     const statusScriptPath = path.join(app.getPath('temp'), `web-title-pro-update-status-${timestamp}.ps1`);
@@ -199,7 +240,8 @@ const createUpdaterIntegration = ({
       '  [string]$LogPath,',
       '  [string]$StatePath,',
       '  [string]$TaskName,',
-      '  [long]$ExpectedSize',
+      '  [long]$ExpectedSize,',
+      '  [string]$SecondaryTarget',
       ')',
       "$ErrorActionPreference = 'Stop'",
       'function Write-UpdateLog([string]$Message) {',
@@ -242,27 +284,34 @@ const createUpdaterIntegration = ({
       '  exit 1',
       '}',
       "Write-UpdateState 'copying' 'Applying the update package...' 99",
-      '$copySucceeded = $false',
-      'for ($i = 0; $i -lt 240; $i++) {',
-      '  try {',
-      '    Copy-Item -LiteralPath $Source -Destination $Target -Force',
-      '    $targetSize = (Get-Item -LiteralPath $Target).Length',
-      "    if ($ExpectedSize -gt 0 -and $targetSize -ne $ExpectedSize) { throw \"Copied executable size mismatch. Expected=$ExpectedSize Actual=$targetSize\" }",
-      '    Remove-Item -LiteralPath $Source -Force -ErrorAction SilentlyContinue',
-      "    Write-UpdateLog 'Copied update package successfully.'",
-      '    $copySucceeded = $true',
-      '    break',
-      '  } catch {',
-      '    Write-UpdateLog ("Copy attempt failed: " + $_.Exception.Message)',
-      '    Start-Sleep -Milliseconds 500',
+      'function Copy-UpdatePackage([string]$Destination, [string]$Label, [bool]$Required) {',
+      '  if (-not $Destination) { return $true }',
+      '  $destinationDir = Split-Path -Parent $Destination',
+      '  if ($destinationDir) { New-Item -ItemType Directory -Force -Path $destinationDir | Out-Null }',
+      '  for ($i = 0; $i -lt 240; $i++) {',
+      '    try {',
+      '      Copy-Item -LiteralPath $Source -Destination $Destination -Force',
+      '      $copiedSize = (Get-Item -LiteralPath $Destination).Length',
+      '      if ($ExpectedSize -gt 0 -and $copiedSize -ne $ExpectedSize) { throw "Copied executable size mismatch. Expected=$ExpectedSize Actual=$copiedSize" }',
+      '      Write-UpdateLog "Copied update package to ${Label}: $Destination"',
+      '      return $true',
+      '    } catch {',
+      '      Write-UpdateLog ("Copy attempt failed for " + $Label + ": " + $_.Exception.Message)',
+      '      Start-Sleep -Milliseconds 500',
+      '    }',
       '  }',
+      '  if ($Required) {',
+      '    Write-UpdateLog "Update helper timed out before replacing required executable: $Destination"',
+      "    Write-UpdateState 'error' 'The update package could not replace Web Title Pro.' 100",
+      '    if ($TaskName) { try { schtasks /delete /tn $TaskName /f | Out-Null } catch {} }',
+      '    exit 1',
+      '  }',
+      '  Write-UpdateLog "Optional launcher was not updated: $Destination"',
+      '  return $false',
       '}',
-      'if (-not $copySucceeded) {',
-      "  Write-UpdateLog 'Update helper timed out before replacing executable.'",
-      "  Write-UpdateState 'error' 'The update package could not replace Web Title Pro.' 100",
-      '  if ($TaskName) { try { schtasks /delete /tn $TaskName /f | Out-Null } catch {} }',
-      '  exit 1',
-      '}',
+      '[void](Copy-UpdatePackage $Target "stable launcher" $true)',
+      'if ($SecondaryTarget -and $SecondaryTarget -ne $Target) { [void](Copy-UpdatePackage $SecondaryTarget "launched launcher" $false) }',
+      'Remove-Item -LiteralPath $Source -Force -ErrorAction SilentlyContinue',
       "Write-UpdateState 'restarting' 'Restarting Web Title Pro...' 100",
       'for ($i = 0; $i -lt 30; $i++) {',
       '  try {',
@@ -422,6 +471,8 @@ const createUpdaterIntegration = ({
       `"${escapeVbsValue(taskName)}"`,
       '-ExpectedSize',
       String(Number(expectedSize) || 0),
+      '-SecondaryTarget',
+      `"${escapeVbsValue(secondaryTargetPath)}"`,
     ].join(' ');
     const launchStatusCommand = [
       'powershell.exe',
@@ -508,14 +559,15 @@ const createUpdaterIntegration = ({
   };
 
   const applyDownloadedUpdate = async (downloadPath, expectedSize = 0) => {
-    const targetPath = resolveStablePortableExePath();
+    const { primaryTarget: targetPath, secondaryTarget } = resolvePortableUpdateTargets();
     log(
-      `updates:apply target=${targetPath} exec=${process.execPath} portableFile=${process.env.PORTABLE_EXECUTABLE_FILE || ''} portableDir=${process.env.PORTABLE_EXECUTABLE_DIR || ''}`,
+      `updates:apply target=${targetPath} secondary=${secondaryTarget || ''} exec=${process.execPath} portableFile=${process.env.PORTABLE_EXECUTABLE_FILE || ''} portableDir=${process.env.PORTABLE_EXECUTABLE_DIR || ''}`,
     );
     const taskName = `WebTitlePro-Update-${Date.now()}`;
     const { launcherPath, logPath } = await createUpdateScript({
       sourcePath: downloadPath,
       targetPath,
+      secondaryTargetPath: secondaryTarget,
       taskName,
       expectedSize,
     });
@@ -695,6 +747,8 @@ const createUpdaterIntegration = ({
     runStartupUpdateCheck,
     __private: {
       resolveStablePortableExePath,
+      resolveLaunchedPortableExePath,
+      resolvePortableUpdateTargets,
       createUpdateScript,
       downloadFileWithProgress,
       validatePortableUpdatePackage,

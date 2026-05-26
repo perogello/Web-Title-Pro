@@ -32,6 +32,37 @@ const createIntegration = () =>
     stablePortableExeName: 'WebTitlePro.exe',
   });
 
+const withPortableEnv = async (env, callback) => {
+  const previous = {
+    PORTABLE_EXECUTABLE_DIR: process.env.PORTABLE_EXECUTABLE_DIR,
+    PORTABLE_EXECUTABLE_FILE: process.env.PORTABLE_EXECUTABLE_FILE,
+  };
+
+  try {
+    if ('PORTABLE_EXECUTABLE_DIR' in env) {
+      process.env.PORTABLE_EXECUTABLE_DIR = env.PORTABLE_EXECUTABLE_DIR;
+    } else {
+      delete process.env.PORTABLE_EXECUTABLE_DIR;
+    }
+
+    if ('PORTABLE_EXECUTABLE_FILE' in env) {
+      process.env.PORTABLE_EXECUTABLE_FILE = env.PORTABLE_EXECUTABLE_FILE;
+    } else {
+      delete process.env.PORTABLE_EXECUTABLE_FILE;
+    }
+
+    return await callback();
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
+};
+
 test('validatePortableUpdatePackage: accepts matching executable package', async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-updater-test-'));
   const filePath = path.join(dir, 'WebTitlePro-test.exe');
@@ -106,6 +137,66 @@ test('downloadFileWithProgress: rejects incomplete response stream', async () =>
     );
   } finally {
     globalThis.fetch = originalFetch;
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('resolvePortableUpdateTargets: updates stable and launched versioned launchers', async () => {
+  const dir = path.join(os.tmpdir(), 'wtp updater dir');
+  const updater = createIntegration();
+
+  await withPortableEnv(
+    {
+      PORTABLE_EXECUTABLE_DIR: dir,
+      PORTABLE_EXECUTABLE_FILE: path.join(dir, 'WebTitlePro-0.4.4.exe'),
+    },
+    async () => {
+      assert.deepEqual(updater.__private.resolvePortableUpdateTargets(), {
+        primaryTarget: path.join(dir, 'WebTitlePro.exe'),
+        secondaryTarget: path.join(dir, 'WebTitlePro-0.4.4.exe'),
+      });
+    },
+  );
+});
+
+test('resolvePortableUpdateTargets: does not duplicate stable launcher target', async () => {
+  const dir = path.join(os.tmpdir(), 'wtp updater dir');
+  const updater = createIntegration();
+
+  await withPortableEnv(
+    {
+      PORTABLE_EXECUTABLE_DIR: dir,
+      PORTABLE_EXECUTABLE_FILE: path.join(dir, 'WebTitlePro.exe'),
+    },
+    async () => {
+      assert.deepEqual(updater.__private.resolvePortableUpdateTargets(), {
+        primaryTarget: path.join(dir, 'WebTitlePro.exe'),
+        secondaryTarget: '',
+      });
+    },
+  );
+});
+
+test('createUpdateScript: passes secondary launcher target to PowerShell helper', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-updater-test-'));
+  const sourcePath = path.join(dir, 'WebTitlePro-new.exe.download');
+  const targetPath = path.join(dir, 'WebTitlePro.exe');
+  const secondaryTargetPath = path.join(dir, 'WebTitlePro-0.4.4.exe');
+
+  try {
+    const updater = createIntegration();
+    const { scriptPath } = await updater.__private.createUpdateScript({
+      sourcePath,
+      targetPath,
+      secondaryTargetPath,
+      taskName: 'WebTitlePro-Test-Update',
+      expectedSize: 4,
+    });
+    const script = await fs.readFile(scriptPath, 'utf8');
+
+    assert.match(script, /\[string\]\$SecondaryTarget/);
+    assert.match(script, /Copy-UpdatePackage \$SecondaryTarget "launched launcher" \$false/);
+  } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
 });
