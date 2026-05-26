@@ -65,12 +65,27 @@ const createUpdaterIntegration = ({
   const checkForUpdates = async () => fetchJson(updateCheckUrl, { method: 'POST' });
 
   const downloadFileWithProgress = async (url, destinationPath, onProgress) => {
-    const response = await fetch(url, {
-      headers: {
-        Accept: 'application/octet-stream',
-        'User-Agent': 'Web-Title-Pro-Updater',
-      },
-    });
+    // Two-tier timeouts:
+    //  - connectController (30 s) only covers establishing the TCP/TLS
+    //    session and getting response headers from GitHub CDN. If GitHub
+    //    is unreachable, we fail fast instead of waiting forever.
+    //  - stallController is rearmed every chunk; it only fires if no
+    //    bytes arrived for 60 s in a row, so long but healthy downloads
+    //    on a slow link finish fine, while a frozen socket bails out.
+    const connectController = new AbortController();
+    const connectTimeout = setTimeout(() => connectController.abort(), 30 * 1000);
+    let response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          Accept: 'application/octet-stream',
+          'User-Agent': 'Web-Title-Pro-Updater',
+        },
+        signal: connectController.signal,
+      });
+    } finally {
+      clearTimeout(connectTimeout);
+    }
 
     if (!response.ok || !response.body) {
       throw new Error(`Download failed with ${response.status}`);
@@ -83,7 +98,27 @@ const createUpdaterIntegration = ({
     const fileHandle = await fsp.open(destinationPath, 'w');
     let received = 0;
 
+    const STALL_TIMEOUT_MS = 60 * 1000;
+    let stallTimer = null;
+    let stalled = false;
+    const armStallTimer = () => {
+      if (stallTimer) clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => {
+        stalled = true;
+        // Abort the underlying body reader so the await read() rejects
+        // instead of hanging forever on a dead socket.
+        try { reader.cancel(new Error('stall')); } catch {}
+      }, STALL_TIMEOUT_MS);
+    };
+    const disarmStallTimer = () => {
+      if (stallTimer) {
+        clearTimeout(stallTimer);
+        stallTimer = null;
+      }
+    };
+
     try {
+      armStallTimer();
       while (true) {
         const { done, value } = await reader.read();
 
@@ -93,6 +128,7 @@ const createUpdaterIntegration = ({
 
         const chunk = Buffer.from(value);
         await fileHandle.write(chunk);
+        armStallTimer();
         received += chunk.length;
 
         if (typeof onProgress === 'function') {
@@ -101,10 +137,14 @@ const createUpdaterIntegration = ({
         }
       }
 
+      if (stalled) {
+        throw new Error('Download stalled — no data received for 60 seconds.');
+      }
       if (contentLength > 0 && received !== contentLength) {
         throw new Error(`Downloaded update is incomplete: received ${received} of ${contentLength} bytes.`);
       }
     } finally {
+      disarmStallTimer();
       await fileHandle.close();
     }
   };
