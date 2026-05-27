@@ -78,6 +78,11 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
   await expect(page.getByRole('separator', { name: 'Resize notes' })).toBeVisible();
   await notes.fill('Director note');
   await expect(notes).toContainText('Director note');
+  await expect.poll(() => page.evaluate(() => {
+    const saved = JSON.parse(window.localStorage.getItem('web-title-pro.liveNotes') || 'null');
+    const legacyKeys = Object.keys(window.localStorage).filter((key) => key.startsWith('web-title-pro:live-notes:'));
+    return { text: saved?.text || '', legacyCount: legacyKeys.length };
+  })).toEqual({ text: 'Director note', legacyCount: 0 });
 
   const selectText = async (text) => notes.evaluate((editor, selectedText) => {
     const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
@@ -188,6 +193,22 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
   expect(widthAfter).toBeGreaterThan(widthBefore + 40);
 
   expect(consoleErrors).toEqual([]);
+});
+
+test('Data manual text source textarea auto-grows without manual resize handle', async ({ page, request }) => {
+  await seedSourceLibrary(page);
+  await waitForBackend(request);
+  await page.goto('/');
+
+  await page.getByRole('button', { name: /DATA/i }).click();
+
+  const textarea = page.locator('textarea.source-manual-textarea');
+  await expect(textarea).toBeVisible();
+  await expect(textarea).toHaveCSS('resize', 'none');
+
+  const initialHeight = await textarea.evaluate((element) => element.getBoundingClientRect().height);
+  await textarea.fill(Array.from({ length: 18 }, (_, index) => `Row ${index + 1}|Value`).join('\n'));
+  await expect.poll(() => textarea.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(initialHeight + 20);
 });
 
 test('Controls exposes MIDI status, refresh, and Learn button', async ({ page, request }) => {

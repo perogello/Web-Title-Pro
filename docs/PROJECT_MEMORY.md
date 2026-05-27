@@ -5,9 +5,9 @@ Last updated: 2026-05-27
 ## Current Branch Context
 
 - Active release branch: `main`.
-- Current release target: final `v0.4.6`.
-- Current local build output: `release/WebTitlePro-0.4.6.exe` and stable launcher `release/WebTitlePro.exe`.
-- Final `WebTitlePro-0.4.6.exe` SHA-256: `74d0bf93eb11feb42165af6d274b5c00b2699037a628b924fa963c828e95e576`.
+- Current release target: final `v0.4.7`.
+- Current local build output: `release/WebTitlePro-0.4.7.exe` and stable launcher `release/WebTitlePro.exe`.
+- Final `WebTitlePro-0.4.7.exe` SHA-256: `23c4e770f871edb4ef2343c08da4b1f3e37678a5fe8defd9e8dc3298e860396f`.
 - GitHub branches:
 - `origin/main` is the release target for the current `0.4.x` line.
 - `origin/staging/0.4.0` was used for prerelease work and has been retired as the primary release target.
@@ -38,6 +38,7 @@ Last updated: 2026-05-27
 
 - WebSocket `timer-tick` now sends only `{ serverTime, timers }`, not the full project snapshot.
 - Live Data Source row selection updates only title `fields`; it must not overwrite the title `name`.
+- Data tab manual `Source Rows` textarea auto-grows downward with content and disables native manual resize.
 - vMix title input display:
   - New vMix entries store `vmixInputNumber`.
   - Existing vMix entries are enriched from current `vmixState.inputs` when possible.
@@ -56,9 +57,13 @@ Last updated: 2026-05-27
   - CC/fader bindings can include a `valueMode` rule (`any`, `eq`, `gte`, `lte`) plus `value` 0-127, so faders can trigger only at a threshold instead of every movement.
   - Controls shows detected MIDI inputs, last received MIDI message, and any open error for operator diagnostics.
   - External reference checked: vMixUTC MIDI mapping stores event type + channel + note/control and uses a Learn flow that copies the learned event into the mapping row.
+  - 2026-05-27 MIDI follow-up: JZZ input opening now tries display `name`, then stable `id`, then input index. This covers Windows/Akai cases where `info.inputs` lists a friendly name but `openMidiIn(name)` fails while `openMidiIn(id)` works.
+  - MIDI status is now truly offline when no input ports are detected; the UI shows `MIDI offline: No MIDI inputs detected.` instead of a misleading enabled state with zero devices.
+  - MIDI input open has a 2.5s per-target timeout, so a stuck Windows MIDI driver cannot freeze `Refresh MIDI` or Learn startup.
+  - MIDI service subscribes to JZZ `onChange` and auto-refreshes when the device list changes; plugging Akai after app startup should no longer require restarting the app.
 - Live Notes:
   - `LiveTabV2` has a `Notes` toggle beside `Preview`.
-  - Notes panel opens on the right and persists per output/source in localStorage.
+  - Notes panel opens on the right and persists globally in localStorage under `web-title-pro.liveNotes`; it is not tied to output or selected data source.
   - Notes editor is `contentEditable`, not `textarea`; saved shape supports `{ html, text }` and migrates old plain-text notes.
   - Formatting applies to the selected text fragment, not the whole note.
   - Supported formatting: bold, italic, font size, text color, background color.
@@ -66,6 +71,9 @@ Last updated: 2026-05-27
   - Color application listens to both `input` and `change` and uses a short debounce to prevent freezes while dragging through the native palette.
   - `Clear` background is exposed from the `Fill` control, positioned beside it so the native palette does not cover the action, and preserves selection for the next formatting command.
   - Notes panel width is resizable from its left splitter, persisted in `web-title-pro.liveNotesWidth`, clamped to 260-620 px.
+- Release `v0.4.7`:
+  - Includes MIDI/Akai connection hardening, global Live Notes storage, and Data `Source Rows` textarea auto-grow without native manual resize.
+  - Final `WebTitlePro-0.4.7.exe` and stable `WebTitlePro.exe` hashes match: `23c4e770f871edb4ef2343c08da4b1f3e37678a5fe8defd9e8dc3298e860396f`.
 - Add Title modal:
   - `Local / vMix Title` uses modal-scoped segmented-control styling.
   - Active vMix mode uses the vMix blue accent.
@@ -110,6 +118,7 @@ Last updated: 2026-05-27
   - Add Title modal styling is covered: segmented mode switch, vMix accent, hidden native file input, styled upload picker.
   - Bundle tests cover custom template inclusion, zip-slip rejection, project summary counts, local/vMix title preservation, data sources, vMix discovered input export, keyboard/global shortcuts, and MIDI bindings.
   - Updater tests cover stable/prerelease release selection, incomplete download streams, truncated executable packages, invalid executable signatures, required secondary launcher replacement, generated PowerShell syntax, script-scoped status window state, stale update-state normalization, and non-Latin launcher paths.
+  - MIDI regression tests cover name/id/index input opening, missing devices, open timeout, JZZ device-change auto-refresh, Learn, CC faders, and value rules.
 - `dev:server` uses a narrowed nodemon watch (`server`, `package.json`) so Playwright `test-results/`, Vite build output, and local files do not restart the backend during UI tests.
 - Full verification:
   - `npm.cmd run test:all`

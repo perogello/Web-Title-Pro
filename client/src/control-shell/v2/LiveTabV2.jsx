@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import SyncPopover from './SyncPopover.jsx';
 import SegmentedTimerInput from './SegmentedTimerInput.jsx';
 import { PauseIcon, PlayIcon, ResetIcon } from '../icons.jsx';
@@ -11,6 +11,7 @@ const NOTE_DEFAULT_TEXT_COLOR = '#f5f5f7';
 const NOTE_DEFAULT_FILL_COLOR = '#15151a';
 const NOTE_FONT_SIZES = [12, 14, 16, 18, 22, 28, 36];
 const NOTES_WIDTH_STORAGE_KEY = 'web-title-pro.liveNotesWidth';
+const NOTES_STORAGE_KEY = 'web-title-pro.liveNotes';
 const NOTES_MIN_WIDTH = 260;
 const NOTES_MAX_WIDTH = 620;
 const NOTES_DEFAULT_WIDTH = 340;
@@ -493,10 +494,6 @@ export default function LiveTabV2({
   const [notesWidth, setNotesWidth] = useState(loadStoredNotesWidth);
   const [notesDragging, setNotesDragging] = useState(false);
   const notesResizeStartRef = useRef({ x: 0, width: notesWidth });
-  const notesStorageKey = useMemo(
-    () => `web-title-pro:live-notes:${selectedOutput?.id || 'no-output'}:${selectedSourceId || 'no-source'}`,
-    [selectedOutput?.id, selectedSourceId],
-  );
 
   useEffect(() => {
     try {
@@ -758,7 +755,7 @@ export default function LiveTabV2({
                   aria-label="Resize notes"
                   aria-orientation="vertical"
                 />
-                <LiveNotesPanel storageKey={notesStorageKey} />
+                <LiveNotesPanel storageKey={NOTES_STORAGE_KEY} />
               </>
             )}
           </div>

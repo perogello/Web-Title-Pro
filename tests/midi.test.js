@@ -7,15 +7,27 @@ import {
   normalizeMidiActionForDispatch,
 } from '../server/midi/midi-service.js';
 
-const createFakeJzz = ({ inputNames = ['AKAI MPK mini'], passPortToAnd = false } = {}) => {
+const createFakeJzz = ({
+  inputNames = ['AKAI MPK mini'],
+  inputInfos,
+  passPortToAnd = false,
+  failTargets = [],
+  pendingTargets = [],
+} = {}) => {
   const ports = [];
+  const watchers = [];
+  const failures = new Set(failTargets);
+  const pending = new Set(pendingTargets);
+  const inputs = inputInfos || inputNames.map((name) => ({ name }));
   const jzzFactory = () => () => ({
     info: () => ({
-      inputs: inputNames.map((name) => ({ name })),
+      inputs,
     }),
-    openMidiIn: (name) => {
+    openMidiIn: (target) => {
+      const shouldFail = failures.has(target);
+      const shouldStayPending = pending.has(target);
       const port = {
-        inputName: name,
+        inputName: target,
         handler: null,
         closed: false,
         connect(handler) {
@@ -31,10 +43,15 @@ const createFakeJzz = ({ inputNames = ['AKAI MPK mini'], passPortToAnd = false }
           return this;
         },
         or() {
+          if (shouldFail && typeof arguments[0] === 'function') {
+            arguments[0](new Error('failed to open'));
+          }
           return this;
         },
         and(handler) {
-          handler.call(this, passPortToAnd ? this : undefined);
+          if (!shouldFail && !shouldStayPending) {
+            handler.call(this, passPortToAnd ? this : undefined);
+          }
           return this;
         },
         emit(bytes) {
@@ -44,9 +61,19 @@ const createFakeJzz = ({ inputNames = ['AKAI MPK mini'], passPortToAnd = false }
       ports.push(port);
       return port;
     },
+    onChange(handler) {
+      watchers.push(handler);
+      return {
+        disconnect(disconnectHandler) {
+          const index = watchers.indexOf(disconnectHandler || handler);
+          if (index >= 0) watchers.splice(index, 1);
+          return this;
+        },
+      };
+    },
   });
 
-  return { jzzFactory, ports };
+  return { jzzFactory, ports, inputs, watchers };
 };
 
 test('parseMidiMessage: note on with velocity > 0', () => {
@@ -189,6 +216,64 @@ test('MidiService.refresh opens JZZ input even when and() does not pass a port a
   assert.equal(state.inputs[0].name, 'AKAI MPK mini');
   assert.equal(fake.ports.length, 1);
   assert.equal(service.ports.length, 1);
+});
+
+test('MidiService.refresh falls back to MIDI input id when display name fails', async () => {
+  const fake = createFakeJzz({
+    inputInfos: [{ id: 'akai-port-1', name: 'AKAI MPK mini' }],
+    failTargets: ['AKAI MPK mini'],
+  });
+  const service = new MidiService({ jzzFactory: fake.jzzFactory });
+
+  const state = await service.refresh();
+
+  assert.equal(state.enabled, true);
+  assert.equal(service.ports.length, 1);
+  assert.equal(service.ports[0].inputName, 'akai-port-1');
+  assert.equal(state.error, null);
+});
+
+test('MidiService.refresh reports offline when no MIDI inputs are detected', async () => {
+  const fake = createFakeJzz({ inputNames: [] });
+  const service = new MidiService({ jzzFactory: fake.jzzFactory });
+
+  const state = await service.refresh();
+
+  assert.equal(state.enabled, false);
+  assert.deepEqual(state.inputs, []);
+  assert.equal(state.error, 'No MIDI inputs detected.');
+});
+
+test('MidiService.refresh times out a MIDI input that never resolves', async () => {
+  const fake = createFakeJzz({ pendingTargets: ['AKAI MPK mini', 0] });
+  const service = new MidiService({ jzzFactory: fake.jzzFactory, openTimeoutMs: 5 });
+
+  const state = await service.refresh();
+
+  assert.equal(state.enabled, false);
+  assert.match(state.error, /AKAI MPK mini \(AKAI MPK mini\): open timed out/);
+  assert.equal(fake.ports[0].closed, true);
+});
+
+test('MidiService auto-refreshes when JZZ reports a MIDI device change', async () => {
+  const fake = createFakeJzz({ inputNames: [] });
+  const service = new MidiService({ jzzFactory: fake.jzzFactory, openTimeoutMs: 20 });
+
+  const initial = await service.refresh();
+  assert.equal(initial.enabled, false);
+  assert.equal(fake.watchers.length, 1);
+
+  fake.inputs.push({ name: 'AKAI MPK mini' });
+  fake.watchers[0]({ inputs: { added: [{ name: 'AKAI MPK mini' }], removed: [] } });
+
+  await new Promise((resolve) => setTimeout(resolve, 350));
+
+  const next = service.getState();
+  assert.equal(next.enabled, true);
+  assert.equal(next.inputs[0].name, 'AKAI MPK mini');
+
+  await service.close();
+  assert.equal(fake.watchers.length, 0);
 });
 
 test('MidiService learn stores portable binding and does not fire action immediately', async () => {

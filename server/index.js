@@ -202,6 +202,7 @@ export const startServer = async (options = {}) => {
     async close() {
       timerManager.stop();
       vmixService.stop();
+      await midiService.close();
       await store.close();
       await new Promise((resolve) => wsServer.close(resolve));
       await new Promise((resolve, reject) => {

@@ -262,6 +262,11 @@
   font-weight: 600;
   color: var(--text-v2);
 }
+.shell-v2 .content-v2-inner .source-manual-textarea {
+  min-height: 140px;
+  overflow: hidden;
+  resize: none;
+}
 .shell-v2 .content-v2-inner .source-import-card .panel-head-v3 h3,
 .shell-v2 .content-v2-inner .source-replace-card .panel-head-v3 h3 {
   font-size: 13px;

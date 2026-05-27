@@ -121,7 +121,7 @@ const matchesValueRule = (binding = {}, parsed = {}) => {
 };
 
 export class MidiService extends EventEmitter {
-  constructor({ bindings, onBindingsChange, jzzFactory } = {}) {
+  constructor({ bindings, onBindingsChange, jzzFactory, openTimeoutMs = 2500 } = {}) {
     super();
     this.enabled = false;
     this.inputs = [];
@@ -137,6 +137,10 @@ export class MidiService extends EventEmitter {
     this.lastActionKeys = new Map();
     this.recentMessages = [];
     this.recentMessagesLimit = 50;
+    this.openTimeoutMs = openTimeoutMs;
+    this.changeWatcher = null;
+    this.changeWatcherHandler = null;
+    this.changeRefreshTimer = null;
   }
 
   recordRawMessage(inputName, rawBytes, parsed) {
@@ -152,6 +156,27 @@ export class MidiService extends EventEmitter {
 
   async init() {
     await this.refresh();
+  }
+
+  setupChangeWatcher() {
+    if (this.changeWatcher || !this.engine || typeof this.engine.onChange !== 'function') {
+      return;
+    }
+
+    this.changeWatcherHandler = () => {
+      if (this.changeRefreshTimer) {
+        clearTimeout(this.changeRefreshTimer);
+      }
+
+      this.changeRefreshTimer = setTimeout(() => {
+        this.changeRefreshTimer = null;
+        this.refresh().catch(() => {});
+      }, 250);
+    };
+
+    try {
+      this.changeWatcher = this.engine.onChange(this.changeWatcherHandler);
+    } catch {}
   }
 
   async closePorts() {
@@ -170,18 +195,44 @@ export class MidiService extends EventEmitter {
     this.ports = [];
   }
 
+  async close() {
+    if (this.changeRefreshTimer) {
+      clearTimeout(this.changeRefreshTimer);
+      this.changeRefreshTimer = null;
+    }
+
+    if (this.changeWatcher) {
+      try {
+        if (typeof this.changeWatcher.disconnect === 'function') {
+          this.changeWatcher.disconnect(this.changeWatcherHandler);
+        }
+      } catch {}
+    }
+
+    this.changeWatcher = null;
+    this.changeWatcherHandler = null;
+    await this.closePorts();
+  }
+
   normalizeInputInfo(input, index) {
     if (typeof input === 'string') {
-      return { id: input, name: input };
+      return { id: input, name: input, index };
     }
 
     const name = input?.name || input?.id || `MIDI Input ${index + 1}`;
     return {
       id: input?.id || name,
       name,
+      index,
       manufacturer: input?.manufacturer || '',
       version: input?.version || '',
     };
+  }
+
+  getInputOpenTargets(input) {
+    return [input.name, input.id, input.index].filter((target, index, list) =>
+      target !== undefined && target !== null && target !== '' && list.indexOf(target) === index,
+    );
   }
 
   handleParsedMessage(inputName, parsed) {
@@ -272,6 +323,7 @@ export class MidiService extends EventEmitter {
 
       const JZZCtor = this.jzzFactory ? await this.jzzFactory() : await loadJZZ();
       this.engine = JZZCtor();
+      this.setupChangeWatcher();
       const info = this.engine.info?.() || {};
       this.inputs = (Array.isArray(info.inputs) ? info.inputs : []).map((input, index) =>
         this.normalizeInputInfo(input, index),
@@ -279,60 +331,19 @@ export class MidiService extends EventEmitter {
       const openErrors = [];
 
       for (const input of this.inputs) {
-        await new Promise((resolve) => {
-          try {
-            const port = this.engine.openMidiIn(input.name);
-            if (!port || typeof port.connect !== 'function') {
-              openErrors.push(`${input.name}: input port unavailable`);
-              resolve();
-              return;
-            }
-
-            port.connect((message) => {
-              const raw = Array.from(message);
-              const parsed = parseMidiMessage(raw);
-              this.recordRawMessage(input.name, raw, parsed);
-
-              if (!parsed) {
-                this.emit('state', this.getState());
-                return;
-              }
-
-              this.handleParsedMessage(input.name, parsed);
-            });
-
-            let portOpened = false;
-            const markPortOpened = () => {
-              if (!portOpened) {
-                this.ports.push(port);
-                portOpened = true;
-              }
-              resolve();
-            };
-
-            if (typeof port.or === 'function') {
-              port.or((error) => {
-                openErrors.push(`${input.name}: ${error?.message || 'failed to open'}`);
-                resolve();
-              });
-            }
-
-            if (typeof port.and === 'function') {
-              port.and(function onMidiPortOpen() {
-                markPortOpened();
-              });
-            } else {
-              markPortOpened();
-            }
-          } catch (error) {
-            openErrors.push(`${input.name}: ${error.message}`);
-            resolve();
-          }
-        });
+        const { port, errors } = await this.openInputPort(input);
+        openErrors.push(...errors);
+        if (port) {
+          this.ports.push(port);
+        }
       }
 
-      this.enabled = this.inputs.length === 0 || this.ports.length > 0;
-      this.error = openErrors.length ? openErrors.join('; ') : null;
+      this.enabled = this.ports.length > 0;
+      this.error = openErrors.length
+        ? openErrors.join('; ')
+        : this.inputs.length === 0
+          ? 'No MIDI inputs detected.'
+          : null;
       this.emit('state', this.getState());
       return this.getState();
     } catch (error) {
@@ -341,6 +352,83 @@ export class MidiService extends EventEmitter {
       this.emit('state', this.getState());
       return this.getState();
     }
+  }
+
+  async openInputPort(input) {
+    const errors = [];
+
+    for (const target of this.getInputOpenTargets(input)) {
+      const result = await new Promise((resolve) => {
+        let timeout = null;
+        try {
+          const port = this.engine.openMidiIn(target);
+          if (!port || typeof port.connect !== 'function') {
+            resolve({ port: null, error: `${input.name} (${target}): input port unavailable` });
+            return;
+          }
+
+          port.connect((message) => {
+            const raw = Array.from(message);
+            const parsed = parseMidiMessage(raw);
+            this.recordRawMessage(input.name, raw, parsed);
+
+            if (!parsed) {
+              this.emit('state', this.getState());
+              return;
+            }
+
+            this.handleParsedMessage(input.name, parsed);
+          });
+
+          let settled = false;
+          const finish = (payload) => {
+            if (!settled) {
+              settled = true;
+              if (timeout) {
+                clearTimeout(timeout);
+              }
+              resolve(payload);
+            }
+          };
+
+          timeout = setTimeout(() => {
+            try { port.disconnect(); } catch {}
+            try {
+              if (typeof port.close === 'function') {
+                port.close();
+              }
+            } catch {}
+            finish({ port: null, error: `${input.name} (${target}): open timed out` });
+          }, this.openTimeoutMs);
+
+          if (typeof port.or === 'function') {
+            port.or((error) => {
+              finish({ port: null, error: `${input.name} (${target}): ${error?.message || 'failed to open'}` });
+            });
+          }
+
+          if (typeof port.and === 'function') {
+            port.and(() => {
+              finish({ port, error: null });
+            });
+          } else {
+            finish({ port, error: null });
+          }
+        } catch (error) {
+          resolve({ port: null, error: `${input.name} (${target}): ${error.message}` });
+        }
+      });
+
+      if (result.port) {
+        return { port: result.port, errors: [] };
+      }
+
+      if (result.error) {
+        errors.push(result.error);
+      }
+    }
+
+    return { port: null, errors };
   }
 
   startLearn(action) {

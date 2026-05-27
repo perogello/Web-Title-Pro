@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CopyIcon, DownloadIcon, EditIcon, GripIcon, SaveIcon, TrashIcon } from '../icons.jsx';
 import {
   REMOTE_SOURCE_TYPE_OPTIONS,
@@ -62,8 +62,17 @@ export default function SourcesTab({
   onAddManualSourceRow,
 }) {
   const [sourceImportMode, setSourceImportMode] = useState('manual-text');
+  const sourcePayloadTextareaRef = useRef(null);
   const isRemoteMode = REMOTE_SOURCE_TYPES.has(sourceImportMode);
   const isYandexMode = sourceImportMode === 'yandex-disk-public';
+
+  useEffect(() => {
+    const textarea = sourcePayloadTextareaRef.current;
+    if (!textarea || sourceImportMode !== 'manual-text') return;
+
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.max(140, textarea.scrollHeight)}px`;
+  }, [sourceImportMode, sourcePayload]);
 
   const getImportModeLabel = (mode) => {
     if (mode === 'manual-file') return 'TXT / CSV File';
@@ -231,6 +240,8 @@ export default function SourcesTab({
                   <label className="field-v3">
                     <span>Source Rows</span>
                     <textarea
+                      ref={sourcePayloadTextareaRef}
+                      className="source-manual-textarea"
                       value={sourcePayload}
                       onChange={(event) => onSourcePayloadChange(event.target.value)}
                       placeholder="Ivan Petrov|Presenter&#10;Maria Sokolova|Reporter"

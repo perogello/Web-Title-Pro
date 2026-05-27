@@ -27,7 +27,9 @@ export default function ShortcutsSettingsTab({
   const globalActions = shortcutBindings?.globalActions || {};
   const midiStatusLabel = midiState?.enabled
     ? `${midiState?.inputs?.length || 0} MIDI device(s)`
-    : midiState?.error || 'MIDI offline';
+    : midiState?.error
+      ? `MIDI offline: ${midiState.error}`
+      : 'MIDI offline';
   const midiDeviceNames = (midiState?.inputs || [])
     .map((input) => input?.name || input?.id || '')
     .filter(Boolean);
