@@ -7,6 +7,7 @@ Last updated: 2026-05-27
 - Active release branch: `main`.
 - Current release target: final `v0.4.6`.
 - Current local build output: `release/WebTitlePro-0.4.6.exe` and stable launcher `release/WebTitlePro.exe`.
+- Final `WebTitlePro-0.4.6.exe` SHA-256: `74d0bf93eb11feb42165af6d274b5c00b2699037a628b924fa963c828e95e576`.
 - GitHub branches:
 - `origin/main` is the release target for the current `0.4.x` line.
 - `origin/staging/0.4.0` was used for prerelease work and has been retired as the primary release target.
@@ -89,6 +90,7 @@ Last updated: 2026-05-27
   - `v0.4.6` status window stores WinForms timer state in PowerShell script-scope, closes after `done`, and removes its own `.ps1/.vbs/.json/.log` scratch files after a successful update.
   - `v0.4.6` normalizes stale update state on restart: if current app version is already the latest release, cached `available: true` is reported as `up-to-date`.
   - E2E check on 2026-05-27: fixed local `0.4.5` in `F:\тест` updated to GitHub `v0.4.6`, replaced both `WebTitlePro.exe` and `WebTitlePro-0.4.5.exe`, restarted as `0.4.6`, status helper closed, updater scratch was removed, and reopening the same `WebTitlePro-0.4.5.exe` stayed on `0.4.6` with `up-to-date`.
+  - GitHub cleanup on 2026-05-27 removed the temporary updater test release/tag `v0.4.6` and stale tags `v0.4.7`, `v0.4.5-test.1` before publishing the final `v0.4.6`.
   - If `0.4.2` or `0.4.3` already replaced `WebTitlePro.exe` with a partial file, the user must download a fresh portable `.exe` manually once because older updater code cannot be patched retroactively.
 
 ## Tests

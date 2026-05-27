@@ -15,6 +15,7 @@
 - После обновления cached update state нормализуется: если текущая версия уже равна последнему релизу, UI показывает `up-to-date`, а не старый `available`.
 - Добавлены regression-тесты для generated PowerShell, required secondary launcher, stale update state и non-Latin путей.
 - E2E-тест: `F:\тест\WebTitlePro-0.4.5.exe` обновлен до GitHub `v0.4.6`, оба launcher-файла получили одинаковый hash финального build, status helper закрылся, updater scratch очистился, повторный запуск того же `WebTitlePro-0.4.5.exe` остался на `0.4.6`.
+- SHA-256 финального `WebTitlePro-0.4.6.exe`: `74d0bf93eb11feb42165af6d274b5c00b2699037a628b924fa963c828e95e576`.
 
 ## EN
 
@@ -31,3 +32,4 @@ Final release with a fixed portable updater and a verified update path from `0.4
 - Cached update state is normalized after restart: when the current app version already matches the latest release, the UI reports `up-to-date` instead of stale `available`.
 - Added regression coverage for generated PowerShell, required secondary launcher replacement, stale update state, and non-Latin paths.
 - E2E verified: `F:\тест\WebTitlePro-0.4.5.exe` updated to GitHub `v0.4.6`, both launchers matched the final build hash, the status helper closed, updater scratch was removed, and reopening the same `WebTitlePro-0.4.5.exe` stayed on `0.4.6`.
+- Final `WebTitlePro-0.4.6.exe` SHA-256: `74d0bf93eb11feb42165af6d274b5c00b2699037a628b924fa963c828e95e576`.
