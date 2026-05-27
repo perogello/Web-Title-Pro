@@ -120,6 +120,48 @@ const matchesValueRule = (binding = {}, parsed = {}) => {
   return true;
 };
 
+const normalizeTextKey = (value) => String(value ?? '').trim().toLowerCase();
+
+const compactUniqueMessages = (messages = []) => {
+  const seen = new Set();
+  const result = [];
+
+  for (const message of messages) {
+    const clean = String(message || '').replace(/\s+/g, ' ').trim();
+    const key = normalizeTextKey(clean);
+    if (!clean || seen.has(key)) continue;
+    seen.add(key);
+    result.push(clean);
+  }
+
+  return result;
+};
+
+const summarizeMessages = (messages = [], limit = 2) => {
+  const unique = compactUniqueMessages(messages);
+  if (unique.length <= limit) {
+    return unique.join('; ');
+  }
+
+  return `${unique.slice(0, limit).join('; ')}; +${unique.length - limit} more`;
+};
+
+const closeMidiPort = (port) => {
+  if (!port) return;
+
+  try {
+    if (typeof port.disconnect === 'function') {
+      port.disconnect();
+    }
+  } catch {}
+
+  try {
+    if (typeof port.close === 'function') {
+      port.close();
+    }
+  } catch {}
+};
+
 export class MidiService extends EventEmitter {
   constructor({ bindings, onBindingsChange, jzzFactory, openTimeoutMs = 2500 } = {}) {
     super();
@@ -141,6 +183,7 @@ export class MidiService extends EventEmitter {
     this.changeWatcher = null;
     this.changeWatcherHandler = null;
     this.changeRefreshTimer = null;
+    this.inputSignature = '';
   }
 
   recordRawMessage(inputName, rawBytes, parsed) {
@@ -170,8 +213,12 @@ export class MidiService extends EventEmitter {
 
       this.changeRefreshTimer = setTimeout(() => {
         this.changeRefreshTimer = null;
+        const nextSignature = this.getCurrentInputSignature();
+        if (nextSignature && nextSignature === this.inputSignature) {
+          return;
+        }
         this.refresh().catch(() => {});
-      }, 250);
+      }, 500);
     };
 
     try {
@@ -181,15 +228,7 @@ export class MidiService extends EventEmitter {
 
   async closePorts() {
     for (const port of this.ports) {
-      try {
-        port.disconnect();
-      } catch {}
-
-      try {
-        if (typeof port.close === 'function') {
-          port.close();
-        }
-      } catch {}
+      closeMidiPort(port);
     }
 
     this.ports = [];
@@ -233,6 +272,30 @@ export class MidiService extends EventEmitter {
     return [input.name, input.id, input.index].filter((target, index, list) =>
       target !== undefined && target !== null && target !== '' && list.indexOf(target) === index,
     );
+  }
+
+  getInputSignature(inputs = this.inputs) {
+    return (Array.isArray(inputs) ? inputs : [])
+      .map((input) => [
+        normalizeTextKey(input?.id),
+        normalizeTextKey(input?.name),
+        normalizeTextKey(input?.manufacturer),
+        normalizeTextKey(input?.version),
+      ].join('|'))
+      .sort()
+      .join('||');
+  }
+
+  getCurrentInputSignature() {
+    try {
+      const info = this.engine?.info?.() || {};
+      const inputs = (Array.isArray(info.inputs) ? info.inputs : []).map((input, index) =>
+        this.normalizeInputInfo(input, index),
+      );
+      return this.getInputSignature(inputs);
+    } catch {
+      return '';
+    }
   }
 
   handleParsedMessage(inputName, parsed) {
@@ -325,25 +388,36 @@ export class MidiService extends EventEmitter {
       this.engine = JZZCtor();
       this.setupChangeWatcher();
       const info = this.engine.info?.() || {};
-      this.inputs = (Array.isArray(info.inputs) ? info.inputs : []).map((input, index) =>
+      const detectedInputs = (Array.isArray(info.inputs) ? info.inputs : []).map((input, index) =>
         this.normalizeInputInfo(input, index),
       );
+      this.inputSignature = this.getInputSignature(detectedInputs);
+      const nextInputs = [];
       const openErrors = [];
 
-      for (const input of this.inputs) {
+      for (const input of detectedInputs) {
         const { port, errors } = await this.openInputPort(input);
         openErrors.push(...errors);
         if (port) {
           this.ports.push(port);
+          nextInputs.push({ ...input, open: true });
+        } else {
+          nextInputs.push({ ...input, open: false, error: summarizeMessages(errors) });
         }
       }
 
+      this.inputs = nextInputs;
       this.enabled = this.ports.length > 0;
-      this.error = openErrors.length
-        ? openErrors.join('; ')
-        : this.inputs.length === 0
+      this.error = this.inputs.length === 0
           ? 'No MIDI inputs detected.'
-          : null;
+          : this.ports.length === 0
+            ? [
+                `${this.inputs.length} MIDI input(s) detected, but no input port could be opened.`,
+                'Another app, for example vMix, may already be using this controller through an exclusive Windows MIDI driver.',
+                'Close the other MIDI owner or route the controller through a virtual MIDI splitter, reconnect it, then press Refresh MIDI.',
+                summarizeMessages(openErrors) ? `Last error: ${summarizeMessages(openErrors)}` : '',
+              ].filter(Boolean).join(' ')
+            : null;
       this.emit('state', this.getState());
       return this.getState();
     } catch (error) {
@@ -363,6 +437,7 @@ export class MidiService extends EventEmitter {
         try {
           const port = this.engine.openMidiIn(target);
           if (!port || typeof port.connect !== 'function') {
+            closeMidiPort(port);
             resolve({ port: null, error: `${input.name} (${target}): input port unavailable` });
             return;
           }
@@ -392,17 +467,13 @@ export class MidiService extends EventEmitter {
           };
 
           timeout = setTimeout(() => {
-            try { port.disconnect(); } catch {}
-            try {
-              if (typeof port.close === 'function') {
-                port.close();
-              }
-            } catch {}
+            closeMidiPort(port);
             finish({ port: null, error: `${input.name} (${target}): open timed out` });
           }, this.openTimeoutMs);
 
           if (typeof port.or === 'function') {
             port.or((error) => {
+              closeMidiPort(port);
               finish({ port: null, error: `${input.name} (${target}): ${error?.message || 'failed to open'}` });
             });
           }

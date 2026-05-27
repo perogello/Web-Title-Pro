@@ -25,13 +25,18 @@ export default function ShortcutsSettingsTab({
 
   const isMouseShortcut = (value = '') => /Mouse(\s|$)/i.test(value);
   const globalActions = shortcutBindings?.globalActions || {};
+  const midiInputs = midiState?.inputs || [];
+  const openMidiInputs = midiInputs.filter((input) => input?.open !== false);
   const midiStatusLabel = midiState?.enabled
-    ? `${midiState?.inputs?.length || 0} MIDI device(s)`
+    ? `${openMidiInputs.length || midiInputs.length} MIDI device(s)`
     : midiState?.error
       ? `MIDI offline: ${midiState.error}`
       : 'MIDI offline';
-  const midiDeviceNames = (midiState?.inputs || [])
-    .map((input) => input?.name || input?.id || '')
+  const midiDeviceNames = midiInputs
+    .map((input) => {
+      const name = input?.name || input?.id || '';
+      return name && input?.open === false ? `${name} (unavailable)` : name;
+    })
     .filter(Boolean);
   const lastMidiMessage = midiState?.lastMessage
     ? [

@@ -255,6 +255,25 @@ test('MidiService.refresh times out a MIDI input that never resolves', async () 
   assert.equal(fake.ports[0].closed, true);
 });
 
+test('MidiService.refresh closes failed open attempts and compacts offline error', async () => {
+  const fake = createFakeJzz({
+    inputInfos: [{ id: 'akai-apc-id', name: 'AKAI APC mini' }],
+    failTargets: ['AKAI APC mini', 'akai-apc-id', 0],
+  });
+  const service = new MidiService({ jzzFactory: fake.jzzFactory });
+
+  const state = await service.refresh();
+
+  assert.equal(state.enabled, false);
+  assert.equal(state.inputs[0].open, false);
+  assert.match(state.error, /1 MIDI input\(s\) detected, but no input port could be opened/);
+  assert.match(state.error, /vMix/);
+  assert.match(state.error, /virtual MIDI splitter/);
+  assert.match(state.error, /\+1 more/);
+  assert.equal(fake.ports.length, 3);
+  assert.equal(fake.ports.every((port) => port.closed), true);
+});
+
 test('MidiService auto-refreshes when JZZ reports a MIDI device change', async () => {
   const fake = createFakeJzz({ inputNames: [] });
   const service = new MidiService({ jzzFactory: fake.jzzFactory, openTimeoutMs: 20 });
@@ -266,7 +285,7 @@ test('MidiService auto-refreshes when JZZ reports a MIDI device change', async (
   fake.inputs.push({ name: 'AKAI MPK mini' });
   fake.watchers[0]({ inputs: { added: [{ name: 'AKAI MPK mini' }], removed: [] } });
 
-  await new Promise((resolve) => setTimeout(resolve, 350));
+  await new Promise((resolve) => setTimeout(resolve, 650));
 
   const next = service.getState();
   assert.equal(next.enabled, true);
@@ -274,6 +293,20 @@ test('MidiService auto-refreshes when JZZ reports a MIDI device change', async (
 
   await service.close();
   assert.equal(fake.watchers.length, 0);
+});
+
+test('MidiService ignores noisy MIDI change events when the input list is unchanged', async () => {
+  const fake = createFakeJzz();
+  const service = new MidiService({ jzzFactory: fake.jzzFactory, openTimeoutMs: 20 });
+
+  await service.refresh();
+  assert.equal(fake.ports.length, 1);
+  assert.equal(fake.watchers.length, 1);
+
+  fake.watchers[0]({ inputs: { added: [], removed: [] } });
+  await new Promise((resolve) => setTimeout(resolve, 650));
+
+  assert.equal(fake.ports.length, 1);
 });
 
 test('MidiService learn stores portable binding and does not fire action immediately', async () => {

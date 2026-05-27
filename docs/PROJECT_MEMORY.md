@@ -5,9 +5,9 @@ Last updated: 2026-05-27
 ## Current Branch Context
 
 - Active release branch: `main`.
-- Current release target: final `v0.4.7`.
-- Current local build output: `release/WebTitlePro-0.4.7.exe` and stable launcher `release/WebTitlePro.exe`.
-- Final `WebTitlePro-0.4.7.exe` SHA-256: `23c4e770f871edb4ef2343c08da4b1f3e37678a5fe8defd9e8dc3298e860396f`.
+- Current release target: final `v0.4.8`.
+- Current local build output: `release/WebTitlePro-0.4.8.exe` and stable launcher `release/WebTitlePro.exe`.
+- Final `WebTitlePro-0.4.8.exe` SHA-256: `f4c8299ab7b399e45a21edff6cac7c45c54022cea46e8fdda030c3cb37feee8b`.
 - GitHub branches:
 - `origin/main` is the release target for the current `0.4.x` line.
 - `origin/staging/0.4.0` was used for prerelease work and has been retired as the primary release target.
@@ -61,6 +61,11 @@ Last updated: 2026-05-27
   - MIDI status is now truly offline when no input ports are detected; the UI shows `MIDI offline: No MIDI inputs detected.` instead of a misleading enabled state with zero devices.
   - MIDI input open has a 2.5s per-target timeout, so a stuck Windows MIDI driver cannot freeze `Refresh MIDI` or Learn startup.
   - MIDI service subscribes to JZZ `onChange` and auto-refreshes when the device list changes; plugging Akai after app startup should no longer require restarting the app.
+  - `v0.4.8` MIDI/Akai follow-up:
+    - Failed `openMidiIn` attempts are explicitly disconnected/closed, so fallback attempts do not leave stale failed handles behind.
+    - Noisy JZZ `onChange` events are ignored when the actual input signature is unchanged, preventing repeated refresh/error spam.
+    - Offline errors are compacted into a short operator message; when at least one MIDI input opens, the app stays online and marks failed inputs as unavailable instead of reporting full MIDI offline.
+    - Windows/Akai/vMix caveat: some Windows MIDI drivers expose input ports as exclusive. If vMix already owns the same Akai/APC input, Electron/JZZ cannot force-open it; the UI now says this directly and points the operator to either close the other MIDI owner or route through a virtual MIDI splitter.
 - Live Notes:
   - `LiveTabV2` has a `Notes` toggle beside `Preview`.
   - Notes panel opens on the right and persists globally in localStorage under `web-title-pro.liveNotes`; it is not tied to output or selected data source.
