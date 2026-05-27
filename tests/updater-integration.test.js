@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -195,7 +196,82 @@ test('createUpdateScript: passes secondary launcher target to PowerShell helper'
     const script = await fs.readFile(scriptPath, 'utf8');
 
     assert.match(script, /\[string\]\$SecondaryTarget/);
-    assert.match(script, /Copy-UpdatePackage \$SecondaryTarget "launched launcher" \$false/);
+    assert.match(script, /Copy-UpdatePackage \$SecondaryTarget "launched launcher" \$true/);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('createUpdateScript: generated PowerShell scripts parse', async (t) => {
+  if (process.platform !== 'win32') {
+    t.skip('PowerShell syntax check is Windows-only');
+    return;
+  }
+
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-updater-test-'));
+  const sourcePath = path.join(dir, 'WebTitlePro-new.exe.download');
+  const targetPath = path.join(dir, 'WebTitlePro.exe');
+  const secondaryTargetPath = path.join(dir, 'WebTitlePro-0.4.4.exe');
+
+  try {
+    const updater = createIntegration();
+    const { scriptPath, statusScriptPath } = await updater.__private.createUpdateScript({
+      sourcePath,
+      targetPath,
+      secondaryTargetPath,
+      taskName: 'WebTitlePro-Test-Update',
+      expectedSize: 4,
+    });
+
+    for (const filePath of [scriptPath, statusScriptPath]) {
+      const escapedPath = filePath.replace(/'/g, "''");
+      const result = spawnSync(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-Command',
+          `[scriptblock]::Create((Get-Content -LiteralPath '${escapedPath}' -Raw)) | Out-Null`,
+        ],
+        { encoding: 'utf8' },
+      );
+
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+    }
+
+    const statusScript = await fs.readFile(statusScriptPath, 'utf8');
+    assert.match(statusScript, /\$script:closeAt/);
+    assert.match(statusScript, /\$script:lastStateSignature/);
+  } finally {
+    await fs.rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('createUpdateScript: launcher keeps non-Latin target paths intact', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-updater-test-'));
+  const unicodeDir = path.join(dir, 'тест');
+  const sourcePath = path.join(dir, 'WebTitlePro-new.exe.download');
+  const targetPath = path.join(unicodeDir, 'WebTitlePro.exe');
+  const secondaryTargetPath = path.join(unicodeDir, 'WebTitlePro-0.4.4.exe');
+
+  try {
+    const updater = createIntegration();
+    const { launcherPath } = await updater.__private.createUpdateScript({
+      sourcePath,
+      targetPath,
+      secondaryTargetPath,
+      taskName: 'WebTitlePro-Test-Update',
+      expectedSize: 4,
+    });
+    const launcherBytes = await fs.readFile(launcherPath);
+    const launcherScript = launcherBytes.subarray(2).toString('utf16le');
+
+    assert.equal(launcherBytes[0], 0xff);
+    assert.equal(launcherBytes[1], 0xfe);
+    assert.match(launcherScript, /тест\\WebTitlePro\.exe/);
+    assert.match(launcherScript, /WebTitlePro-0\.4\.4\.exe/);
+    assert.doesNotMatch(launcherScript, /B5AB/);
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }

@@ -657,6 +657,16 @@ const createShellWindow = async ({
   return windowRef;
 };
 
+const showUpdateWindow = () => {
+  if (!updateWindow || updateWindow.isDestroyed()) {
+    return;
+  }
+
+  try { updateWindow.show(); } catch {}
+  try { updateWindow.focus(); } catch {}
+  try { updateWindow.moveTop(); } catch {}
+};
+
 const createSplashWindow = async () => {
   if (splashWindow && !splashWindow.isDestroyed()) {
     return splashWindow;
@@ -699,12 +709,11 @@ const createUpdateWindow = async () => {
   });
 
   updateWindow.once('ready-to-show', () => {
-    if (updateWindow && !updateWindow.isDestroyed()) {
-      updateWindow.show();
-    }
+    showUpdateWindow();
   });
 
   await setWindowProgress(updateWindow, 'Preparing update...', 8);
+  showUpdateWindow();
   return updateWindow;
 };
 
@@ -731,9 +740,22 @@ const requestQuitForUpdate = async () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.removeAllListeners('close');
   }
-  closeUpdateWindow();
+  if (updateWindow && !updateWindow.isDestroyed()) {
+    await setWindowProgress(updateWindow, 'Update helper is ready. Closing Web Title Pro...', 100);
+    showUpdateWindow();
+    await wait(1200);
+  }
+  for (const windowRef of BrowserWindow.getAllWindows()) {
+    try {
+      windowRef.removeAllListeners('close');
+      windowRef.destroy();
+    } catch {}
+  }
   await wait(400);
   app.quit();
+  setTimeout(() => {
+    try { app.exit(0); } catch {}
+  }, 1500).unref?.();
 };
 
 const initializeUpdaterIntegration = () => {

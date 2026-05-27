@@ -1,11 +1,12 @@
 # Project Memory
 
-Last updated: 2026-05-26
+Last updated: 2026-05-27
 
 ## Current Branch Context
 
 - Active release branch: `main`.
-- Current release target: `v0.4.5`.
+- Current release target: final `v0.4.6`.
+- Current local build output: `release/WebTitlePro-0.4.6.exe` and stable launcher `release/WebTitlePro.exe`.
 - GitHub branches:
 - `origin/main` is the release target for the current `0.4.x` line.
 - `origin/staging/0.4.0` was used for prerelease work and has been retired as the primary release target.
@@ -80,6 +81,14 @@ Last updated: 2026-05-26
   - `v0.4.4` adds validation for partial downloads: response `content-length`, GitHub asset size, and Windows PE signature are checked before the app quits for install.
   - The PowerShell helper also checks source/target size before replacing `WebTitlePro.exe`; this prevents a truncated `.download` from silently replacing the launcher.
   - `v0.4.5` updates both `WebTitlePro.exe` and the launched versioned portable file (`WebTitlePro-<version>.exe`) when they are different, so manually reopening the old file does not relaunch the old version.
+  - `v0.4.6` updater hardening makes the secondary launched versioned file required when detected. If it cannot be replaced, the update fails visibly instead of silently leaving the old launcher in place.
+  - `v0.4.6` also forces the update progress window visible/focused after confirmation and shows a short handoff status before the app quits.
+  - `v0.4.6` writes the VBS launcher as UTF-16LE with BOM. This fixes non-Latin portable paths such as `F:\тест`; ASCII VBS corrupted that path and made the helper copy files into the wrong folder.
+  - `v0.4.6` update quit explicitly destroys app windows and falls back to `app.exit(0)` so the helper does not wait forever when a modal/native dialog prevents normal `app.quit()` from closing the main window.
+  - `v0.4.6` status window extracts the app icon from the target exe and closes if its state file disappears after progress was already observed. Startup cleanup only deletes updater scratch files older than 15 minutes so it does not race the active status window.
+  - `v0.4.6` status window stores WinForms timer state in PowerShell script-scope, closes after `done`, and removes its own `.ps1/.vbs/.json/.log` scratch files after a successful update.
+  - `v0.4.6` normalizes stale update state on restart: if current app version is already the latest release, cached `available: true` is reported as `up-to-date`.
+  - E2E check on 2026-05-27: fixed local `0.4.5` in `F:\тест` updated to GitHub `v0.4.6`, replaced both `WebTitlePro.exe` and `WebTitlePro-0.4.5.exe`, restarted as `0.4.6`, status helper closed, updater scratch was removed, and reopening the same `WebTitlePro-0.4.5.exe` stayed on `0.4.6` with `up-to-date`.
   - If `0.4.2` or `0.4.3` already replaced `WebTitlePro.exe` with a partial file, the user must download a fresh portable `.exe` manually once because older updater code cannot be patched retroactively.
 
 ## Tests
@@ -98,7 +107,7 @@ Last updated: 2026-05-26
   - Current UI smoke covers Notes open, selected-text rich formatting, color application, and Notes panel resize.
   - Add Title modal styling is covered: segmented mode switch, vMix accent, hidden native file input, styled upload picker.
   - Bundle tests cover custom template inclusion, zip-slip rejection, project summary counts, local/vMix title preservation, data sources, vMix discovered input export, keyboard/global shortcuts, and MIDI bindings.
-  - Updater tests cover stable/prerelease release selection, incomplete download streams, truncated executable packages, and invalid executable signatures.
+  - Updater tests cover stable/prerelease release selection, incomplete download streams, truncated executable packages, invalid executable signatures, required secondary launcher replacement, generated PowerShell syntax, script-scoped status window state, stale update-state normalization, and non-Latin launcher paths.
 - `dev:server` uses a narrowed nodemon watch (`server`, `package.json`) so Playwright `test-results/`, Vite build output, and local files do not restart the backend during UI tests.
 - Full verification:
   - `npm.cmd run test:all`

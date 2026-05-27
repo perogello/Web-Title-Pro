@@ -350,7 +350,11 @@ const createUpdaterIntegration = ({
       '  return $false',
       '}',
       '[void](Copy-UpdatePackage $Target "stable launcher" $true)',
-      'if ($SecondaryTarget -and $SecondaryTarget -ne $Target) { [void](Copy-UpdatePackage $SecondaryTarget "launched launcher" $false) }',
+      // Secondary used to be optional, which could leave the launched
+      // versioned executable stale while the stable launcher updated.
+      // If a secondary target was detected, failing to replace it is a
+      // real update failure and must be visible to the user.
+      'if ($SecondaryTarget -and $SecondaryTarget -ne $Target) { [void](Copy-UpdatePackage $SecondaryTarget "launched launcher" $true) }',
       'Remove-Item -LiteralPath $Source -Force -ErrorAction SilentlyContinue',
       "Write-UpdateState 'restarting' 'Restarting Web Title Pro...' 100",
       'for ($i = 0; $i -lt 30; $i++) {',
@@ -374,7 +378,7 @@ const createUpdaterIntegration = ({
     ].join('\r\n');
 
     const statusScript = [
-      'param([string]$StatePath)',
+      'param([string]$StatePath, [string]$TargetPath)',
       "$ErrorActionPreference = 'SilentlyContinue'",
       'Add-Type -AssemblyName System.Windows.Forms',
       'Add-Type -AssemblyName System.Drawing',
@@ -390,6 +394,10 @@ const createUpdaterIntegration = ({
       '$form.MaximizeBox = $false',
       '$form.MinimizeBox = $false',
       '$form.ControlBox = $false',
+      'try {',
+      '  $appIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($TargetPath)',
+      '  if ($appIcon) { $form.Icon = $appIcon }',
+      '} catch {}',
       // Palette matches client/src/styles/01-base.css :shell-v2 — neutral
       // black canvas (#050507) with soft #f2f3f5 text. Keeps the helper
       // visually consistent with the rest of the app's new palette.
@@ -425,24 +433,28 @@ const createUpdaterIntegration = ({
       '$meta.Size = New-Object System.Drawing.Size(382, 18)',
       '$meta.Location = New-Object System.Drawing.Point(24, 124)',
       '$form.Controls.Add($meta)',
-      '$openedAt = [DateTime]::Now',
-      '$lastStateSignature = $null',
-      '$lastStateChangeAt = $openedAt',
-      '$closeAt = $null',
+      '$script:openedAt = [DateTime]::Now',
+      '$script:lastStateSignature = $null',
+      '$script:lastStateChangeAt = $script:openedAt',
+      '$script:missingStateSince = $null',
+      '$script:closeAt = $null',
+      '$script:finalStatus = $null',
       '$timer = New-Object System.Windows.Forms.Timer',
       '$timer.Interval = 200',
       '$timer.Add_Tick({',
       '  try {',
       '    if (Test-Path -LiteralPath $StatePath) {',
+      '      $script:missingStateSince = $null',
       '      $raw = Get-Content -LiteralPath $StatePath -Raw',
       '      if ($raw) {',
       '        $signature = [string]$raw',
-      '        if ($signature -ne $lastStateSignature) {',
-      '          $lastStateSignature = $signature',
-      '          $lastStateChangeAt = [DateTime]::Now',
+      '        if ($signature -ne $script:lastStateSignature) {',
+      '          $script:lastStateSignature = $signature',
+      '          $script:lastStateChangeAt = [DateTime]::Now',
       '        }',
       '        $state = $raw | ConvertFrom-Json',
       '        if ($state.message) { $status.Text = [string]$state.message }',
+      '        if ($state.status) { $script:finalStatus = [string]$state.status }',
       '        if ($state.percent -ge 0 -and $state.percent -le 100) {',
       '          $progress.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous',
       '          $progress.Value = [Math]::Max(0, [Math]::Min(100, [int]$state.percent))',
@@ -451,31 +463,35 @@ const createUpdaterIntegration = ({
       '        }',
       "        if ($state.status -eq 'done') {",
       "          $meta.Text = 'The updated version is starting now.'",
-      '          if (-not $closeAt) { $closeAt = [DateTime]::Now.AddSeconds(1.5) }',
+      '          if (-not $script:closeAt) { $script:closeAt = [DateTime]::Now.AddSeconds(1.5) }',
       "        } elseif ($state.status -eq 'error') {",
       "          $form.Text = 'Web Title Pro update failed'",
       "          $meta.Text = 'Please reopen Web Title Pro manually if it does not restart.'",
       '          $form.ControlBox = $true',
-      '          if (-not $closeAt) { $closeAt = [DateTime]::Now.AddSeconds(8) }',
+      '          if (-not $script:closeAt) { $script:closeAt = [DateTime]::Now.AddSeconds(8) }',
       '        }',
-      '    }',
       '      }',
+      '    } elseif ($script:lastStateSignature -and -not $script:closeAt) {',
+      '      if (-not $script:missingStateSince) { $script:missingStateSince = [DateTime]::Now }',
+      "      $status.Text = 'Update complete. Launching Web Title Pro...'",
+      "      $meta.Text = 'The updated version is starting now.'",
+      '      if (([DateTime]::Now - $script:missingStateSince).TotalSeconds -ge 2) { $script:closeAt = [DateTime]::Now }',
       '    }',
-      '    $stalledFor = ([DateTime]::Now - $lastStateChangeAt).TotalSeconds',
-      "    if (-not $closeAt -and $lastStateSignature -and $stalledFor -ge 30) {",
+      '    $stalledFor = ([DateTime]::Now - $script:lastStateChangeAt).TotalSeconds',
+      "    if (-not $script:closeAt -and $script:lastStateSignature -and $stalledFor -ge 30) {",
       "      $form.Text = 'Web Title Pro update status timed out'",
       "      $status.Text = 'The updater stopped reporting progress.'",
       "      $meta.Text = 'Please check whether the new version has already started.'",
       '      $form.ControlBox = $true',
-      '      $closeAt = [DateTime]::Now.AddSeconds(10)',
+      '      $script:closeAt = [DateTime]::Now.AddSeconds(10)',
       '    }',
-      "    if (-not $closeAt -and ([DateTime]::Now - $openedAt).TotalSeconds -ge 90) {",
+      "    if (-not $script:closeAt -and ([DateTime]::Now - $script:openedAt).TotalSeconds -ge 90) {",
       "      $form.Text = 'Web Title Pro update status timed out'",
       "      $meta.Text = 'The updater window stayed open too long and will close automatically.'",
       '      $form.ControlBox = $true',
-      '      $closeAt = [DateTime]::Now.AddSeconds(6)',
+      '      $script:closeAt = [DateTime]::Now.AddSeconds(6)',
       '    }',
-      '    if ($closeAt -and [DateTime]::Now -ge $closeAt) {',
+      '    if ($script:closeAt -and [DateTime]::Now -ge $script:closeAt) {',
       '      $timer.Stop()',
       '      $form.Close()',
       '    }',
@@ -483,6 +499,22 @@ const createUpdaterIntegration = ({
       '})',
       '$timer.Start()',
       "[void]$form.ShowDialog()",
+      "if ($script:finalStatus -eq 'done') {",
+      '  try {',
+      '    $scratchId = [System.IO.Path]::GetFileNameWithoutExtension($StatePath) -replace "^web-title-pro-apply-update-", ""',
+      '    $scratchDir = [System.IO.Path]::GetDirectoryName($StatePath)',
+      '    $scratchFiles = @(',
+      '      "web-title-pro-apply-update-$scratchId.json",',
+      '      "web-title-pro-apply-update-$scratchId.log",',
+      '      "web-title-pro-apply-update-$scratchId.ps1",',
+      '      "web-title-pro-apply-update-$scratchId.vbs",',
+      '      "web-title-pro-update-status-$scratchId.ps1"',
+      '    )',
+      '    foreach ($scratchFile in $scratchFiles) {',
+      '      Remove-Item -LiteralPath ([System.IO.Path]::Combine($scratchDir, $scratchFile)) -Force -ErrorAction SilentlyContinue',
+      '    }',
+      '  } catch {}',
+      '}',
       '',
     ].join('\r\n');
 
@@ -527,6 +559,8 @@ const createUpdaterIntegration = ({
       `"${escapeVbsValue(statusScriptPath)}"`,
       '-StatePath',
       `"${escapeVbsValue(statePath)}"`,
+      '-TargetPath',
+      `"${escapeVbsValue(targetPath)}"`,
     ].join(' ');
     const launcherScript = [
       'Set WshShell = CreateObject("WScript.Shell")',
@@ -545,7 +579,14 @@ const createUpdaterIntegration = ({
     );
     await fsp.writeFile(scriptPath, script, 'utf8');
     await fsp.writeFile(statusScriptPath, statusScript, 'utf8');
-    await fsp.writeFile(launcherPath, launcherScript, 'ascii');
+    // WSH reads .vbs reliably as Unicode when it has a UTF-16LE BOM.
+    // Writing ASCII corrupts non-Latin portable paths such as F:\тест
+    // into byte-like names (for example F:\B5AB), so the updater replaces
+    // the wrong launcher folder.
+    await fsp.writeFile(
+      launcherPath,
+      Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(launcherScript, 'utf16le')]),
+    );
     return { scriptPath, statusScriptPath, launcherPath, logPath, statePath };
   };
 
@@ -738,6 +779,7 @@ const createUpdaterIntegration = ({
    */
   const cleanupUpdaterScratch = async () => {
     const cleaned = { downloads: 0, scripts: 0, errors: [] };
+    const staleBeforeMs = Date.now() - 15 * 60 * 1000;
 
     const updatesDir = path.join(app.getPath('userData'), 'updates');
     try {
@@ -761,9 +803,19 @@ const createUpdaterIntegration = ({
     const tempDir = app.getPath('temp');
     try {
       const entries = await fsp.readdir(tempDir);
-      const ours = entries.filter((name) =>
-        /^web-title-pro-(apply-update|update-status)-\d+\.(ps1|vbs|log|json)$/i.test(name),
-      );
+      const ours = [];
+      for (const name of entries) {
+        if (!/^web-title-pro-(apply-update|update-status)-\d+\.(ps1|vbs|log|json)$/i.test(name)) {
+          continue;
+        }
+
+        try {
+          const stat = await fsp.stat(path.join(tempDir, name));
+          if (stat.mtimeMs <= staleBeforeMs) {
+            ours.push(name);
+          }
+        } catch {}
+      }
       await Promise.all(
         ours.map(async (name) => {
           try {

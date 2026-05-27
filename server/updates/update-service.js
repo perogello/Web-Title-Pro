@@ -71,11 +71,18 @@ export class UpdateService {
   }
 
   getState() {
+    const stored = this.store.getUpdateConfig();
+    const hasCurrentOrOlderLatest =
+      stored.latestVersion && compareVersions(stored.latestVersion, this.packageVersion) <= 0;
+    const normalized = hasCurrentOrOlderLatest && stored.available
+      ? { ...stored, available: false, status: 'up-to-date' }
+      : stored;
+
     return {
       currentVersion: this.packageVersion,
       repoUrl: BUILTIN_REPO_URL,
       fixedRepo: true,
-      ...this.store.getUpdateConfig(),
+      ...normalized,
     };
   }
 

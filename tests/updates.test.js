@@ -169,3 +169,30 @@ test('UpdateService.checkForUpdates: 0.4.3 is up to date', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test('UpdateService.getState: stale available flag is normalized after app update', () => {
+  const store = {
+    config: {
+      channel: 'stable',
+      latestVersion: 'v0.4.6',
+      available: true,
+      status: 'available',
+    },
+    getUpdateConfig() {
+      return { ...this.config };
+    },
+    updateUpdateConfig(patch) {
+      this.config = { ...this.config, ...patch };
+      return { ...this.config };
+    },
+  };
+
+  const service = new UpdateService({ store, rootDir: process.cwd() });
+  service.packageVersion = '0.4.6';
+  const result = service.getState();
+
+  assert.equal(result.currentVersion, '0.4.6');
+  assert.equal(result.latestVersion, 'v0.4.6');
+  assert.equal(result.available, false);
+  assert.equal(result.status, 'up-to-date');
+});
