@@ -66,6 +66,7 @@ Last updated: 2026-05-27
     - Noisy JZZ `onChange` events are ignored when the actual input signature is unchanged, preventing repeated refresh/error spam.
     - Offline errors are compacted into a short operator message; when at least one MIDI input opens, the app stays online and marks failed inputs as unavailable instead of reporting full MIDI offline.
     - Windows/Akai/vMix caveat: some Windows MIDI drivers expose input ports as exclusive. If vMix already owns the same Akai/APC input, Electron/JZZ cannot force-open it; the UI now says this directly and points the operator to either close the other MIDI owner or route through a virtual MIDI splitter.
+    - Confirmed by user on 2026-05-27: closing vMix released the Akai port and Web Title Pro connected normally. Keep this diagnostic path visible in future MIDI UI changes.
 - Live Notes:
   - `LiveTabV2` has a `Notes` toggle beside `Preview`.
   - Notes panel opens on the right and persists globally in localStorage under `web-title-pro.liveNotes`; it is not tied to output or selected data source.
