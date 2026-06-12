@@ -23,6 +23,13 @@ const seedSourceLibrary = async (page) => {
               label: 'Alice | Host',
               timer: { baseMs: 0, format: 'mm:ss' },
             },
+            {
+              id: 'row-2',
+              index: 2,
+              values: ['Bob', 'Guest'],
+              label: 'Bob | Guest',
+              timer: { baseMs: 0, format: 'mm:ss' },
+            },
           ],
         },
       ]),
@@ -101,9 +108,39 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
     editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
   }, text);
 
-  await selectText('Director');
   const boldButton = page.getByRole('button', { name: 'Bold' });
   const italicButton = page.getByRole('button', { name: 'Italic' });
+
+  await notes.evaluate((editor) => {
+    editor.innerHTML = '';
+    editor.focus();
+    const event = new Event('paste', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'clipboardData', {
+      value: {
+        getData: (type) => (type === 'text/plain' ? 'Yandex styled text' : '<b style="font-family: serif; color: red">Yandex styled text</b>'),
+      },
+    });
+    editor.dispatchEvent(event);
+  });
+  await expect(notes).toContainText('Yandex styled text');
+  await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).not.toContain('font-family');
+  await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).not.toContain('serif');
+  await selectText('Yandex');
+  await boldButton.click();
+  await expect(boldButton).toHaveClass(/is-active/);
+  await boldButton.click();
+  await expect.poll(async () => notes.evaluate((editor) => {
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let textNode = walker.nextNode();
+    while (textNode && !textNode.nodeValue.includes('Yandex')) {
+      textNode = walker.nextNode();
+    }
+    const element = textNode?.parentElement;
+    return element ? window.getComputedStyle(element).fontWeight : '';
+  })).not.toMatch(/700|bold/);
+
+  await notes.fill('Director note');
+  await selectText('Director');
   await boldButton.click();
   await expect(boldButton).toHaveClass(/is-active/);
   await italicButton.click();
@@ -192,6 +229,18 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
   const widthAfter = await page.locator('.live-notes-v2').evaluate((panel) => panel.getBoundingClientRect().width);
   expect(widthAfter).toBeGreaterThan(widthBefore + 40);
 
+  await page.getByRole('button', { name: /DATA/i }).click();
+  await page.getByRole('button', { name: /LIVE/i }).click();
+  await expect(notes).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('web-title-pro.liveNotesOpen'))).toBe('true');
+
+  await page.getByRole('button', { name: /Notes/i }).click();
+  await expect(notes).toBeHidden();
+  await page.getByRole('button', { name: /DATA/i }).click();
+  await page.getByRole('button', { name: /LIVE/i }).click();
+  await expect(notes).toBeHidden();
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('web-title-pro.liveNotesOpen'))).toBe('false');
+
   expect(consoleErrors).toEqual([]);
 });
 
@@ -209,6 +258,16 @@ test('Data manual text source textarea auto-grows without manual resize handle',
   const initialHeight = await textarea.evaluate((element) => element.getBoundingClientRect().height);
   await textarea.fill(Array.from({ length: 18 }, (_, index) => `Row ${index + 1}|Value`).join('\n'));
   await expect.poll(() => textarea.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(initialHeight + 20);
+
+  const firstRow = page.locator('[data-source-row-id="row-1"]');
+  const secondRow = page.locator('[data-source-row-id="row-2"]');
+  await expect(firstRow).toContainText('Alice');
+  await expect(secondRow).toContainText('Bob');
+  await firstRow.locator('.source-row-drag-handle').dragTo(secondRow);
+  await expect.poll(() => page.evaluate(() => {
+    const library = JSON.parse(window.localStorage.getItem('web-title-pro-source-library') || '[]');
+    return library[0]?.rows?.map((row) => `${row.index}:${row.values[0]}`).join('|') || '';
+  })).toBe('1:Bob|2:Alice');
 });
 
 test('Controls exposes MIDI status, refresh, and Learn button', async ({ page, request }) => {

@@ -294,6 +294,28 @@
   width: 86px;
   min-width: 86px;
 }
+.shell-v2 .content-v2-inner .source-row-index-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 44px;
+}
+.shell-v2 .content-v2-inner .source-row-drag-handle {
+  width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--text-faint-v2);
+  cursor: grab;
+  border-radius: 4px;
+}
+.shell-v2 .content-v2-inner .source-row-drag-handle:hover {
+  color: var(--text-v2);
+  background: var(--bg-2-v2);
+}
+.shell-v2 .content-v2-inner .source-table tr.is-dragging {
+  opacity: 0.55;
+}
 
 /* ===================================================================
    DATA TAB — force UNIFIED font/size/weight for ALL source types

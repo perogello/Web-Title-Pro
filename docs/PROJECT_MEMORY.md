@@ -1,6 +1,6 @@
 # Project Memory
 
-Last updated: 2026-05-27
+Last updated: 2026-05-29
 
 ## Current Branch Context
 
@@ -70,9 +70,11 @@ Last updated: 2026-05-27
 - Live Notes:
   - `LiveTabV2` has a `Notes` toggle beside `Preview`.
   - Notes panel opens on the right and persists globally in localStorage under `web-title-pro.liveNotes`; it is not tied to output or selected data source.
+  - Notes open/closed toggle state persists in `web-title-pro.liveNotesOpen`, so switching away from Live and returning keeps the panel exactly as the button state says.
   - Notes editor is `contentEditable`, not `textarea`; saved shape supports `{ html, text }` and migrates old plain-text notes.
   - Formatting applies to the selected text fragment, not the whole note.
   - Supported formatting: bold, italic, font size, text color, background color.
+  - Pasted rich text is normalized through `text/plain` and inserted with the default notes styling, so text from spreadsheets/browsers does not bring external fonts, colors, or broken bold/italic state.
   - Color UI has two buttons: `Text` and `Fill`; `Fill` uses a native color input over the styled button so Electron opens the picker reliably.
   - Color application listens to both `input` and `change` and uses a short debounce to prevent freezes while dragging through the native palette.
   - `Clear` background is exposed from the `Fill` control, positioned beside it so the native palette does not cover the action, and preserves selection for the next formatting command.
@@ -91,6 +93,12 @@ Last updated: 2026-05-27
   - Project-level app settings are persisted in `project.json.state.integrations`: vMix host/selected timer input, update settings, keyboard/global shortcuts, and MIDI bindings.
   - `project.json.runtime.vmix.inputs` carries the discovered vMix input list from export time; importing still applies the regular persisted project state and source library.
   - Not project-bundle state: window size/position, recent-project history, and browser-local Live Notes stored in localStorage.
+- Live Data Source:
+  - Applying another source row no longer rewrites a running linked timer. Timer values continue independently from the currently selected/output row.
+  - Local text/imported source rows can be reordered by dragging the row handle; remote Google/Yandex-style sources stay locked to upstream order.
+- Config output/title mapping:
+  - Adding a new title no longer auto-selects it globally.
+  - New outputs start without a selected title, and existing output-to-title assignments are preserved when titles or outputs are added.
 - Updater:
   - Default update channel is `stable`.
   - `v0.4.4` adds validation for partial downloads: response `content-length`, GitHub asset size, and Windows PE signature are checked before the app quits for install.
@@ -120,7 +128,9 @@ Last updated: 2026-05-27
   - Config: `playwright.config.cjs`
   - Specs: `tests/ui/`
   - Playwright starts `npm run dev` automatically through `webServer`.
-  - Current UI smoke covers Notes open, selected-text rich formatting, color application, and Notes panel resize.
+  - Current UI smoke covers Notes open-state persistence, selected-text rich formatting, color application, and Notes panel resize.
+  - UI smoke covers external rich-text paste normalization in Notes and local Data source row reordering.
+  - Program-state tests cover stable output-to-title assignments when adding titles and outputs.
   - Add Title modal styling is covered: segmented mode switch, vMix accent, hidden native file input, styled upload picker.
   - Bundle tests cover custom template inclusion, zip-slip rejection, project summary counts, local/vMix title preservation, data sources, vMix discovered input export, keyboard/global shortcuts, and MIDI bindings.
   - Updater tests cover stable/prerelease release selection, incomplete download streams, truncated executable packages, invalid executable signatures, required secondary launcher replacement, generated PowerShell syntax, script-scoped status window state, stale update-state normalization, and non-Latin launcher paths.

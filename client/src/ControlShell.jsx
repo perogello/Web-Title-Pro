@@ -91,7 +91,29 @@ function ControlShell() {
   const [newEntryTemplateId, setNewEntryTemplateId] = useState('');
   const [newEntryName, setNewEntryName] = useState('');
   const [newVmixInputKey, setNewVmixInputKey] = useState('');
-  const [autoUpdate, setAutoUpdate] = useState(true);
+  // Live-edit: when ON, saving fields of the ON-AIR title pushes the change to
+  // air immediately. Default OFF and persisted — editing must never alter the
+  // live title unless the operator explicitly opts in (prevented a broadcast
+  // incident where a data edit went live unexpectedly).
+  const [autoUpdate, setAutoUpdate] = useState(() => {
+    try {
+      return window.localStorage.getItem('wtp.live-edit') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleAutoUpdate = () => {
+    setAutoUpdate((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem('wtp.live-edit', next ? '1' : '0');
+      } catch {
+        /* ignore storage failures */
+      }
+      return next;
+    });
+  };
   const [uploadName, setUploadName] = useState('');
   const [uploadFiles, setUploadFiles] = useState([]);
   const [busyAction, setBusyAction] = useState('');
@@ -1909,7 +1931,7 @@ function ControlShell() {
           await ensureTimerRoutedToEntry(linkedSourceTimer, currentOutput, currentOutputEntry);
         }
 
-        if (!hasBoundTimerForCurrentLink || isSameBoundTimerRow || !linkedSourceTimer.running) {
+        if (!linkedSourceTimer.running && (!hasBoundTimerForCurrentLink || isSameBoundTimerRow)) {
           await updateTimer(linkedSourceTimer.id, {
             durationMs: Number(row.timer?.baseMs || 0),
             valueMs: Number(row.timer?.baseMs || 0),
@@ -2289,6 +2311,40 @@ function ControlShell() {
       return next;
     });
     pushFeedback('Source row deleted');
+  };
+
+  const reorderSourceRowToTarget = (sourceId, draggedRowId, targetRowId) => {
+    if (!sourceId || !draggedRowId || !targetRowId || draggedRowId === targetRowId) {
+      return;
+    }
+
+    setSourceLibrary((current) =>
+      current.map((source) => {
+        if (source.id !== sourceId || source.remote?.url) {
+          return source;
+        }
+
+        const draggedIndex = source.rows.findIndex((row) => row.id === draggedRowId);
+        const targetIndex = source.rows.findIndex((row) => row.id === targetRowId);
+
+        if (draggedIndex === -1 || targetIndex === -1) {
+          return source;
+        }
+
+        const rows = [...source.rows];
+        const [moved] = rows.splice(draggedIndex, 1);
+        rows.splice(targetIndex, 0, moved);
+
+        return {
+          ...source,
+          rows: rows.map((row, index) => ({
+            ...row,
+            index: index + 1,
+          })),
+        };
+      }),
+    );
+    pushFeedback('Source rows reordered');
   };
 
   const resolveAutoTimerOutputId = (timer, patch = {}) => {
@@ -2850,6 +2906,8 @@ function ControlShell() {
       <TopBar
         activeTab={effectiveTab}
         onSetActiveTab={setActiveTab}
+        autoUpdate={autoUpdate}
+        onToggleAutoUpdate={toggleAutoUpdate}
         currentProjectName={currentProjectDisplayName}
         projectDirty={projectDirty}
         projectStatus={projectStatus}
@@ -3106,6 +3164,7 @@ function ControlShell() {
           onSaveSourceRowEdit={saveSourceRowEdit}
           onStartSourceRowEdit={startSourceRowEdit}
           onDeleteSourceRow={deleteSourceRow}
+          onReorderSourceRow={reorderSourceRowToTarget}
           onManualRowValueChange={(index, value) => setManualRowValues((current) => ({ ...current, [index]: value }))}
           onAddManualSourceRow={addManualSourceRow}
         />

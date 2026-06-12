@@ -58,11 +58,13 @@ export default function SourcesTab({
   onSaveSourceRowEdit,
   onStartSourceRowEdit,
   onDeleteSourceRow,
+  onReorderSourceRow,
   onManualRowValueChange,
   onAddManualSourceRow,
 }) {
   const [sourceImportMode, setSourceImportMode] = useState('manual-text');
   const sourcePayloadTextareaRef = useRef(null);
+  const [draggedSourceRowId, setDraggedSourceRowId] = useState(null);
   const isRemoteMode = REMOTE_SOURCE_TYPES.has(sourceImportMode);
   const isYandexMode = sourceImportMode === 'yandex-disk-public';
 
@@ -95,6 +97,30 @@ export default function SourcesTab({
 
     onImportSourceDataset();
   };
+
+  const canReorderRows = Boolean(selectedSource && !selectedSource.remote?.url);
+
+  const handleRowDragStart = (rowId) => (event) => {
+    if (!canReorderRows) return;
+    setDraggedSourceRowId(rowId);
+    event.dataTransfer.effectAllowed = 'move';
+    try { event.dataTransfer.setData('text/plain', `source-row:${rowId}`); } catch {}
+  };
+
+  const handleRowDragOver = (rowId) => (event) => {
+    if (!canReorderRows || !draggedSourceRowId || draggedSourceRowId === rowId) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleRowDrop = (rowId) => (event) => {
+    if (!canReorderRows || !draggedSourceRowId) return;
+    event.preventDefault();
+    onReorderSourceRow?.(selectedSource.id, draggedSourceRowId, rowId);
+    setDraggedSourceRowId(null);
+  };
+
+  const handleRowDragEnd = () => setDraggedSourceRowId(null);
 
   return (
     <section className="source-table-card standalone-tab">
@@ -410,10 +436,30 @@ export default function SourcesTab({
                     return (
                       <tr
                         key={row.id}
-                        className={activeSourceBinding?.sourceId === selectedSource.id && activeSourceBinding?.rowId === row.id ? 'is-active-source-row' : ''}
+                        data-source-row-id={row.id}
+                        className={`${activeSourceBinding?.sourceId === selectedSource.id && activeSourceBinding?.rowId === row.id ? 'is-active-source-row' : ''} ${draggedSourceRowId === row.id ? 'is-dragging' : ''}`}
+                        onDragOver={handleRowDragOver(row.id)}
+                        onDrop={handleRowDrop(row.id)}
                         onClick={() => !isEditing && onApplySourceRow(row)}
                       >
-                        <td>{row.index}</td>
+                        <td>
+                          <div className="source-row-index-cell">
+                            {canReorderRows && (
+                              <span
+                                className="source-row-drag-handle"
+                                draggable
+                                onDragStart={handleRowDragStart(row.id)}
+                                onDragEnd={handleRowDragEnd}
+                                onClick={(event) => event.stopPropagation()}
+                                title="Drag row to reorder"
+                                aria-label="Drag row to reorder"
+                              >
+                                <GripIcon />
+                              </span>
+                            )}
+                            <span>{row.index}</span>
+                          </div>
+                        </td>
                         {selectedSource.columns.map((column, index) => (
                           <td key={column.id}>
                             {isEditing ? (

@@ -10,6 +10,7 @@ const TIMER_COL_WIDTH = 200;
 const NOTE_DEFAULT_TEXT_COLOR = '#f5f5f7';
 const NOTE_DEFAULT_FILL_COLOR = '#15151a';
 const NOTE_FONT_SIZES = [12, 14, 16, 18, 22, 28, 36];
+const NOTES_OPEN_STORAGE_KEY = 'web-title-pro.liveNotesOpen';
 const NOTES_WIDTH_STORAGE_KEY = 'web-title-pro.liveNotesWidth';
 const NOTES_STORAGE_KEY = 'web-title-pro.liveNotes';
 const NOTES_MIN_WIDTH = 260;
@@ -24,6 +25,8 @@ const escapeHtml = (value) => String(value || '')
   .replaceAll("'", '&#039;');
 
 const textToNotesHtml = (value) => escapeHtml(value).replace(/\r?\n/g, '<br>');
+const textToDefaultNotesHtml = (value) =>
+  `<span style="font-size: 16px; color: ${NOTE_DEFAULT_TEXT_COLOR}; font-weight: 400; font-style: normal; background: transparent;">${textToNotesHtml(value)}</span>`;
 
 const clampNotesWidth = (value) => Math.min(NOTES_MAX_WIDTH, Math.max(NOTES_MIN_WIDTH, value));
 
@@ -53,6 +56,14 @@ const loadStoredNotesWidth = () => {
     return Number.isFinite(value) ? clampNotesWidth(value) : NOTES_DEFAULT_WIDTH;
   } catch {
     return NOTES_DEFAULT_WIDTH;
+  }
+};
+
+const loadStoredNotesOpen = () => {
+  try {
+    return window.localStorage.getItem(NOTES_OPEN_STORAGE_KEY) === 'true';
+  } catch {
+    return false;
   }
 };
 
@@ -193,6 +204,23 @@ function LiveNotesPanel({ storageKey }) {
     document.execCommand(command, false, value);
     afterCommand?.();
     saveSelection();
+    saveNotes();
+  };
+
+  const pastePlainText = (event) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const text = event.clipboardData?.getData('text/plain') || '';
+    if (!text) return;
+
+    event.preventDefault();
+    editor.focus();
+    restoreSelection();
+    document.execCommand('insertHTML', false, textToDefaultNotesHtml(text));
+    normalizeEditorNodes();
+    saveSelection();
+    refreshFormatState();
     saveNotes();
   };
 
@@ -455,6 +483,7 @@ function LiveNotesPanel({ storageKey }) {
         onMouseUp={saveSelection}
         onKeyUp={saveSelection}
         onFocus={saveSelection}
+        onPaste={pastePlainText}
         suppressContentEditableWarning
       />
     </aside>
@@ -490,10 +519,16 @@ export default function LiveTabV2({
   previewOpen,
 }) {
   const tableRef = useRef(null);
-  const [notesOpen, setNotesOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(loadStoredNotesOpen);
   const [notesWidth, setNotesWidth] = useState(loadStoredNotesWidth);
   const [notesDragging, setNotesDragging] = useState(false);
   const notesResizeStartRef = useRef({ x: 0, width: notesWidth });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(NOTES_OPEN_STORAGE_KEY, notesOpen ? 'true' : 'false');
+    } catch {}
+  }, [notesOpen]);
 
   useEffect(() => {
     try {

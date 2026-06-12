@@ -121,6 +121,8 @@ function WindowControls() {
 export default function TopBar({
   activeTab,
   onSetActiveTab,
+  autoUpdate,
+  onToggleAutoUpdate,
   currentProjectName,
   projectDirty,
   projectStatus,
@@ -188,6 +190,23 @@ export default function TopBar({
       <div className="titlebar-drag-v2" aria-hidden="true" />
 
       <div className="status-v2">
+        {/* Live-edit toggle: when ON (amber), saving fields of the ON-AIR title
+            pushes the change to air instantly. Default OFF so edits never touch
+            the live title until the operator explicitly takes them with Update/Live. */}
+        <button
+          type="button"
+          className={`badge-status-v2 is-${autoUpdate ? 'warn' : 'off'} is-clickable`}
+          onClick={() => onToggleAutoUpdate?.()}
+          aria-pressed={autoUpdate ? 'true' : 'false'}
+          title={
+            autoUpdate
+              ? 'Live-правка ВКЛ: правки полей титра, который СЕЙЧАС В ЭФИРЕ, уходят в эфир мгновенно. Кликни, чтобы выключить.'
+              : 'Live-правка ВЫКЛ: правки не меняют эфир, пока не нажмёшь Update/Live. Кликни, чтобы включить.'
+          }
+        >
+          <span className="dot" />
+          <span>{autoUpdate ? 'Live-edit ВКЛ' : 'Live-edit'}</span>
+        </button>
         {/* Connection chip is a status-only indicator — no settings page for it.
             The other three are click-throughs into their integration/control panels:
               vMix   → Settings ▸ Integrations

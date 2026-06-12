@@ -100,6 +100,39 @@ test('program state: local entry SHOW / HIDE still works after the fix', async (
   }
 });
 
+test('program state: editing fields never mutates the VISIBLE program (no live leak)', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    const entry = store.addEntry({ templateId: 'builtin:test', name: 'On Air', fields: { title: 'ORIGINAL' } });
+    store.selectEntry(entry.id);
+    store.showSelected(entry.id);
+
+    let program = store.getProgram();
+    assert.equal(program.visible, true);
+    assert.equal(program.fields.title, 'ORIGINAL');
+
+    // Edit the entry's fields while it is ON AIR. The visible program must NOT change.
+    store.updateEntry(entry.id, { fields: { title: 'EDITED' } });
+
+    program = store.getProgram();
+    assert.equal(program.visible, true, 'program stays on air');
+    assert.equal(program.fields.title, 'ORIGINAL', 'visible program fields must not change from an edit');
+
+    // The entry itself does hold the new value (so an explicit Update/Live can take it).
+    assert.equal(store.getEntry(entry.id).fields.title, 'EDITED');
+
+    // Once hidden, editing loads the new value into the (hidden) program for the next show.
+    store.hideProgram();
+    store.updateEntry(entry.id, { fields: { title: 'NEXT' } });
+    program = store.getProgram();
+    assert.equal(program.visible, false);
+    assert.equal(program.fields.title, 'NEXT', 'hidden program may stage edits for the next show');
+  } finally {
+    await store.close();
+    await fs.remove(dir);
+  }
+});
+
 test('program state: entry order survives project reload', async () => {
   const { store, dir } = await makeStore();
   try {
@@ -154,6 +187,35 @@ test('program state: hidden entry flag is ignored and not persisted', async () =
       store.getEntries().some((entry) => Object.hasOwn(entry, 'hidden')),
       false,
     );
+  } finally {
+    await store.close();
+    await fs.remove(dir);
+  }
+});
+
+test('program state: adding titles and outputs does not rewrite existing output assignments', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    const firstEntry = store.getEntries()[0];
+    const secondEntry = store.addEntry({ templateId: 'builtin:test', name: 'Second' });
+    const output1 = store.getSnapshot().outputs[0];
+
+    store.selectEntry(firstEntry.id, output1.id);
+    assert.equal(store.getOutputByRef(output1.id).selectedEntryId, firstEntry.id);
+
+    const output2 = store.createOutput({ name: 'OUTPUT 2' });
+    assert.equal(store.getOutputByRef(output1.id).selectedEntryId, firstEntry.id);
+    assert.equal(output2.selectedEntryId, null);
+
+    const thirdEntry = store.addEntry({ templateId: 'builtin:test', name: 'Third' });
+    assert.equal(store.getOutputByRef(output1.id).selectedEntryId, firstEntry.id);
+    assert.equal(store.getOutputByRef(output2.id).selectedEntryId, null);
+    assert.equal(store.getEntries().some((entry) => entry.id === secondEntry.id), true);
+    assert.equal(store.getEntries().some((entry) => entry.id === thirdEntry.id), true);
+
+    store.selectEntry(secondEntry.id, output2.id);
+    assert.equal(store.getOutputByRef(output1.id).selectedEntryId, firstEntry.id);
+    assert.equal(store.getOutputByRef(output2.id).selectedEntryId, secondEntry.id);
   } finally {
     await store.close();
     await fs.remove(dir);

@@ -606,12 +606,10 @@ export class TitleStore extends EventEmitter {
       this.state.outputs = [createOutput({ id: 'output-main', name: 'OUTPUT 1', key: 'main' }, 1)];
     }
 
-    const firstEntryId = this.state.entries[0]?.id || null;
-
     this.state.outputs = this.state.outputs.map((output, index) => {
       const nextOutput = createOutput(output, index + 1);
       const selectedEntryExists = this.state.entries.some((entry) => entry.id === nextOutput.selectedEntryId);
-      nextOutput.selectedEntryId = selectedEntryExists ? nextOutput.selectedEntryId : firstEntryId;
+      nextOutput.selectedEntryId = nextOutput.selectedEntryId && selectedEntryExists ? nextOutput.selectedEntryId : null;
       nextOutput.key = this.ensureUniqueOutputKey(nextOutput.key || nextOutput.name || `output-${index + 1}`, nextOutput.id);
 
       const programEntryExists = this.state.entries.some((entry) => entry.id === nextOutput.program.entryId);
@@ -832,7 +830,7 @@ export class TitleStore extends EventEmitter {
       {
         name: name?.trim() || `OUTPUT ${this.state.outputs.length + 1}`,
         key: this.ensureUniqueOutputKey(key || name || `output-${this.state.outputs.length + 1}`),
-        selectedEntryId: this.state.entries[0]?.id || null,
+        selectedEntryId: null,
       },
       this.state.outputs.length + 1,
     );
@@ -1001,7 +999,8 @@ export class TitleStore extends EventEmitter {
       };
 
       this.state.entries.push(entry);
-      this.selectEntry(entry.id);
+      this.ensureOutputsConsistent();
+      this.touch();
       return entry;
     }
 
@@ -1025,7 +1024,8 @@ export class TitleStore extends EventEmitter {
     };
 
     this.state.entries.push(entry);
-    this.selectEntry(entry.id);
+    this.ensureOutputsConsistent();
+    this.touch();
     return entry;
   }
 
@@ -1155,7 +1155,7 @@ export class TitleStore extends EventEmitter {
 
     for (const output of this.state.outputs) {
       if (output.selectedEntryId === entryId) {
-        output.selectedEntryId = this.state.entries[0]?.id || null;
+        output.selectedEntryId = null;
       }
 
       if (output.program.entryId === entryId) {

@@ -1,0 +1,232 @@
+/* ===== Хурал Яндекс Еды · Спираль =====
+   Палитра айдентики: тёплый ink, айвори, жёлтый Еды.
+   Шрифт: системный Yandex Sans ("YS Text") с фолбэком — файл шрифта не
+   вкладывается в репозиторий (проприетарный шрифт Яндекса). На машинах с
+   установленным Yandex Sans титр выглядит в фирменном шрифте. */
+.eda-lt {
+  --eda-ink: #1e1815;
+  --eda-paper: #f4ecd8;
+  --eda-yellow: #ffc700;
+  --eda-yellow-soft: #ffd84d;
+
+  position: absolute;
+  left: 64px;
+  bottom: 72px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  isolation: isolate;
+  font-family: "YS Text", "Yandex Sans Text", "Inter", "Manrope",
+    "Helvetica Neue", Arial, system-ui, sans-serif;
+}
+
+/* ---------- Бейдж со спиралью ---------- */
+.eda-lt__badge {
+  position: relative;
+  z-index: 2;
+  width: 132px;
+  height: 132px;
+  margin-right: -46px;
+  opacity: 0;
+  transform: scale(0.2) rotate(-210deg);
+  transform-origin: center;
+  filter: drop-shadow(0 14px 26px rgba(0, 0, 0, 0.35));
+}
+
+.eda-lt__badge-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.eda-lt__badge-disc {
+  fill: var(--eda-yellow);
+}
+
+.eda-lt__spiral {
+  stroke: var(--eda-ink);
+  stroke-width: 6.5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+/* ---------- Панель ---------- */
+.eda-lt__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-height: 128px;
+  padding: 26px 40px 26px 70px;
+  border-radius: 26px;
+  background: var(--eda-ink);
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.34);
+  opacity: 0;
+  clip-path: inset(0 100% 0 0 round 26px);
+  transform: translateY(10px);
+}
+
+/* жёлтая «подложка»-уголок для игривости */
+.eda-lt__panel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 46%;
+  height: 7px;
+  border-radius: 0 0 0 26px;
+  background: var(--eda-yellow);
+  opacity: 0.9;
+}
+
+.eda-lt__kicker {
+  display: inline-block;
+  width: max-content;
+  max-width: 100%;
+  margin-bottom: 4px;
+  padding: 5px 12px 6px;
+  border-radius: 999px;
+  background: var(--eda-yellow);
+  color: var(--eda-ink);
+  font-size: clamp(12px, 1.2vw, 17px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.eda-lt__panel h1 {
+  margin: 0;
+  width: max-content;
+  max-width: 100%;
+  color: var(--eda-paper);
+  font-size: clamp(34px, 3.9vw, 54px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
+  opacity: 0;
+  transform: translateX(-16px);
+}
+
+.eda-lt__panel p {
+  margin: 0;
+  width: max-content;
+  max-width: 100%;
+  color: var(--eda-yellow);
+  font-size: clamp(18px, 2.5vw, 30px);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+  opacity: 0;
+  transform: translateX(-16px);
+}
+
+/* искра-«снежинка» Еды у имени */
+.eda-lt__spark {
+  position: absolute;
+  top: 16px;
+  right: 22px;
+  width: 26px;
+  height: 26px;
+  opacity: 0;
+  transform: scale(0) rotate(-90deg);
+  transform-origin: center;
+}
+.eda-lt__spark svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.eda-lt__spark path {
+  fill: var(--eda-yellow-soft);
+}
+
+/* =================== ПОЯВЛЕНИЕ =================== */
+.render-stage.is-visible .eda-lt__badge {
+  animation: eda-badge-in 640ms cubic-bezier(0.22, 0.9, 0.26, 1.18) forwards;
+}
+.render-stage.is-visible .eda-lt__spiral {
+  animation: eda-spiral-draw 760ms cubic-bezier(0.3, 0.7, 0.3, 1) 150ms forwards;
+}
+.render-stage.is-visible .eda-lt__panel {
+  animation: eda-panel-in 560ms cubic-bezier(0.2, 0.82, 0.2, 1) 140ms forwards;
+}
+.render-stage.is-visible .eda-lt__kicker {
+  animation: eda-rise-in 360ms ease 360ms forwards;
+}
+.render-stage.is-visible .eda-lt__panel h1 {
+  animation: eda-slide-in 380ms ease 420ms forwards;
+}
+.render-stage.is-visible .eda-lt__panel p {
+  animation: eda-slide-in 400ms ease 500ms forwards;
+}
+.render-stage.is-visible .eda-lt__spark {
+  animation: eda-spark-in 520ms cubic-bezier(0.2, 0.8, 0.2, 1.4) 560ms forwards;
+}
+
+/* =================== СКРЫТИЕ =================== */
+.render-stage.is-hiding .eda-lt__badge {
+  animation: eda-badge-out 320ms cubic-bezier(0.5, 0, 0.75, 0) forwards;
+}
+.render-stage.is-hiding .eda-lt__panel {
+  animation: eda-panel-out 300ms ease 60ms forwards;
+}
+.render-stage.is-hiding .eda-lt__kicker,
+.render-stage.is-hiding .eda-lt__panel h1,
+.render-stage.is-hiding .eda-lt__panel p,
+.render-stage.is-hiding .eda-lt__spark {
+  animation: eda-fade-out 200ms ease forwards;
+}
+
+/* =================== KEYFRAMES =================== */
+@keyframes eda-badge-in {
+  0% { opacity: 0; transform: scale(0.2) rotate(-210deg); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes eda-spiral-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes eda-panel-in {
+  0% { opacity: 0; clip-path: inset(0 100% 0 0 round 26px); transform: translateY(10px); }
+  100% { opacity: 1; clip-path: inset(0 0 0 0 round 26px); transform: translateY(0); }
+}
+@keyframes eda-rise-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes eda-slide-in {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes eda-spark-in {
+  0% { opacity: 0; transform: scale(0) rotate(-90deg); }
+  70% { opacity: 1; transform: scale(1.15) rotate(8deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes eda-badge-out {
+  from { opacity: 1; transform: scale(1) rotate(0deg); }
+  to { opacity: 0; transform: scale(0.3) rotate(160deg); }
+}
+@keyframes eda-panel-out {
+  from { opacity: 1; clip-path: inset(0 0 0 0 round 26px); transform: translateY(0); }
+  to { opacity: 0; clip-path: inset(0 0 0 30% round 26px); transform: translateY(8px); }
+}
+@keyframes eda-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eda-lt__badge,
+  .eda-lt__panel,
+  .eda-lt__kicker,
+  .eda-lt__panel h1,
+  .eda-lt__panel p,
+  .eda-lt__spark { animation-duration: 1ms !important; animation-delay: 0ms !important; }
+}
