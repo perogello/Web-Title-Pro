@@ -1,8 +1,29 @@
 /* ===== Хурал Яндекс Еды · Спираль =====
    Палитра айдентики: тёплый ink, айвори, жёлтый Еды.
-   Шрифт: системный Yandex Sans ("YS Text") с фолбэком — файл шрифта не
-   вкладывается в репозиторий (проприетарный шрифт Яндекса). На машинах с
-   установленным Yandex Sans титр выглядит в фирменном шрифте. */
+   Шрифт: Yandex Sans ("YS Text") вложен в шаблон для точного отображения
+   на любой машине рендера (включая те, где шрифт не установлен в системе). */
+@font-face {
+  font-family: "YS Text";
+  src: url("./fonts/YSText-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "YS Text";
+  src: url("./fonts/YSText-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "YS Text";
+  src: url("./fonts/YSText-Heavy.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 .eda-lt {
   --eda-ink: #1e1815;
   --eda-paper: #f4ecd8;
