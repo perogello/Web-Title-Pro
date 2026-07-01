@@ -64,6 +64,18 @@
 .shell-v2 .seg-timer-v3-val:focus-visible {
   color: var(--select-accent-v2) !important;
 }
+
+/* Live ticking readout (running timer) — not editable, so no text cursor or
+   hover affordance. Colour is inherited from the container so the running
+   timer shows the operator's configured colour (default / trigger), falling
+   back to the normal readout colour when none is set. */
+.shell-v2 .seg-timer-v3-val--static {
+  cursor: default;
+  color: inherit !important;
+}
+.shell-v2 .seg-timer-v3-val--static:hover {
+  color: inherit !important;
+}
 .shell-v2 .content-v2-inner input.seg-timer-v3-input,
 .shell-v2 input.seg-timer-v3-input {
   caret-color: var(--select-accent-v2);

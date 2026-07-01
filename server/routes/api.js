@@ -421,6 +421,15 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     }
   });
 
+  router.post('/entries/:entryId/duplicate', (request, response) => {
+    try {
+      const entry = store.duplicateEntry(request.params.entryId);
+      response.status(201).json(entry);
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
   router.post('/entries/:entryId/vmix-sync', async (request, response) => {
     try {
       const entry = store.getEntry(request.params.entryId);

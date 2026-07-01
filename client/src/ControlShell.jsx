@@ -16,6 +16,7 @@ import {
   getRemoteImportFallbackName,
 } from './control-shell/source-service.js';
 import KhuralStyleEditorModal from './control-shell/KhuralStyleEditorModal.jsx';
+import ChangelogModal from './control-shell/ChangelogModal.jsx';
 import { useMidiState, useRealtimeState, useSystemInfo, useVmixState } from './control-shell/hooks.js';
 import SettingsPanel from './control-shell/SettingsPanel.jsx';
 import SourcesTab from './control-shell/tabs/SourcesTab.jsx';
@@ -75,6 +76,7 @@ function ControlShell() {
   const [vmixState, setVmixState] = useVmixState();
   const [midiState, setMidiState] = useMidiState();
   const [appMeta, setAppMeta] = useState(null);
+  const [changelogInfo, setChangelogInfo] = useState(null);
   const [draftName, setDraftName] = useState('');
   const [activeTab, setActiveTab] = useState('rundown');
   const [settingsTab, setSettingsTab] = useState('outputs');
@@ -629,6 +631,29 @@ function ControlShell() {
       .then((payload) => {
         if (mounted && payload) {
           setYandexAuthState((current) => ({ ...current, ...payload }));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, [desktopBridge]);
+
+  // Post-update "what's new": ask the desktop shell once on mount whether we
+  // just updated to a newer version; if so, surface the changelog dialog.
+  useEffect(() => {
+    let mounted = true;
+
+    if (!desktopBridge?.getStartupInfo) {
+      return undefined;
+    }
+
+    desktopBridge
+      .getStartupInfo()
+      .then((info) => {
+        if (mounted && info?.justUpdatedFrom) {
+          setChangelogInfo(info);
         }
       })
       .catch(() => {});
@@ -1705,6 +1730,23 @@ function ControlShell() {
     }
   };
 
+  const duplicateEntry = async (entry) => {
+    if (!entry?.id) {
+      return;
+    }
+
+    setBusyAction(`duplicate-entry-${entry.id}`);
+
+    try {
+      await api(`/api/entries/${entry.id}/duplicate`, { method: 'POST' });
+      pushFeedback(`Duplicated «${entry.name}»`);
+    } catch (requestError) {
+      pushFeedback(requestError.message);
+    } finally {
+      setBusyAction('');
+    }
+  };
+
   const openStyleEditor = (entry) => {
     if (!canManageEntryAppearance(entry)) {
       return;
@@ -2311,6 +2353,40 @@ function ControlShell() {
       return next;
     });
     pushFeedback('Source row deleted');
+  };
+
+  const duplicateSourceRow = (sourceId, rowId) => {
+    setSourceLibrary((current) =>
+      current.map((source) => {
+        if (source.id !== sourceId) {
+          return source;
+        }
+
+        const sourceIndex = source.rows.findIndex((row) => row.id === rowId);
+        if (sourceIndex === -1) {
+          return source;
+        }
+
+        const original = source.rows[sourceIndex];
+        const newId =
+          window.crypto?.randomUUID?.() || `row-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+        const clone = {
+          ...original,
+          id: newId,
+          values: [...(original.values || [])],
+          timer: original.timer ? { ...original.timer } : original.timer,
+        };
+
+        const nextRows = [
+          ...source.rows.slice(0, sourceIndex + 1),
+          clone,
+          ...source.rows.slice(sourceIndex + 1),
+        ].map((row, index) => ({ ...row, index: index + 1 }));
+
+        return { ...source, rows: nextRows };
+      }),
+    );
+    pushFeedback('Source row duplicated');
   };
 
   const reorderSourceRowToTarget = (sourceId, draggedRowId, targetRowId) => {
@@ -3002,6 +3078,7 @@ function ControlShell() {
           onUpdateOutput={updateOutput}
           onDeleteOutput={deleteOutput}
           onRemoveEntry={removeEntry}
+          onDuplicateEntry={duplicateEntry}
           onManageEntryAppearance={openStyleEditor}
           canManageEntryAppearance={canManageEntryAppearance}
           onSourceColumnMappingChange={updateSelectedSourceColumnMapping}
@@ -3164,6 +3241,7 @@ function ControlShell() {
           onSaveSourceRowEdit={saveSourceRowEdit}
           onStartSourceRowEdit={startSourceRowEdit}
           onDeleteSourceRow={deleteSourceRow}
+          onDuplicateSourceRow={duplicateSourceRow}
           onReorderSourceRow={reorderSourceRowToTarget}
           onManualRowValueChange={(index, value) => setManualRowValues((current) => ({ ...current, [index]: value }))}
           onAddManualSourceRow={addManualSourceRow}
@@ -3184,6 +3262,15 @@ function ControlShell() {
           onChange={updateStyleEditorField}
           onClose={closeStyleEditor}
           onSave={saveStyleEditor}
+        />
+      )}
+
+      {changelogInfo && (
+        <ChangelogModal
+          version={changelogInfo.version}
+          previousVersion={changelogInfo.justUpdatedFrom}
+          changelog={changelogInfo.changelog}
+          onClose={() => setChangelogInfo(null)}
         />
       )}
 

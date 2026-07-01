@@ -25,6 +25,22 @@
 .shell-v2 .modal-card--narrow { width: min(720px, 100%); }
 .shell-v2 .modal-card--wide { width: min(1360px, calc(100% - 32px)); }
 
+.shell-v2 .changelog-modal { width: min(560px, 100%); }
+.shell-v2 .changelog-body { padding: 4px 20px 20px; }
+.shell-v2 .changelog-body .note-v3 { margin: 0 0 10px; }
+.shell-v2 .changelog-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.shell-v2 .changelog-list li {
+  line-height: 1.4;
+  color: var(--text-v2);
+}
+.shell-v2 .changelog-list li::marker { color: var(--live-v2); }
+
 .shell-v2 .modal-card .panel-head-v3 {
   display: flex;
   align-items: center;

@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('webTitleDesktop', {
   getProjectStatus: () => ipcRenderer.invoke('project:get-status'),
+  getStartupInfo: () => ipcRenderer.invoke('app:get-startup-info'),
   getStartupProject: () => ipcRenderer.invoke('project:get-startup-project'),
   confirmUnsavedChanges: (payload) => ipcRenderer.invoke('project:confirm-unsaved', payload),
   openProjectDialog: () => ipcRenderer.invoke('project:open-dialog'),

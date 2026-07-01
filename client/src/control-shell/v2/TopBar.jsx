@@ -141,11 +141,15 @@ export default function TopBar({
   onOpenSettingsTab,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [recentOpen, setRecentOpen] = useState(false);
   const menuRef = useRef(null);
   const bundleInputRef = useRef(null);
 
   useEffect(() => {
-    if (!menuOpen) return undefined;
+    if (!menuOpen) {
+      setRecentOpen(false);
+      return undefined;
+    }
     const onClick = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setMenuOpen(false);
@@ -253,22 +257,35 @@ export default function TopBar({
           <button onClick={() => { setMenuOpen(false); onSaveAsProject?.(); }}>
             Save as... <span className="kbd">Ctrl+Shift+S</span>
           </button>
-          {recent.length > 0 && (
-            <>
-              <span className="sep" />
-              <div className="group-label">Recent</div>
-              {recent.slice(0, 6).map((item) => (
-                <button
-                  key={item.path}
-                  className="recent"
-                  title={item.path}
-                  onClick={() => { setMenuOpen(false); onOpenRecentProject?.(item.path); }}
-                >
-                  {item.name}
-                </button>
-              ))}
-            </>
-          )}
+          <span className="sep" />
+          <div
+            className="submenu-item-v2"
+            onMouseEnter={() => recent.length > 0 && setRecentOpen(true)}
+            onMouseLeave={() => setRecentOpen(false)}
+          >
+            <button
+              type="button"
+              className="submenu-trigger-v2"
+              disabled={recent.length === 0}
+              title={recent.length === 0 ? 'No recent projects yet' : undefined}
+            >
+              Recent <span className="submenu-arrow-v2">{'▸'}</span>
+            </button>
+            {recentOpen && recent.length > 0 && (
+              <div className="file-dropdown submenu-flyout-v2">
+                {recent.slice(0, 6).map((item) => (
+                  <button
+                    key={item.path}
+                    className="recent"
+                    title={item.path}
+                    onClick={() => { setMenuOpen(false); setRecentOpen(false); onOpenRecentProject?.(item.path); }}
+                  >
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <span className="sep" />
           <div className="group-label">Project bundle (.wtpkg)</div>
           <button

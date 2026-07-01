@@ -79,6 +79,21 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
+/* "Recent" nested submenu — a menu row that reveals a flyout panel of
+   recent projects to the right on hover, like a native File > Open Recent. */
+.topbar-v2 .submenu-item-v2 { position: relative; }
+.topbar-v2 .submenu-trigger-v2 {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.topbar-v2 .submenu-arrow-v2 { color: var(--text-faint-v2); font-size: 11px; }
+.topbar-v2 .submenu-flyout-v2 {
+  position: absolute;
+  top: -4px; left: 100%;
+  margin-left: 4px;
+  min-width: 240px;
+  max-width: 360px;
+}
+
 .topbar-v2 .tabs-v2 { display: flex; align-items: center; gap: 2px; }
 .topbar-v2 .tab-v2 {
   padding: 6px 14px;

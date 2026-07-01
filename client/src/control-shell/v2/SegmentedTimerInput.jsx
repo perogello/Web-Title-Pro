@@ -25,6 +25,8 @@ export default function SegmentedTimerInput({
   compact = false,
   size = 'lg',          // 'lg' | 'md' | 'sm'
   withArrows = false,   // show ↑/↓ above and below each segment
+  readOnly = false,     // live ticking display — render as plain text, no edit/step
+  color = '',           // optional explicit color for the readout (e.g. a running timer's configured color)
 }) {
   const [editingKey, setEditingKey] = useState(null);
   const [draftText, setDraftText] = useState('');
@@ -67,8 +69,9 @@ export default function SegmentedTimerInput({
 
   return (
     <div
-      className={`seg-timer-v3 size-${size} ${compact ? 'is-compact' : ''} ${className}`}
-      onWheel={(event) => {
+      className={`seg-timer-v3 size-${size} ${compact ? 'is-compact' : ''} ${readOnly ? 'is-readonly' : ''} ${className}`}
+      style={color ? { color } : undefined}
+      onWheel={readOnly ? undefined : (event) => {
         // Step the segment under the cursor (or the last-focused one).
         const segKey = event.target?.dataset?.segKey || editingKey;
         if (!segKey) return;
@@ -79,7 +82,9 @@ export default function SegmentedTimerInput({
       {segments.map((segment, idx) => (
         <span className="seg-timer-v3-group" key={segment.key}>
           {idx > 0 && <span className="seg-timer-v3-sep">:</span>}
-          {withArrows ? (
+          {readOnly ? (
+            <span className="seg-timer-v3-val seg-timer-v3-val--static">{segment.value}</span>
+          ) : withArrows ? (
             <span className="seg-timer-v3-stack">
               <button
                 type="button"

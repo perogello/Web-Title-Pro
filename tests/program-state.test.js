@@ -133,6 +133,36 @@ test('program state: editing fields never mutates the VISIBLE program (no live l
   }
 });
 
+test('program state: duplicateEntry clones fields/styles, resets shortcuts, inserts after original', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    const original = store.addEntry({
+      templateId: 'builtin:test',
+      name: 'Original',
+      fields: { title: 'Hello' },
+      shortcuts: { show: 'F1', live: 'F2', hide: 'F3' },
+    });
+    store.addEntry({ templateId: 'builtin:test', name: 'After' });
+
+    const clone = store.duplicateEntry(original.id);
+
+    assert.notEqual(clone.id, original.id);
+    assert.equal(clone.name, 'Original copy');
+    assert.deepEqual(clone.fields, { title: 'Hello' });
+    assert.deepEqual(clone.shortcuts, { show: '', live: '', hide: '' }, 'duplicate must not inherit per-entry shortcuts');
+
+    const ids = store.getEntries().map((entry) => entry.id);
+    assert.equal(ids[ids.indexOf(original.id) + 1], clone.id, 'duplicate is inserted right after the original');
+
+    // Mutating the clone's fields must not affect the original (deep clone, not a shared reference).
+    store.updateEntry(clone.id, { fields: { title: 'Changed' } });
+    assert.equal(store.getEntry(original.id).fields.title, 'Hello');
+  } finally {
+    await store.close();
+    await fs.remove(dir);
+  }
+});
+
 test('program state: entry order survives project reload', async () => {
   const { store, dir } = await makeStore();
   try {

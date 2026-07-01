@@ -21,6 +21,18 @@ let globalShortcutManager = null;
 
 const SERVER_URL = 'http://127.0.0.1:4000';
 const HEALTH_URL = `${SERVER_URL}/api/health`;
+
+// App version source of truth: our bundled package.json, NOT app.getVersion().
+// In dev (`electron desktop/main.cjs`) app.getVersion() returns Electron's own
+// version; only the packaged build resolves it to ours. Reading package.json
+// directly is correct in both, and keeps the changelog/version logic testable.
+const getAppVersion = () => {
+  try {
+    return require('../package.json').version || app.getVersion();
+  } catch {
+    try { return app.getVersion(); } catch { return null; }
+  }
+};
 const BUILTIN_REPO_URL = 'https://github.com/perogello/Web-Title-Pro';
 const STABLE_PORTABLE_EXE_NAME = 'WebTitlePro.exe';
 const PROJECT_EXTENSION = 'wtp-project.json';
@@ -35,7 +47,12 @@ let allowMainWindowClose = false;
 let projectSession = {
   currentProjectPath: null,
   recentProjects: [],
+  lastSeenVersion: null,
 };
+// Computed once at bootstrap: which previous version we just updated FROM
+// (null on a fresh install or a normal restart), plus the changelog entry to
+// surface in the post-update dialog. Read by the renderer via IPC.
+let appStartupInfo = { version: null, justUpdatedFrom: null, changelog: null };
 let integrationSecrets = {
   yandexAuth: {
     clientId: '',
@@ -102,6 +119,7 @@ const normalizeProjectSession = (value = {}) => ({
         }))
         .slice(0, 10)
     : [],
+  lastSeenVersion: typeof value.lastSeenVersion === 'string' ? value.lastSeenVersion : null,
 });
 
 const normalizeIntegrationSecrets = (value = {}) => ({
@@ -194,6 +212,57 @@ const loadProjectSession = async () => {
   }
 };
 
+// Compare two semver-ish version strings (leading "v" tolerated). Returns
+// 1 / -1 / 0. Pre-release tags are ignored — we only key the changelog on
+// MAJOR.MINOR.PATCH.
+const compareVersionStrings = (a, b) => {
+  const parse = (v) => String(v || '')
+    .replace(/^v/i, '')
+    .split('-')[0]
+    .split('.')
+    .map((n) => Number.parseInt(n, 10) || 0);
+  const pa = parse(a);
+  const pb = parse(b);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const diff = (pa[i] || 0) - (pb[i] || 0);
+    if (diff !== 0) return diff > 0 ? 1 : -1;
+  }
+  return 0;
+};
+
+const readChangelogEntry = async (version) => {
+  try {
+    const raw = await fsp.readFile(path.join(__dirname, 'changelog.json'), 'utf8');
+    const data = JSON.parse(raw);
+    return data?.[version] || data?.[String(version).replace(/^v/i, '')] || null;
+  } catch {
+    return null;
+  }
+};
+
+// Decide whether the app was just updated, then persist the current version so
+// the dialog only shows once per upgrade. Must run after loadProjectSession.
+const computeStartupInfo = async () => {
+  const version = getAppVersion();
+
+  const previous = projectSession.lastSeenVersion;
+  // Show the changelog only on a real upgrade: a previous version was recorded
+  // and the running version is strictly newer. A fresh install (previous null)
+  // or a downgrade does not trigger it.
+  const justUpdatedFrom =
+    previous && version && compareVersionStrings(version, previous) > 0 ? previous : null;
+
+  const changelog = justUpdatedFrom ? await readChangelogEntry(version) : null;
+  appStartupInfo = { version, justUpdatedFrom, changelog };
+
+  if (version && projectSession.lastSeenVersion !== version) {
+    projectSession.lastSeenVersion = version;
+    try { await persistProjectSession(); } catch {}
+  }
+
+  log(`startup-info version=${version} justUpdatedFrom=${justUpdatedFrom || 'none'} hasChangelog=${Boolean(changelog)}`);
+};
+
 const loadIntegrationSecrets = async () => {
   try {
     const secretsFile = getIntegrationSecretsFile();
@@ -282,6 +351,8 @@ const readProjectFile = async (projectPath) => {
 };
 
 ipcMain.handle('project:get-status', async () => getProjectStatusPayload());
+
+ipcMain.handle('app:get-startup-info', async () => appStartupInfo);
 
 ipcMain.handle('settings:get-yandex-auth', async () => ({
   ...yandexAuthIntegration.getPayload(),
@@ -579,7 +650,7 @@ const setWindowMeta = async (windowRef, { title, eyebrow, version } = {}) => {
 
   let appVersion = version;
   if (!appVersion) {
-    try { appVersion = app.getVersion(); } catch {}
+    appVersion = getAppVersion();
   }
 
   try {
@@ -963,6 +1034,7 @@ const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));
 
 const bootstrap = async () => {
   await loadProjectSession();
+  await computeStartupInfo();
   await loadIntegrationSecrets();
   await createSplashWindow();
   // Let splash actually paint and become interactive before doing heavy work.

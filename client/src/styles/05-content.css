@@ -663,6 +663,19 @@ table.source-v2 td.idx { color: var(--text-faint-v2); font-weight: 700; width: 5
 .cfg-icon-btn-v2:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .mapping-card-v2 { grid-column: 1 / -1; }
+.mapping-row-v2-head {
+  background: transparent;
+  border: 0;
+  padding: 0 10px 6px;
+  margin-top: -2px;
+}
+.mapping-row-v2-head span {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-dim-v2);
+}
 .mapping-row-v2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

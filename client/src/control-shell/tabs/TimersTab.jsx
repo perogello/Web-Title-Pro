@@ -77,16 +77,24 @@ export default function TimersTab({
                 />
               </label>
               {/* Big editable readout — click any digit to type, ↑↓/wheel to step.
-                  When timer is idle we edit duration directly; while running we
-                  show the live value (non-editable cosmetic state is handled by
-                  the input becoming a no-op via onCommit going through the
-                  duration update). */}
+                  When timer is idle we edit duration directly; while running the
+                  readout switches to the live ticking value (currentMs from the
+                  server, pushed over WS every 100ms) and becomes read-only, since
+                  editing the duration mid-countdown wouldn't affect the running
+                  value anyway. */}
               <SegmentedTimerInput
-                value={Number(timer.durationMs || 0)}
+                value={
+                  timer.running
+                    ? Number(timer.currentMs ?? timer.valueMs ?? 0)
+                    : Number(timer.durationMs || 0)
+                }
                 format={timer.displayFormat || 'mm:ss'}
                 onCommit={(nextMs) => onUpdateTimer(timer.id, { durationMs: nextMs })}
                 size="lg"
                 className="timer-readout-edit"
+                readOnly={timer.running}
+                withArrows={!timer.running}
+                color={timer.running ? (timer.color || '') : ''}
               />
               <div className="timer-meta-row">
                 <div className="timer-meta-block">

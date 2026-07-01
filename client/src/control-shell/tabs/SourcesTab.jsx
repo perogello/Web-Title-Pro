@@ -58,6 +58,7 @@ export default function SourcesTab({
   onSaveSourceRowEdit,
   onStartSourceRowEdit,
   onDeleteSourceRow,
+  onDuplicateSourceRow,
   onReorderSourceRow,
   onManualRowValueChange,
   onAddManualSourceRow,
@@ -483,6 +484,14 @@ export default function SourcesTab({
                               aria-label={isEditing ? 'Save row' : 'Edit row'}
                             >
                               {isEditing ? <SaveIcon /> : <EditIcon />}
+                            </button>
+                            <button
+                              className="btn-v3-ghost btn-v3-sm btn-v3-icon"
+                              onClick={() => onDuplicateSourceRow(selectedSource.id, row.id)}
+                              title="Duplicate row"
+                              aria-label="Duplicate row"
+                            >
+                              <CopyIcon />
                             </button>
                             <button
                               className="btn-v3-ghost btn-v3-sm btn-v3-icon btn-v3-danger"

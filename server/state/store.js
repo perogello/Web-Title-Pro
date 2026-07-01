@@ -1144,6 +1144,31 @@ export class TitleStore extends EventEmitter {
     return entry;
   }
 
+  duplicateEntry(entryId) {
+    const sourceIndex = this.state.entries.findIndex((entry) => entry.id === entryId);
+
+    if (sourceIndex === -1) {
+      throw new Error('Entry not found.');
+    }
+
+    const source = this.state.entries[sourceIndex];
+    const clone = {
+      ...deepClone(source),
+      id: nanoid(10),
+      name: `${source.name} copy`,
+      // A duplicate shouldn't silently inherit keyboard/MIDI bindings conceptually
+      // tied to the original entry — start clean, same as a freshly added title.
+      shortcuts: normalizeEntryShortcuts({}),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.state.entries.splice(sourceIndex + 1, 0, clone);
+    this.ensureOutputsConsistent();
+    this.touch();
+    return clone;
+  }
+
   deleteEntry(entryId) {
     const nextEntries = this.state.entries.filter((entry) => entry.id !== entryId);
 

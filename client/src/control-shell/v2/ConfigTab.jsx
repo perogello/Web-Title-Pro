@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { EditIcon, TrashIcon } from '../icons.jsx';
+import { CopyIcon, EditIcon, TrashIcon } from '../icons.jsx';
 
 const formatVmixInputRef = (entry) => {
   if (!entry) return 'Input ?';
@@ -22,6 +22,7 @@ export default function ConfigTab({
   onUpdateOutput,
   onDeleteOutput,
   onRemoveEntry,
+  onDuplicateEntry,
   onManageEntryAppearance,
   canManageEntryAppearance,
   onSourceColumnMappingChange,
@@ -287,6 +288,16 @@ export default function ConfigTab({
                     )}
                     <button
                       type="button"
+                      className="cfg-icon-btn-v2"
+                      onClick={() => onDuplicateEntry?.(entry)}
+                      disabled={busyAction === `duplicate-entry-${entry.id}`}
+                      title="Duplicate title"
+                      aria-label="Duplicate title"
+                    >
+                      <CopyIcon />
+                    </button>
+                    <button
+                      type="button"
                       className="cfg-icon-btn-v2 is-danger"
                       onClick={() => handleDeleteEntry(entry)}
                       disabled={busyAction === `remove-entry-${entry.id}`}
@@ -307,10 +318,11 @@ export default function ConfigTab({
 
         {selectedEntry && (
           <div className="config-card-v2 mapping-card-v2">
-            <h3>
-              Mapping — {selectedEntry.name}
-              <small>data source column → title field</small>
-            </h3>
+            <h3>Mapping — {selectedEntry.name}</h3>
+            <div className="mapping-row-v2 mapping-row-v2-head" aria-hidden="true">
+              <span>Поле в титре</span>
+              <span>Столбец в источнике данных</span>
+            </div>
             <div className="config-list-v2">
               {(selectedEntryFieldMap || []).map((field) => {
                 const selectedColumnIndex = Number.isInteger(field.sourceColumnIndex) ? field.sourceColumnIndex : -1;

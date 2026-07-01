@@ -68,7 +68,9 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
   await seedSourceLibrary(page);
   await waitForBackend(request);
   await page.goto('/');
-  await page.getByRole('button', { name: /LIVE/i }).click();
+  // Exact match: the top bar now also has a "Live-edit" status chip that a
+  // loose /LIVE/i would ambiguously match alongside the Live tab.
+  await page.getByRole('button', { name: 'Live', exact: true }).click();
 
   await expect(page.getByText('Live data source')).toBeVisible();
   await expect(page.getByRole('button', { name: /Preview/i })).toBeVisible();
@@ -230,14 +232,14 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
   expect(widthAfter).toBeGreaterThan(widthBefore + 40);
 
   await page.getByRole('button', { name: /DATA/i }).click();
-  await page.getByRole('button', { name: /LIVE/i }).click();
+  await page.getByRole('button', { name: 'Live', exact: true }).click();
   await expect(notes).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('web-title-pro.liveNotesOpen'))).toBe('true');
 
   await page.getByRole('button', { name: /Notes/i }).click();
   await expect(notes).toBeHidden();
   await page.getByRole('button', { name: /DATA/i }).click();
-  await page.getByRole('button', { name: /LIVE/i }).click();
+  await page.getByRole('button', { name: 'Live', exact: true }).click();
   await expect(notes).toBeHidden();
   await expect.poll(() => page.evaluate(() => window.localStorage.getItem('web-title-pro.liveNotesOpen'))).toBe('false');
 
@@ -340,4 +342,59 @@ test('Add Title modal uses app-styled mode and upload controls', async ({ page, 
   await expect(dropZone.locator('.add-title-file-button')).toHaveText('Choose files');
   await expect(dropZone.locator('.add-title-file-name')).toHaveText('No file selected');
   await expect(dropZone.locator('.add-title-file-input')).toHaveCSS('opacity', '0');
+});
+
+test('Config: Mapping shows field/column labels and each title row has a duplicate button', async ({ page, request }) => {
+  await seedSourceLibrary(page);
+  await waitForBackend(request);
+  await page.goto('/');
+
+  await page.getByRole('button', { name: /CONFIG/i }).click();
+
+  // Title rows expose a Duplicate action (read-only assertion — no click, so we
+  // don't mutate the backend's title list). Only title rows carry this button.
+  await expect(page.locator('button[title="Duplicate title"]').first()).toBeVisible();
+
+  // Selecting a title reveals the Mapping card with labelled columns so it's
+  // clear what each side of the row maps.
+  const firstTitle = page.locator('button[title="Duplicate title"]').first()
+    .locator('xpath=ancestor::*[contains(@class,"config-item-v2")]');
+  await firstTitle.locator('.main').click();
+  const mappingHead = page.locator('.mapping-row-v2-head');
+  await expect(mappingHead).toBeVisible();
+  await expect(mappingHead.locator('span').nth(0)).toHaveText('Поле в титре');
+  await expect(mappingHead.locator('span').nth(1)).toHaveText('Столбец в источнике данных');
+});
+
+test('Timers: a running countdown visibly ticks down in the UI', async ({ page, request }) => {
+  await seedSourceLibrary(page);
+  await waitForBackend(request);
+
+  // Create a dedicated timer via the API, then clean it up at the end so the
+  // shared dev state is left untouched.
+  const created = await request.post('http://127.0.0.1:4000/api/timers', {
+    data: { name: 'UI Tick Test', mode: 'countdown', durationMs: 90_000, valueMs: 90_000 },
+  });
+  const timer = await created.json();
+
+  try {
+    await page.goto('/');
+    await page.getByRole('button', { name: /TIMERS/i }).click();
+
+    const panel = page.locator('.timer-panel').filter({ hasText: 'UI Tick Test' });
+    await expect(panel).toBeVisible();
+
+    // Start it and confirm the big readout switches to the live (red) value and
+    // the displayed number actually decreases — the bug was that it never moved.
+    await panel.locator('.timer-state-btn-v2').first().click();
+    const readout = panel.locator('.timer-readout-edit');
+    await expect(readout).toHaveClass(/is-readonly/);
+
+    const first = await readout.textContent();
+    await expect
+      .poll(async () => readout.textContent(), { timeout: 5000 })
+      .not.toBe(first);
+  } finally {
+    await request.delete(`http://127.0.0.1:4000/api/timers/${timer.id}`);
+  }
 });

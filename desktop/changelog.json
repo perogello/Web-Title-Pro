@@ -1,0 +1,23 @@
+{
+  "$comment": "Per-version changelog shown in the post-update dialog and on the Updates page. Keep entries short (see release-notes style). Add a new top-level key for each release; the desktop shell picks the entry matching the running app version. ru/en are arrays of bullet strings.",
+  "0.4.10": {
+    "date": "2026-07-01",
+    "title": "Web Title Pro 0.4.10",
+    "ru": [
+      "Таймеры теперь видно идущими прямо в интерфейсе — отсчёт обновляется и во вкладке Timers, и в Live; при запуске таймер окрашивается в заданный в его настройках цвет.",
+      "Во вкладке Timers у таймера появились стрелки ± для часов/минут/секунд, как в Live.",
+      "В Config → Mapping появились подписи колонок «Поле в титре» и «Столбец в источнике данных».",
+      "У каждого титра в списке добавлена кнопка «Дублировать»; такая же кнопка теперь есть у строк в Data.",
+      "В меню проекта пункт «Recent» теперь раскрывается подменю с недавними проектами.",
+      "После обновления приложения показывается это окно со списком изменений."
+    ],
+    "en": [
+      "Timers now visibly tick inside the app — in both the Timers tab and Live; a running timer takes the colour set in its own settings.",
+      "The Timers tab readout now has ± step arrows for hours/minutes/seconds, like Live.",
+      "Config → Mapping now has column labels: title field and data-source column.",
+      "Each title row has a new Duplicate button; data-source rows got the same button.",
+      "The project menu's Recent item now opens a submenu of recent projects.",
+      "After the app updates, this window shows what changed."
+    ]
+  }
+}
