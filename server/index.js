@@ -10,6 +10,7 @@ import { TemplateService } from './templates/template-service.js';
 import { TitleStore } from './state/store.js';
 import { TimerManager } from './timers/timer-manager.js';
 import { MidiService } from './midi/midi-service.js';
+import { dispatchCommand } from './state/command-bus.js';
 import { createApiRouter } from './routes/api.js';
 import { WebSocketHub } from './ws/hub.js';
 import { VmixService } from './vmix/vmix-service.js';
@@ -29,85 +30,6 @@ const installProcessHandlers = () => {
   process.on('unhandledRejection', (reason) => {
     console.error('unhandledRejection:', reason?.stack || reason?.message || reason);
   });
-};
-
-// Dispatch a MIDI-triggered canonical action id (model v2) server-side.
-// Row stepping and an output's "current timer" are resolved from the client's
-// data-source library, so MIDI handles them best-effort: row stepping is a
-// no-op here, and per-output timer commands fall back to a timer explicitly
-// bound to that output (targetOutputId).
-const dispatchMidiAction = (store, action = '') => {
-  const parseId = (str) => {
-    if (str.startsWith('output:')) {
-      const rest = str.slice('output:'.length);
-      const i = rest.lastIndexOf(':');
-      return i === -1 ? null : { kind: 'output', id: rest.slice(0, i), command: rest.slice(i + 1) };
-    }
-    if (str.startsWith('timer:')) {
-      const rest = str.slice('timer:'.length);
-      const i = rest.lastIndexOf(':');
-      return i === -1 ? null : { kind: 'timer', id: rest.slice(0, i), command: rest.slice(i + 1) };
-    }
-    if (str.startsWith('global:')) return { kind: 'global', command: str.slice('global:'.length) };
-    return null;
-  };
-
-  const runTimer = (timerId, command) => {
-    if (!timerId) return;
-    if (command === 'start') store.startTimer(timerId);
-    else if (command === 'stop') store.stopTimer(timerId);
-    else if (command === 'reset') store.resetTimer(timerId);
-  };
-
-  const parsed = parseId(action);
-  if (!parsed) return;
-
-  if (parsed.kind === 'global') {
-    if (parsed.command === 'allOutputsOut') {
-      for (const output of store.getSnapshot().outputs || []) {
-        if (output.program?.visible) store.hideProgram(output.id);
-      }
-    }
-    return;
-  }
-
-  if (parsed.kind === 'timer') {
-    runTimer(parsed.id, parsed.command);
-    return;
-  }
-
-  // output commands
-  const outputId = parsed.id;
-  switch (parsed.command) {
-    case 'titleIn':
-      store.showSelected(null, outputId);
-      break;
-    case 'titleOut':
-      store.hideProgram(outputId);
-      break;
-    case 'previewIn':
-      store.showPreview(null, outputId);
-      break;
-    case 'previewOut':
-      store.hidePreview(outputId);
-      break;
-    case 'timerStart':
-    case 'timerStop':
-    case 'timerReset': {
-      // Current timer = the timer of the row applied to this output; fall back
-      // to a timer explicitly bound to the output (Timers tab targetOutputId).
-      const timerId =
-        store.getOutputCurrentTimerId(outputId) ||
-        store.getTimers().find((t) => t.targetOutputId === outputId)?.id;
-      const command =
-        parsed.command === 'timerStart' ? 'start' : parsed.command === 'timerStop' ? 'stop' : 'reset';
-      runTimer(timerId, command);
-      break;
-    }
-    default:
-      // rowPrev / rowNext — client-only, no server-side equivalent.
-      break;
-  }
 };
 
 export const startServer = async (options = {}) => {
@@ -148,11 +70,12 @@ export const startServer = async (options = {}) => {
     onBindingsChange: (bindings) => store.updateMidiBindings(bindings),
   });
   midiService.on('action', ({ action }) => {
-    try {
-      dispatchMidiAction(store, action);
-    } catch (error) {
+    // MIDI runs the same unified command bus as the REST endpoint and plugins,
+    // so row stepping and per-output timers behave identically. vMix
+    // transitions are driven by the HTTP layer, so no vmixSync hook here.
+    void dispatchCommand(store, action).catch((error) => {
       console.warn(`MIDI action skipped: ${error.message}`);
-    }
+    });
   });
 
   reportProgress('Preparing update service...', 56);

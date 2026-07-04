@@ -1,8 +1,32 @@
 # Plugin System — Readiness & Roadmap
 
-Status: **planning** (no plugin code yet). This document is the agreed direction
-for turning Web Title Pro into a host that third-party (or in-house) plugins can
-extend, without destabilising live playout.
+Status: **in progress.** Phase 1 (data → server) and the unified command bus
+(start of Phase 2) are implemented and tested; the plugin host itself is not
+built yet. This document is the agreed direction for turning Web Title Pro into
+a host that third-party (or in-house) plugins can extend, without destabilising
+live playout.
+
+## Progress
+
+- **[done] Phase 1 — data on the server.** The data-source library lives in the
+  store (normalised, persisted, in the snapshot) with `GET/PUT /api/sources`.
+  The client hydrates from the server, migrates legacy `localStorage` once, and
+  mirrors edits. Each output records its applied data row server-side
+  (`POST /api/outputs/:id/applied-row`); the server resolves an output's current
+  row and current timer.
+- **[done] Phase 2 (start) — unified command bus.** `POST /api/command
+  { actionId }` (`server/state/command-bus.js`) turns one canonical action id
+  into one store operation. Server-side row stepping (`store.stepOutputRow` +
+  ported `field-mapping.js`) means **MIDI / Companion / plugins can now step
+  data rows and drive per-output timers** — previously keyboard-only. MIDI runs
+  through the same bus.
+  - Known trade-off: the keyboard path still uses the richer client
+    `applySourceRow` (synced-output fan-out + reminders); the server bus applies
+    to a single output. Full unification is the rest of Phase 2.
+  - Server-side row stepping needs an initial applied row for source context
+    (set by applying a row in the UI first).
+- **[todo]** finish Phase 2 (move the rest of dispatch server-side / unify the
+  keyboard path), then Phases 3–5 below.
 
 "Server" throughout means the **in-process local backend** (Express on
 `localhost:4000`, bundled inside the portable `.exe`). Nothing goes to the cloud;

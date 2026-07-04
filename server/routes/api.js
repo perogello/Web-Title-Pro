@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import express, { Router } from 'express';
 import multer from 'multer';
 import { fetchRemoteSourceData } from '../remote-sources/index.js';
+import { dispatchCommand } from '../state/command-bus.js';
 import {
   createProjectBundleStream,
   getBundleFilename,
@@ -553,6 +554,19 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     try {
       store.hidePreview(request.body.outputId);
       response.json({ ok: true });
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  // Unified command bus: one canonical action id -> one command. Used by
+  // plugins, Companion and the shortcut layer. Body: { actionId }.
+  router.post('/command', async (request, response) => {
+    try {
+      const result = await dispatchCommand(store, request.body?.actionId, {
+        vmixSync: syncVmixEntryIfNeeded,
+      });
+      response.json(result);
     } catch (error) {
       sendError(response, error);
     }

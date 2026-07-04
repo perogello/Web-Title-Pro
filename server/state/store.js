@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
+import { applyRowToFields, buildEffectiveEntryFieldMap } from './field-mapping.js';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -979,6 +980,74 @@ export class TitleStore extends EventEmitter {
     if (!source) return null;
     const perOutput = source.linkedTimerByOutput?.[output.id];
     return normalizeSourceLinkedTimerId(perOutput) || normalizeSourceLinkedTimerId(source.linkedTimerId);
+  }
+
+  // Apply a specific data-source row to one output: map the row's values onto
+  // the output's selected title using the same pure mapping the control panel
+  // uses, then record it as the applied row and push it to air if the output
+  // is live. Single-output (no synced-output fan-out); used by server-side row
+  // stepping for MIDI / Companion / plugins.
+  applyRowToOutput(outputRef, sourceId, rowId) {
+    const output = this.getOutputByRef(outputRef);
+    if (!output) {
+      throw new Error('Output not found.');
+    }
+    const entry = this.getEntry(output.selectedEntryId);
+    if (!entry) {
+      throw new Error('No title selected on this output.');
+    }
+    const source = (this.state.sources || []).find((item) => item.id === sourceId);
+    const row = source?.rows?.find((item) => item.id === rowId);
+    if (!source || !row) {
+      throw new Error('Data row not found.');
+    }
+
+    const { templateFields } = this.getEntryPresentation(entry);
+    if (!templateFields.length) {
+      throw new Error('Selected title has no fields to fill.');
+    }
+    const fieldMap = buildEffectiveEntryFieldMap(entry, templateFields);
+    const nextFields = applyRowToFields(templateFields, row.values, entry.fields || {}, fieldMap);
+
+    const wasVisible = Boolean(output.program?.visible);
+    // updateEntry refreshes the entry (and preview / non-live program), but a
+    // live program is intentionally frozen — push it explicitly, mirroring the
+    // control panel's apply flow. updateEntry may rebuild the outputs array, so
+    // re-fetch the output before writing appliedRow.
+    this.updateEntry(entry.id, { fields: nextFields });
+    if (wasVisible && entry.entryType !== 'vmix') {
+      this.updateProgram(entry.id, output.id);
+    }
+    const liveOutput = this.getOutputByRef(output.id);
+    if (liveOutput) {
+      liveOutput.appliedRow = { sourceId, rowId };
+    }
+    this.touch();
+    return this.getSnapshot();
+  }
+
+  // Step the applied data row up/down for an output and apply the result.
+  // direction: 'next' (down / further) or 'previous' (up / higher).
+  stepOutputRow(outputRef, direction = 'next') {
+    const output = this.getOutputByRef(outputRef);
+    if (!output) {
+      throw new Error('Output not found.');
+    }
+    const applied = output.appliedRow;
+    const source =
+      (applied?.sourceId && (this.state.sources || []).find((item) => item.id === applied.sourceId)) || null;
+    if (!source || !source.rows.length) {
+      throw new Error('No data source is applied to this output.');
+    }
+    const rows = source.rows;
+    const currentIndex = applied?.rowId ? rows.findIndex((row) => row.id === applied.rowId) : -1;
+    const nextIndex =
+      currentIndex === -1
+        ? direction === 'next'
+          ? 0
+          : rows.length - 1
+        : Math.min(rows.length - 1, Math.max(0, currentIndex + (direction === 'next' ? 1 : -1)));
+    return this.applyRowToOutput(output.id, source.id, rows[nextIndex].id);
   }
 
   selectOutput(outputRef) {
