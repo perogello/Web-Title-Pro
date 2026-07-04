@@ -94,10 +94,14 @@ const dispatchMidiAction = (store, action = '') => {
     case 'timerStart':
     case 'timerStop':
     case 'timerReset': {
-      const boundTimer = store.getTimers().find((t) => t.targetOutputId === outputId);
+      // Current timer = the timer of the row applied to this output; fall back
+      // to a timer explicitly bound to the output (Timers tab targetOutputId).
+      const timerId =
+        store.getOutputCurrentTimerId(outputId) ||
+        store.getTimers().find((t) => t.targetOutputId === outputId)?.id;
       const command =
         parsed.command === 'timerStart' ? 'start' : parsed.command === 'timerStop' ? 'stop' : 'reset';
-      runTimer(boundTimer?.id, command);
+      runTimer(timerId, command);
       break;
     }
     default:

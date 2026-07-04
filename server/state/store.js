@@ -184,6 +184,78 @@ const normalizeGlobalShortcuts = (shortcuts = {}) => ({
   globalActions: normalizeBooleanMap(shortcuts.globalActions),
 });
 
+// --- Data-source library (server-owned, model v2) --------------------------
+// The data-source library (rows for lower thirds) used to live in one browser
+// tab's localStorage, so the server could not see or drive it. It now lives
+// here in state so the snapshot exposes it to every client, MIDI, Companion
+// and future plugins. This mirrors the client normaliser in
+// client/src/source-library.js, but uses nanoid and no browser APIs.
+const normalizeSourceLinkedTimerId = (value) => {
+  if (value === undefined || value === null) return null;
+  const normalized = String(value).trim();
+  return normalized || null;
+};
+
+const normalizeSourceLinkedTimerMap = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([key, timerId]) => [String(key).trim(), normalizeSourceLinkedTimerId(timerId)])
+      .filter(([key, timerId]) => key && timerId),
+  );
+};
+
+const normalizeSourceRemoteConfig = (remote) => {
+  if (!remote || typeof remote !== 'object' || Array.isArray(remote)) return null;
+  const refreshIntervalSec = Number.parseInt(remote.refreshIntervalSec ?? '', 10);
+  return {
+    type: typeof remote.type === 'string' ? remote.type : 'google-sheets',
+    url: typeof remote.url === 'string' ? remote.url.trim() : '',
+    sheetName: typeof remote.sheetName === 'string' ? remote.sheetName : '',
+    sheetNames: Array.isArray(remote.sheetNames)
+      ? remote.sheetNames.map((value) => String(value || '').trim()).filter(Boolean)
+      : [],
+    autoRefresh: Boolean(remote.autoRefresh),
+    refreshIntervalSec:
+      Number.isFinite(refreshIntervalSec) && refreshIntervalSec > 0 ? refreshIntervalSec : 30,
+    lastFetchedAt: remote.lastFetchedAt || null,
+    lastError: remote.lastError || null,
+    lastResolvedUrl: typeof remote.lastResolvedUrl === 'string' ? remote.lastResolvedUrl.trim() : '',
+  };
+};
+
+const normalizeSourceRow = (row = {}, index = 0) => ({
+  id: row.id || `${nanoid(10)}-${index}`,
+  index: Number(row.index) || index + 1,
+  values: Array.isArray(row.values) ? row.values.map((value) => (value == null ? '' : String(value))) : [],
+  label:
+    row.label ||
+    (Array.isArray(row.values) ? row.values : []).filter(Boolean).slice(0, 2).join(' | ') ||
+    `Row ${index + 1}`,
+  timer: {
+    baseMs: Number(row.timer?.baseMs ?? 0),
+    format: row.timer?.format || 'mm:ss',
+  },
+});
+
+const normalizeSourceColumn = (column = {}, index = 0) => ({
+  id: column.id || `col-${index}`,
+  label: typeof column.label === 'string' ? column.label : `Column ${index + 1}`,
+});
+
+const normalizeSources = (library = []) =>
+  (Array.isArray(library) ? library : []).map((source, sourceIndex) => ({
+    id: source.id || nanoid(10),
+    name: typeof source.name === 'string' && source.name.trim() ? source.name : `Source ${sourceIndex + 1}`,
+    delimiter: typeof source.delimiter === 'string' ? source.delimiter : ',',
+    createdAt: source.createdAt || new Date().toISOString(),
+    linkedTimerId: normalizeSourceLinkedTimerId(source.linkedTimerId),
+    linkedTimerByOutput: normalizeSourceLinkedTimerMap(source.linkedTimerByOutput),
+    remote: normalizeSourceRemoteConfig(source.remote),
+    columns: (source.columns || []).map((column, index) => normalizeSourceColumn(column, index)),
+    rows: (source.rows || []).map((row, index) => normalizeSourceRow(row, index)),
+  }));
+
 const slugifyOutputKey = (value = '') =>
   value
     .toLowerCase()
@@ -193,7 +265,17 @@ const slugifyOutputKey = (value = '') =>
 
 const buildSyncGroupId = (outputId) => `sync-${outputId}`;
 
-const createOutput = ({ id, name, key, selectedEntryId = null, program, previewProgram, syncGroupId } = {}, index = 1) => {
+const normalizeAppliedRow = (appliedRow) => {
+  if (!appliedRow || typeof appliedRow !== 'object') return null;
+  const sourceId = typeof appliedRow.sourceId === 'string' ? appliedRow.sourceId : '';
+  const rowId = typeof appliedRow.rowId === 'string' ? appliedRow.rowId : '';
+  return sourceId && rowId ? { sourceId, rowId } : null;
+};
+
+const createOutput = (
+  { id, name, key, selectedEntryId = null, program, previewProgram, syncGroupId, appliedRow } = {},
+  index = 1,
+) => {
   const fallbackName = `OUTPUT ${index}`;
   const fallbackKey = index === 1 ? 'main' : `output-${index}`;
   const outputId = id || nanoid(10);
@@ -204,6 +286,10 @@ const createOutput = ({ id, name, key, selectedEntryId = null, program, previewP
     key: slugifyOutputKey(key || name || fallbackKey) || fallbackKey,
     syncGroupId: syncGroupId || buildSyncGroupId(outputId),
     selectedEntryId,
+    // Which data-source row is currently applied to this output. Server-owned
+    // so MIDI / Companion / plugins can resolve "current row" and, via the
+    // source's linked timer, "current timer" for this output.
+    appliedRow: normalizeAppliedRow(appliedRow),
     program: {
       ...createDefaultProgram(),
       ...(program || {}),
@@ -309,6 +395,7 @@ const createDefaultState = () => ({
   },
   program: createDefaultProgram(),
   entries: [],
+  sources: [],
   timers: [
     {
       id: 'main',
@@ -368,6 +455,7 @@ const buildProjectState = (incoming = {}) => {
     },
     timers: incoming?.timers?.length ? incoming.timers.map((timer) => normalizeTimer(timer)) : baseState.timers,
     entries: Array.isArray(incoming?.entries) ? incoming.entries : [],
+    sources: normalizeSources(incoming?.sources),
   };
 };
 
@@ -850,7 +938,47 @@ export class TitleStore extends EventEmitter {
       program: this.getProgram(),
       previewProgram: this.getPreviewProgram(),
       timers: this.getTimers(),
+      sources: this.getSources(),
     };
+  }
+
+  getSources() {
+    return deepClone(this.state.sources || []);
+  }
+
+  // Replace the whole data-source library. The control panel is the editor and
+  // pushes the full library (debounced); the server stores + broadcasts it so
+  // every other client/plugin/MIDI sees the same data.
+  replaceSources(library = []) {
+    this.state.sources = normalizeSources(library);
+    this.touch();
+    return this.getSources();
+  }
+
+  // Record which data-source row is applied to an output. Set by the control
+  // panel whenever it applies a row, so the server can resolve "current row"
+  // and "current timer" for MIDI / Companion / plugins.
+  setOutputAppliedRow(outputRef, appliedRow) {
+    const output = this.getOutputByRef(outputRef);
+    if (!output) {
+      throw new Error('Output not found.');
+    }
+    output.appliedRow = normalizeAppliedRow(appliedRow);
+    this.touch();
+    return deepClone(output.appliedRow);
+  }
+
+  // The timer currently driving an output = the timer linked to the output's
+  // applied data row (per-output link first, then the source default). Sources
+  // are server-owned now, so this resolves without the browser.
+  getOutputCurrentTimerId(outputRef) {
+    const output = this.getOutputByRef(outputRef);
+    const applied = output?.appliedRow;
+    if (!applied?.sourceId) return null;
+    const source = (this.state.sources || []).find((item) => item.id === applied.sourceId);
+    if (!source) return null;
+    const perOutput = source.linkedTimerByOutput?.[output.id];
+    return normalizeSourceLinkedTimerId(perOutput) || normalizeSourceLinkedTimerId(source.linkedTimerId);
   }
 
   selectOutput(outputRef) {

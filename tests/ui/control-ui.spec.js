@@ -488,3 +488,48 @@ test('Preview overlay: embed frames, PVW bus, pop-out and Live-tab gating', asyn
     });
   }
 });
+
+test('Data sources migrate from localStorage to the server on load', async ({ page, request }) => {
+  // Clear any server-side sources first so we prove the migration path.
+  await waitForBackend(request);
+  await request.put('http://127.0.0.1:4000/api/sources', { data: { items: [] } });
+
+  // Seed a legacy browser-only source, then load the app.
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      'web-title-pro-source-library',
+      JSON.stringify([
+        {
+          id: 'legacy-src',
+          name: 'Legacy Roster',
+          delimiter: ',',
+          linkedTimerId: null,
+          linkedTimerByOutput: {},
+          remote: null,
+          columns: [{ id: 'col-0', label: 'Name' }],
+          rows: [
+            { id: 'lr1', index: 1, values: ['Migrated Row'], label: 'Migrated Row', timer: { baseMs: 0, format: 'mm:ss' } },
+          ],
+        },
+      ]),
+    );
+  });
+
+  await page.goto('/');
+
+  // The client should push the legacy library to the server on mount.
+  await expect
+    .poll(async () => {
+      const sources = await (await request.get('http://127.0.0.1:4000/api/sources')).json();
+      return sources.map((s) => s.name);
+    }, { timeout: 5000 })
+    .toContain('Legacy Roster');
+
+  // And the same sources are now in the live snapshot for any consumer.
+  const state = await (await request.get('http://127.0.0.1:4000/api/state')).json();
+  const migrated = state.sources.find((s) => s.name === 'Legacy Roster');
+  expect(migrated?.rows?.[0]?.values?.[0]).toBe('Migrated Row');
+
+  // Clean up shared dev state.
+  await request.put('http://127.0.0.1:4000/api/sources', { data: { items: [] } });
+});

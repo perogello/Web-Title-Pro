@@ -345,3 +345,118 @@ test('shortcuts v2: legacy flat bindings load without crashing and reset to empt
     await fs.remove(dir);
   }
 });
+
+test('sources: replaceSources normalizes rows/columns and appears in snapshot', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    const result = store.replaceSources([
+      {
+        name: 'Guests',
+        delimiter: '|',
+        columns: [{ label: 'Name' }, { label: 'Role' }],
+        linkedTimerByOutput: { 'output-main': 'main', '': 'ignored' },
+        rows: [
+          { values: ['Alice', 'Host'] },
+          { id: 'r2', index: 2, values: ['Bob', 'Guest'], timer: { baseMs: 5000, format: 'mm:ss' } },
+        ],
+      },
+    ]);
+    // Returned + snapshot copies are normalized and consistent.
+    const snap = store.getSnapshot();
+    assert.equal(snap.sources.length, 1);
+    const src = snap.sources[0];
+    assert.ok(src.id, 'source gets an id');
+    assert.equal(src.name, 'Guests');
+    assert.equal(src.columns.length, 2);
+    assert.equal(src.rows.length, 2);
+    // Auto id + auto label for the first row.
+    assert.ok(src.rows[0].id);
+    assert.equal(src.rows[0].label, 'Alice | Host');
+    assert.equal(src.rows[0].index, 1);
+    // Explicit row fields preserved; timer normalized.
+    assert.equal(src.rows[1].id, 'r2');
+    assert.equal(src.rows[1].timer.baseMs, 5000);
+    // Empty-key linked-timer entries are dropped.
+    assert.deepEqual(src.linkedTimerByOutput, { 'output-main': 'main' });
+    assert.equal(result.length, 1);
+  } finally {
+    await fs.remove(dir);
+  }
+});
+
+test('sources: survive a store reload (persisted in state.json)', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-src-'));
+  const stateFile = path.join(dir, 'state.json');
+  const templateService = createStubTemplateService();
+  templateService.getTemplate = (id) =>
+    templateService.getTemplates().find((tpl) => tpl.id === id) || null;
+
+  try {
+    const store1 = new TitleStore({ stateFile, templateService });
+    await store1.init();
+    store1.replaceSources([{ name: 'S1', columns: [{ label: 'A' }], rows: [{ values: ['x'] }] }]);
+    await store1.persist();
+    await store1.close?.();
+
+    const store2 = new TitleStore({ stateFile, templateService });
+    await store2.init();
+    const sources = store2.getSources();
+    assert.equal(sources.length, 1);
+    assert.equal(sources[0].name, 'S1');
+    assert.equal(sources[0].rows[0].values[0], 'x');
+    await store2.close?.();
+  } finally {
+    await fs.remove(dir);
+  }
+});
+
+test('appliedRow: setOutputAppliedRow records the row and getOutputCurrentTimerId resolves via source', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    const outputId = store.getSnapshot().outputs[0].id;
+    store.replaceSources([
+      {
+        id: 'src-1',
+        name: 'Guests',
+        columns: [{ label: 'Name' }],
+        linkedTimerId: 'main',
+        linkedTimerByOutput: { [outputId]: 'per-out-timer' },
+        rows: [{ id: 'row-a', values: ['Alice'] }],
+      },
+    ]);
+
+    // No applied row yet -> no current timer.
+    assert.equal(store.getOutputCurrentTimerId(outputId), null);
+
+    store.setOutputAppliedRow(outputId, { sourceId: 'src-1', rowId: 'row-a' });
+
+    // Snapshot carries the applied row.
+    const out = store.getSnapshot().outputs.find((o) => o.id === outputId);
+    assert.deepEqual(out.appliedRow, { sourceId: 'src-1', rowId: 'row-a' });
+
+    // Per-output link wins over the source default.
+    assert.equal(store.getOutputCurrentTimerId(outputId), 'per-out-timer');
+  } finally {
+    await fs.remove(dir);
+  }
+});
+
+test('appliedRow: falls back to source default link, and rejects malformed input', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    const outputId = store.getSnapshot().outputs[0].id;
+    store.replaceSources([
+      { id: 'src-2', name: 'S', columns: [{ label: 'N' }], linkedTimerId: 'default-timer', rows: [{ id: 'r1', values: ['x'] }] },
+    ]);
+    store.setOutputAppliedRow(outputId, { sourceId: 'src-2', rowId: 'r1' });
+    assert.equal(store.getOutputCurrentTimerId(outputId), 'default-timer');
+
+    // Malformed applied row clears it.
+    store.setOutputAppliedRow(outputId, { sourceId: 'src-2' });
+    const out = store.getSnapshot().outputs.find((o) => o.id === outputId);
+    assert.equal(out.appliedRow, null);
+    assert.equal(store.getOutputCurrentTimerId(outputId), null);
+  } finally {
+    await fs.remove(dir);
+  }
+});

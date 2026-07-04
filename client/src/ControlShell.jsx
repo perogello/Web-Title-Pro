@@ -129,6 +129,9 @@ function ControlShell() {
   const [busyAction, setBusyAction] = useState('');
   const [localSelectedOutputId, setLocalSelectedOutputId] = useState(null);
   const [sourceLibrary, setSourceLibrary] = useState(() => loadSourceLibrary());
+  const sourcesHydratedRef = useRef(false);
+  const sourcesSyncTimerRef = useRef(null);
+  const appliedRowSentRef = useRef({});
   const [selectedSourceId, setSelectedSourceId] = useState('');
   const [sourcePayload, setSourcePayload] = useState('');
   const [sourceName, setSourceName] = useState('');
@@ -461,13 +464,64 @@ function ControlShell() {
     [reminderLinkedTimerId, timers],
   );
 
+  // One-time hydration + migration between the browser and the server. The
+  // data-source library is now server-owned (it rides in the snapshot) so
+  // MIDI, Companion, a second panel and future plugins can all see it. On the
+  // first snapshot: if the browser has no sources but the server does, adopt
+  // the server's; otherwise push the local library up (migrating legacy
+  // localStorage data). The control panel stays the editor after that.
+  useEffect(() => {
+    if (sourcesHydratedRef.current || !snapshot) {
+      return;
+    }
+    sourcesHydratedRef.current = true;
+    const serverSources = snapshot.sources || [];
+    if (!sourceLibrary.length && serverSources.length) {
+      setSourceLibrary(serverSources);
+    } else if (sourceLibrary.length) {
+      void api('/api/sources', { method: 'PUT', body: { items: sourceLibrary } }).catch(() => {});
+    }
+  }, [snapshot, sourceLibrary]);
+
+  // Mirror the library to the server (debounced) so it stays in the snapshot,
+  // plus a localStorage backup. The server is the runtime store now;
+  // localStorage is only a fallback. We hold off pushing until the initial
+  // hydration decision above has run, to avoid clobbering server data on load.
   useEffect(() => {
     saveSourceLibrary(sourceLibrary);
+    if (!sourcesHydratedRef.current) {
+      return undefined;
+    }
+    clearTimeout(sourcesSyncTimerRef.current);
+    sourcesSyncTimerRef.current = setTimeout(() => {
+      void api('/api/sources', { method: 'PUT', body: { items: sourceLibrary } }).catch(() => {});
+    }, 250);
+    return () => clearTimeout(sourcesSyncTimerRef.current);
   }, [sourceLibrary]);
 
   useEffect(() => {
     saveLiveSourceColumnWidths(liveSourceColumnWidths);
   }, [liveSourceColumnWidths]);
+
+  // Mirror "which row is applied to each output" to the server so MIDI,
+  // Companion and plugins can resolve the output's current row and current
+  // timer. Only the changed outputs are pushed (diffed against a ref).
+  useEffect(() => {
+    if (!sourcesHydratedRef.current) {
+      return;
+    }
+    for (const [outputId, binding] of Object.entries(activeSourceRows || {})) {
+      const signature = binding?.sourceId && binding?.rowId ? `${binding.sourceId}:${binding.rowId}` : '';
+      if (appliedRowSentRef.current[outputId] === signature) {
+        continue;
+      }
+      appliedRowSentRef.current[outputId] = signature;
+      void api(`/api/outputs/${outputId}/applied-row`, {
+        method: 'POST',
+        body: signature ? { sourceId: binding.sourceId, rowId: binding.rowId } : null,
+      }).catch(() => {});
+    }
+  }, [activeSourceRows]);
 
   useEffect(() => {
     if (!sourceLibrary.length) {

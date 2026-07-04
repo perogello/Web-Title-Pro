@@ -191,6 +191,33 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     response.json(store.getSnapshot());
   });
 
+  router.get('/sources', (_request, response) => {
+    response.json(store.getSources());
+  });
+
+  // Replace the whole data-source library. The control panel pushes the full
+  // (debounced) library here; the server normalises, persists and broadcasts.
+  router.put('/sources', (request, response) => {
+    try {
+      const items = Array.isArray(request.body?.items) ? request.body.items : request.body;
+      response.json(store.replaceSources(items));
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  // The control panel reports which data-source row it applied to an output,
+  // so the server (and MIDI / Companion / plugins) can resolve the output's
+  // current row and current timer. Body: { sourceId, rowId } or null to clear.
+  router.post('/outputs/:outputId/applied-row', (request, response) => {
+    try {
+      const applied = store.setOutputAppliedRow(request.params.outputId, request.body || null);
+      response.json({ ok: true, appliedRow: applied });
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
   router.get('/project/export', (_request, response) => {
     response.json({
       version: 1,
