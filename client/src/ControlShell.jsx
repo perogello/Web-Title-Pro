@@ -30,6 +30,12 @@ import SegmentedTimerInput from './control-shell/v2/SegmentedTimerInput.jsx';
 import { useResizableSidebar } from './control-shell/v2/useResizableSidebar.js';
 import { useGlobalShortcuts } from './control-shell/use-global-shortcuts.js';
 import {
+  buildBindingPatch,
+  findActionForShortcut,
+  mergeBindingPatches,
+  parseActionId,
+} from './control-shell/shortcut-model.js';
+import {
   LINKED_TIMER_OVERRIDE_MS,
   TIMER_MAX_MS,
   TIMER_FORMATS,
@@ -81,6 +87,8 @@ function ControlShell() {
   const [activeTab, setActiveTab] = useState('rundown');
   const [settingsTab, setSettingsTab] = useState('outputs');
   const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
+  const [globalShortcutConflicts, setGlobalShortcutConflicts] = useState([]);
+  const globalConflictSignatureRef = useRef('');
   const [draftFields, setDraftFields] = useState({});
   const [showAddModal, setShowAddModal] = useState(false);
   const [templateValidationReport, setTemplateValidationReport] = useState(null);
@@ -379,47 +387,33 @@ function ControlShell() {
 
     return selectedSource?.columns || [];
   }, [selectedEntryFields, selectedSource]);
+  // Companion (Bitfocus) URLs, keyed by the same canonical action ids the
+  // shortcut model uses. Only commands with a stable HTTP endpoint are exposed;
+  // client-resolved commands (row stepping, an output's "current timer", the
+  // global panic) have no single URL and are intentionally omitted.
   const bitfocusActions = useMemo(() => {
-    const entries = snapshot?.entries || [];
     const allTimers = snapshot?.timers || [];
-    return [
-      { section: 'Commands', id: 'show', label: 'TITLE IN', url: `${BACKEND_ORIGIN}/api/commands/show`, payload: { entryId: selectedOutput?.selectedEntryId || undefined, outputId: selectedOutput?.id || undefined } },
-      { section: 'Commands', id: 'live', label: 'LIVE', url: `${BACKEND_ORIGIN}/api/commands/live`, payload: { entryId: selectedOutput?.selectedEntryId || undefined, outputId: selectedOutput?.id || undefined } },
-      { section: 'Commands', id: 'hide', label: 'TITLE OUT', url: `${BACKEND_ORIGIN}/api/commands/hide`, payload: { outputId: selectedOutput?.id || undefined } },
-      { section: 'Commands', id: 'previous-title', label: 'PREVIOUS TITLE', url: `${BACKEND_ORIGIN}/api/commands/previous-title`, payload: { outputId: selectedOutput?.id || undefined } },
-      { section: 'Commands', id: 'next-title', label: 'NEXT TITLE', url: `${BACKEND_ORIGIN}/api/commands/next-title`, payload: { outputId: selectedOutput?.id || undefined } },
-      ...outputs.map((output) => ({
-        section: 'Outputs',
-        id: `select-output-${output.id}`,
-        label: output.name,
-        url: `${BACKEND_ORIGIN}/api/outputs/${output.id}/select`,
-        payload: {},
-      })),
-      ...entries.map((entry) => ({
-        section: 'Title entries',
-        id: `select-entry-${entry.id}`,
-        label: entry.name || entry.templateName || entry.id,
-        url: `${BACKEND_ORIGIN}/api/entries/${entry.id}/select`,
-        payload: { outputId: selectedOutput?.id || undefined },
-      })),
-      ...allTimers.flatMap((timer) => [
-        {
-          section: 'Timers',
-          id: `timer-toggle-${timer.id}`,
-          label: `${timer.name || timer.id} — Start / Stop`,
-          url: `${BACKEND_ORIGIN}/api/timers/${timer.id}/toggle`,
-          payload: {},
-        },
-        {
-          section: 'Timers',
-          id: `timer-reset-${timer.id}`,
-          label: `${timer.name || timer.id} — Reset`,
-          url: `${BACKEND_ORIGIN}/api/timers/${timer.id}/reset`,
-          payload: {},
-        },
-      ]),
-    ];
-  }, [outputs, snapshot?.entries, snapshot?.timers, selectedOutput?.id, selectedOutput?.selectedEntryId]);
+    const result = [];
+    for (const output of outputs) {
+      const oid = output.id;
+      const entryId = output.selectedEntryId || undefined;
+      result.push(
+        { section: output.name, action: `output:${oid}:titleIn`, label: `${output.name} — Title IN`, url: `${BACKEND_ORIGIN}/api/program/show`, payload: { entryId, outputId: oid } },
+        { section: output.name, action: `output:${oid}:titleOut`, label: `${output.name} — Title OUT`, url: `${BACKEND_ORIGIN}/api/program/hide`, payload: { outputId: oid } },
+        { section: output.name, action: `output:${oid}:previewIn`, label: `${output.name} — PVW IN`, url: `${BACKEND_ORIGIN}/api/preview/show`, payload: { entryId, outputId: oid } },
+        { section: output.name, action: `output:${oid}:previewOut`, label: `${output.name} — PVW OUT`, url: `${BACKEND_ORIGIN}/api/preview/hide`, payload: { outputId: oid } },
+      );
+    }
+    for (const timer of allTimers) {
+      const tid = timer.id;
+      result.push(
+        { section: `Timer: ${timer.name || tid}`, action: `timer:${tid}:start`, label: `${timer.name || tid} — Start`, url: `${BACKEND_ORIGIN}/api/timers/${tid}/start`, payload: {} },
+        { section: `Timer: ${timer.name || tid}`, action: `timer:${tid}:stop`, label: `${timer.name || tid} — Stop`, url: `${BACKEND_ORIGIN}/api/timers/${tid}/stop`, payload: {} },
+        { section: `Timer: ${timer.name || tid}`, action: `timer:${tid}:reset`, label: `${timer.name || tid} — Reset`, url: `${BACKEND_ORIGIN}/api/timers/${tid}/reset`, payload: {} },
+      );
+    }
+    return result;
+  }, [outputs, snapshot?.timers]);
   const outputRenderTargets = useMemo(() => {
     if (!outputInfo) {
       return [];
@@ -431,15 +425,18 @@ function ControlShell() {
       key: output.key,
       renderUrl: `${outputInfo.primaryRenderUrl}?output=${encodeURIComponent(output.key)}`,
       previewUrl: `${outputInfo.primaryPreviewUrl}&output=${encodeURIComponent(output.key)}`,
+      // Embed variants scale the 1920x1080 stage to fit the host box; used by
+      // the in-app frames (PreviewOverlay) and the pop-out live window. The
+      // plain render/preview URLs above stay unchanged for vMix/OBS sources.
+      liveEmbedUrl: `${outputInfo.primaryRenderUrl}?output=${encodeURIComponent(output.key)}&embed=1`,
+      previewEmbedUrl: `${outputInfo.primaryPreviewUrl}&output=${encodeURIComponent(output.key)}&embed=1`,
     }));
   }, [outputInfo, outputs]);
   const shortcutBindings = snapshot?.integrations?.shortcuts || {
-    show: '',
-    live: '',
-    hide: '',
-    nextTitle: '',
-    previousTitle: '',
-    outputSelectById: {},
+    outputs: {},
+    timers: {},
+    global: {},
+    globalActions: {},
   };
   const activeSourceBinding = selectedOutput ? activeSourceRows[selectedOutput.id] || null : null;
   const activeTimerBinding = selectedOutput ? activeTimerRows[selectedOutput.id] || null : null;
@@ -2731,80 +2728,210 @@ function ControlShell() {
     }
   };
 
-  const saveGlobalShortcut = async (action, value) => {
+  const saveGlobalShortcut = async (actionId, value) => {
     try {
-      const prefixMap = [
-        ['selectOutput:', 'outputSelectById'],
-        ['selectEntry:', 'entrySelectById'],
-        ['timerToggle:', 'timerToggleById'],
-        ['timerReset:', 'timerResetById'],
-      ];
-      const matchedPrefix = prefixMap.find(([prefix]) => action.startsWith(prefix));
-      const body = matchedPrefix
-        ? (() => {
-            const [prefix, field] = matchedPrefix;
-            return {
-              [field]: {
-                ...(shortcutBindings?.[field] || {}),
-                [action.slice(prefix.length)]: value,
-              },
-            };
-          })()
-        : {
-            [action]: value,
-          };
+      // A combination can only trigger one command — the dispatcher takes the
+      // first match otherwise. If it's already bound elsewhere, move it: clear
+      // the previous owner and set the new one in a single PUT.
+      const previousOwner = value ? findActionForShortcut(shortcutBindings || {}, value) : null;
+      let body = buildBindingPatch(actionId, value);
+      if (previousOwner && previousOwner !== actionId) {
+        body = mergeBindingPatches(buildBindingPatch(previousOwner, ''), body);
+      }
 
-      await api('/api/shortcuts/navigation', {
-        method: 'PUT',
-        body,
-      });
-      pushFeedback(value ? `Shortcut saved for ${action}` : `Shortcut cleared for ${action}`);
+      await api('/api/shortcuts/navigation', { method: 'PUT', body });
+
+      if (previousOwner && previousOwner !== actionId) {
+        pushFeedback(`Клавиша ${value} перенесена на новую команду`);
+      } else {
+        pushFeedback(value ? 'Клавиша назначена' : 'Клавиша очищена');
+      }
     } catch (requestError) {
       pushFeedback(requestError.message);
     }
   };
 
-  const triggerGlobalShortcut = async (action) => {
+  // The "current timer" of an output is the timer of the data row applied to
+  // that output (what the operator sees ticking in the Live row). Falls back
+  // to resolving it from the applied source when the binding isn't cached yet.
+  const resolveOutputCurrentTimerId = (outputId) => {
+    if (!outputId) return null;
+    const direct = activeTimerRows[outputId]?.timerId;
+    if (direct) return normalizeLinkedTimerId(direct);
+    const rowBinding = activeSourceRows[outputId];
+    if (rowBinding?.sourceId) {
+      const source = sourceLibrary.find((item) => item.id === rowBinding.sourceId);
+      const resolved = getSourceLinkedTimerId(source, outputId);
+      if (resolved) return resolved;
+    }
+    return null;
+  };
+
+  // Apply a specific data row to a single explicit output (used by the per-
+  // output Row ↑/↓ shortcuts). For the selected output we reuse the full
+  // applySourceRow path; for others we do a focused field apply so the command
+  // works on any output regardless of the current selection.
+  const applyRowToOutput = async (outputId, source, row) => {
+    if (!outputId || !source || !row) return;
+    if (outputId === selectedOutput?.id) {
+      await applySourceRow(row);
+      return;
+    }
+    const output = outputs.find((item) => item.id === outputId);
+    const entry = snapshot?.entries?.find((item) => item.id === output?.selectedEntryId) || null;
+    const fields = entry?.templateFields || [];
+    if (!output || !entry || !fields.length) return;
+
+    const fieldMap = buildEffectiveEntryFieldMap(entry, fields);
+    const nextFields = applyRowToFields(fields, row.values, entry.fields || {}, fieldMap);
+    await api(`/api/entries/${entry.id}`, { method: 'PUT', body: { fields: nextFields } });
+    if (output.program?.visible && entry.entryType !== 'vmix') {
+      await api('/api/program/update', { method: 'POST', body: { entryId: entry.id, outputId } });
+    }
+    setActiveSourceRows((current) => ({
+      ...current,
+      [outputId]: { sourceId: source.id, rowId: row.id },
+    }));
+  };
+
+  // Step the applied data row up/down for an output and apply the result.
+  const stepOutputRow = async (outputId, direction) => {
+    const rowBinding = activeSourceRows[outputId];
+    const source =
+      (rowBinding?.sourceId && sourceLibrary.find((item) => item.id === rowBinding.sourceId)) ||
+      selectedSource ||
+      null;
+    const rows = source?.rows || [];
+    if (!rows.length) {
+      pushFeedback('Нет строк данных для этого output');
+      return;
+    }
+    const currentIndex = rowBinding?.rowId ? rows.findIndex((r) => r.id === rowBinding.rowId) : -1;
+    const nextIndex =
+      currentIndex === -1
+        ? direction === 'next'
+          ? 0
+          : rows.length - 1
+        : Math.min(rows.length - 1, Math.max(0, currentIndex + (direction === 'next' ? 1 : -1)));
+    await applyRowToOutput(outputId, source, rows[nextIndex]);
+  };
+
+  // Single entry point for both the in-window listener and OS-global shortcuts.
+  // Turns a canonical action id into exactly one command.
+  const dispatchAction = async (actionId) => {
+    const parsed = parseActionId(actionId);
+    if (!parsed) return;
+
     try {
-      if (action === 'hide') {
-        await api('/api/program/hide', {
-          method: 'POST',
-          body: { outputId: selectedOutput?.id },
-        });
-      } else if (action === 'show' || action === 'live') {
-        if (!selectedEntry?.id) {
-          return;
+      if (parsed.kind === 'global') {
+        if (parsed.command === 'allOutputsOut') {
+          const visibleOutputs = (snapshot?.outputs || []).filter((o) => o.program?.visible);
+          for (const output of visibleOutputs) {
+            await api('/api/program/hide', { method: 'POST', body: { outputId: output.id } });
+          }
+          pushFeedback('Все выходы: OUT');
         }
-        await api(`/api/program/${action === 'live' ? 'live' : 'show'}`, {
-          method: 'POST',
-          body: {
-            entryId: selectedEntry.id,
-            outputId: selectedOutput?.id,
-          },
-        });
-      } else {
         return;
       }
 
-      pushFeedback(`Shortcut ${action.toUpperCase()}`);
+      if (parsed.kind === 'timer') {
+        await commandTimer(parsed.id, parsed.command);
+        return;
+      }
+
+      // parsed.kind === 'output'
+      const outputId = parsed.id;
+      const output = (snapshot?.outputs || []).find((o) => o.id === outputId) || null;
+      switch (parsed.command) {
+        case 'titleIn': {
+          const entryId = output?.selectedEntryId;
+          if (!entryId) return;
+          await api('/api/program/show', { method: 'POST', body: { entryId, outputId } });
+          break;
+        }
+        case 'titleOut':
+          await api('/api/program/hide', { method: 'POST', body: { outputId } });
+          break;
+        case 'previewIn': {
+          const entryId = output?.selectedEntryId;
+          if (!entryId) return;
+          await api('/api/preview/show', { method: 'POST', body: { entryId, outputId } });
+          break;
+        }
+        case 'previewOut':
+          await api('/api/preview/hide', { method: 'POST', body: { outputId } });
+          break;
+        case 'rowPrev':
+          await stepOutputRow(outputId, 'previous');
+          break;
+        case 'rowNext':
+          await stepOutputRow(outputId, 'next');
+          break;
+        case 'timerStart':
+        case 'timerStop':
+        case 'timerReset': {
+          const timerId = resolveOutputCurrentTimerId(outputId);
+          if (!timerId) {
+            pushFeedback('У этого output нет текущего таймера');
+            return;
+          }
+          const timerAction =
+            parsed.command === 'timerStart' ? 'start' : parsed.command === 'timerStop' ? 'stop' : 'reset';
+          await commandTimer(timerId, timerAction);
+          break;
+        }
+        default:
+          break;
+      }
     } catch (requestError) {
       pushFeedback(requestError.message);
     }
   };
 
-  const triggerNavigationShortcut = async (action) => {
+  // Preview bus: show/hide the selected title on the previewProgram of the
+  // selected output. Rendered by ?preview=1 pages and the Preview frame,
+  // never touches the on-air program.
+  const commandPreview = async (action) => {
     try {
-      const apiAction = action === 'previousTitle' ? 'previous-title' : 'next-title';
-      await api(`/api/commands/${apiAction}`, {
-        method: 'POST',
-        body: {
-          outputId: selectedOutput?.id,
-        },
-      });
-      pushFeedback(action === 'previousTitle' ? 'Previous title selected' : 'Next title selected');
+      if (action === 'show') {
+        if (!selectedEntry?.id) {
+          pushFeedback('Select a title to preview first');
+          return;
+        }
+        await api('/api/preview/show', {
+          method: 'POST',
+          body: { entryId: selectedEntry.id, outputId: selectedOutput?.id },
+        });
+        pushFeedback('Preview IN');
+      } else {
+        await api('/api/preview/hide', {
+          method: 'POST',
+          body: { outputId: selectedOutput?.id },
+        });
+        pushFeedback('Preview OUT');
+      }
     } catch (requestError) {
       pushFeedback(requestError.message);
     }
+  };
+
+  // Pop out a preview/live view of an output into its own OS window (Electron)
+  // or a browser window as a fallback. Preview windows use the ?preview=1 page
+  // (dark backdrop); live windows use the embed page over a dark window.
+  const openRenderWindow = (target, kind) => {
+    if (!target) {
+      return;
+    }
+    const url = kind === 'preview' ? target.previewUrl : target.liveEmbedUrl;
+    const title = `${kind === 'preview' ? 'Preview' : 'Live'} — ${target.name}`;
+    if (window.webTitleDesktop?.openRenderWindow) {
+      window.webTitleDesktop
+        .openRenderWindow({ key: `${kind}:${target.id}`, url, title })
+        .catch(() => {});
+    } else {
+      window.open(url, `wtp-${kind}-${target.id}`, 'width=960,height=540,resizable=yes');
+    }
+    pushFeedback(`${title} window opened`);
   };
 
   const resizeLiveSourceColumn = (sourceId, columnId, width) => {
@@ -2874,96 +3001,51 @@ function ControlShell() {
   };
 
   useGlobalShortcuts({
-    api,
     shortcutBindings,
     learningShortcut,
-    outputs,
-    snapshot,
-    selectedOutput,
     setLearningShortcut,
-    setLocalSelectedOutputId,
     saveGlobalShortcut,
-    triggerGlobalShortcut,
-    triggerNavigationShortcut,
-    commandTimer,
-    pushFeedback,
+    dispatchAction,
   });
 
   // Sync registered OS-level global shortcuts with the desktop main process
-  // whenever the bindings or the per-action global flags change.
+  // whenever the bindings (or which of them are flagged global) change.
   useEffect(() => {
     if (!window.webTitleDesktop?.syncGlobalShortcuts) return;
     window.webTitleDesktop
       .syncGlobalShortcuts({
-        show: shortcutBindings?.show,
-        live: shortcutBindings?.live,
-        hide: shortcutBindings?.hide,
-        nextTitle: shortcutBindings?.nextTitle,
-        previousTitle: shortcutBindings?.previousTitle,
-        outputSelectById: shortcutBindings?.outputSelectById || {},
-        entrySelectById: shortcutBindings?.entrySelectById || {},
-        timerToggleById: shortcutBindings?.timerToggleById || {},
-        timerResetById: shortcutBindings?.timerResetById || {},
+        outputs: shortcutBindings?.outputs || {},
+        timers: shortcutBindings?.timers || {},
+        global: shortcutBindings?.global || {},
         globalActions: shortcutBindings?.globalActions || {},
+      })
+      .then((result) => {
+        const conflicts = Array.isArray(result?.conflicts) ? result.conflicts : [];
+        const signature = conflicts.map((item) => `${item.action}:${item.accelerator}`).join('|');
+        if (signature && signature !== globalConflictSignatureRef.current) {
+          pushFeedback(
+            `Клавиша занята другой программой: ${conflicts.map((item) => item.raw || item.accelerator).join(', ')}`,
+          );
+        }
+        globalConflictSignatureRef.current = signature;
+        setGlobalShortcutConflicts(conflicts);
       })
       .catch(() => {});
   }, [
-    shortcutBindings?.show,
-    shortcutBindings?.live,
-    shortcutBindings?.hide,
-    shortcutBindings?.nextTitle,
-    shortcutBindings?.previousTitle,
-    JSON.stringify(shortcutBindings?.outputSelectById || {}),
-    JSON.stringify(shortcutBindings?.entrySelectById || {}),
-    JSON.stringify(shortcutBindings?.timerToggleById || {}),
-    JSON.stringify(shortcutBindings?.timerResetById || {}),
+    JSON.stringify(shortcutBindings?.outputs || {}),
+    JSON.stringify(shortcutBindings?.timers || {}),
+    JSON.stringify(shortcutBindings?.global || {}),
     JSON.stringify(shortcutBindings?.globalActions || {}),
   ]);
 
-  // Dispatch a fired OS-global shortcut by reusing the same action handlers
-  // the in-window keyboard listener uses.
+  // A fired OS-global shortcut runs through the same dispatchAction as the
+  // in-window listener, keeping both paths identical.
   useEffect(() => {
     if (!window.webTitleDesktop?.onGlobalShortcutFired) return undefined;
     return window.webTitleDesktop.onGlobalShortcutFired(({ action }) => {
-      if (!action) return;
-      if (['show', 'live', 'hide'].includes(action)) {
-        void triggerGlobalShortcut(action);
-        return;
-      }
-      if (action === 'nextTitle' || action === 'previousTitle') {
-        void triggerNavigationShortcut(action);
-        return;
-      }
-      if (action.startsWith('selectOutput:')) {
-        setLocalSelectedOutputId(action.slice('selectOutput:'.length));
-        return;
-      }
-      if (action.startsWith('selectEntry:')) {
-        void api(`/api/entries/${action.slice('selectEntry:'.length)}/select`, {
-          method: 'POST',
-          body: { outputId: selectedOutput?.id },
-        }).catch(() => {});
-        return;
-      }
-      if (action.startsWith('timerToggle:')) {
-        const timerId = action.slice('timerToggle:'.length);
-        const timer = snapshot?.timers?.find((item) => item.id === timerId);
-        const next = timer?.running ? 'stop' : 'start';
-        void commandTimer(timerId, next);
-        return;
-      }
-      if (action.startsWith('timerReset:')) {
-        void commandTimer(action.slice('timerReset:'.length), 'reset');
-      }
+      if (action) void dispatchAction(action);
     });
-  }, [
-    triggerGlobalShortcut,
-    triggerNavigationShortcut,
-    setLocalSelectedOutputId,
-    selectedOutput?.id,
-    snapshot?.timers?.map((t) => `${t.id}:${t.running}`).join('|'),
-    commandTimer,
-  ]);
+  }, [dispatchAction]);
 
   const sidebarHook = useResizableSidebar();
 
@@ -3022,12 +3104,16 @@ function ControlShell() {
 
         <div className="content-v2">
           <PreviewOverlay
-            isOpen={showPreviewOverlay}
+            isOpen={showPreviewOverlay && effectiveTab === 'rundown'}
             onClose={() => setShowPreviewOverlay(false)}
             outputs={outputs}
             entries={displayEntries}
             selectedOutputId={selectedOutput?.id}
             outputRenderTargets={outputRenderTargets}
+            canPreviewShow={Boolean(selectedEntry?.id)}
+            onPreviewShow={() => commandPreview('show')}
+            onPreviewHide={() => commandPreview('hide')}
+            onOpenWindow={openRenderWindow}
           />
 
           <div className="content-v2-inner">
@@ -3126,7 +3212,7 @@ function ControlShell() {
           outputs={outputs}
           learningShortcut={learningShortcut}
           shortcutBindings={shortcutBindings}
-          shortcutEntries={displayEntries}
+          globalShortcutConflicts={globalShortcutConflicts}
           shortcutTimers={snapshot?.timers || []}
           bitfocusActions={bitfocusActions}
           midiState={midiState}
@@ -3145,21 +3231,7 @@ function ControlShell() {
           onCopyPreviewUrl={(output) => copyText(output.previewUrl).then(() => pushFeedback(`Preview URL ${output.name} copied`))}
           onCopyBaseUrl={(url) => copyText(url).then(() => pushFeedback('Base URL copied'))}
           onStartLearningShortcut={(_entry, action) => {
-            let label = `Command / ${String(action).toUpperCase()}`;
-            if (action.startsWith('selectOutput:')) {
-              const o = outputs.find((output) => output.id === action.slice('selectOutput:'.length));
-              label = `Output / ${o?.name || 'Select Output'}`;
-            } else if (action.startsWith('selectEntry:')) {
-              const e = (snapshot?.entries || []).find((entry) => entry.id === action.slice('selectEntry:'.length));
-              label = `Entry / ${e?.name || 'Select Entry'}`;
-            } else if (action.startsWith('timerToggle:')) {
-              const t = (snapshot?.timers || []).find((timer) => timer.id === action.slice('timerToggle:'.length));
-              label = `Timer / ${t?.name || 'Timer'} — Start/Stop`;
-            } else if (action.startsWith('timerReset:')) {
-              const t = (snapshot?.timers || []).find((timer) => timer.id === action.slice('timerReset:'.length));
-              label = `Timer / ${t?.name || 'Timer'} — Reset`;
-            }
-            setLearningShortcut({ scope: 'navigation', entry: null, action, label });
+            setLearningShortcut({ scope: 'navigation', entry: null, action });
           }}
           onClearShortcut={(_entry, action) => saveGlobalShortcut(action, '')}
           onCancelLearningShortcut={() => setLearningShortcut(null)}
@@ -3186,6 +3258,9 @@ function ControlShell() {
           onSetVmixHostDraft={setVmixHostDraft}
           onConnectVmix={connectVmix}
           onRefreshVmixState={refreshVmixState}
+          isDesktop={Boolean(window.webTitleDesktop?.resetApp)}
+          onResetApp={() => window.webTitleDesktop?.resetApp?.().catch(() => {})}
+          onUninstallApp={() => window.webTitleDesktop?.uninstallApp?.().catch(() => {})}
         />
       )}
 

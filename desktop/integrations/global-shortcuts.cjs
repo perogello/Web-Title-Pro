@@ -33,18 +33,25 @@ const toElectronAccelerator = (shortcut = '') => {
   return tokens.map(translateToken).join('+');
 };
 
-const ACTION_KEY_MAP_DIRECT = {
-  show: 'show',
-  live: 'live',
-  hide: 'hide',
-  nextTitle: 'nextTitle',
-  previousTitle: 'previousTitle',
-};
+// Command keys per target — must mirror client/src/control-shell/shortcut-model.js.
+const OUTPUT_COMMAND_KEYS = [
+  'titleIn',
+  'titleOut',
+  'previewIn',
+  'previewOut',
+  'rowPrev',
+  'rowNext',
+  'timerStart',
+  'timerStop',
+  'timerReset',
+];
+const TIMER_COMMAND_KEYS = ['start', 'stop', 'reset'];
+const GLOBAL_COMMAND_KEYS = ['allOutputsOut'];
 
-// Walk shortcutBindings and produce {accelerator, action} pairs that
-// the caller asked to be made global. `action` is the canonical action key
-// in the format ControlShell already understands ('show', 'selectOutput:id',
-// 'timerToggle:id', etc).
+// Walk shortcutBindings (model v2) and produce {accelerator, action, raw}
+// for every binding the operator flagged as OS-global. `action` is the
+// canonical action id ('output:<id>:titleIn', 'timer:<id>:start',
+// 'global:allOutputsOut') the renderer's dispatchAction understands.
 const collectGlobalAccelerators = (shortcutBindings = {}) => {
   const globalActions = shortcutBindings.globalActions || {};
   const results = [];
@@ -54,21 +61,18 @@ const collectGlobalAccelerators = (shortcutBindings = {}) => {
     results.push({ action, accelerator: accel, raw });
   };
 
-  for (const [field, action] of Object.entries(ACTION_KEY_MAP_DIRECT)) {
-    push(action, shortcutBindings[field]);
+  for (const [outputId, commands] of Object.entries(shortcutBindings.outputs || {})) {
+    for (const key of OUTPUT_COMMAND_KEYS) {
+      push(`output:${outputId}:${key}`, commands?.[key]);
+    }
   }
-
-  for (const [outputId, raw] of Object.entries(shortcutBindings.outputSelectById || {})) {
-    push(`selectOutput:${outputId}`, raw);
+  for (const [timerId, commands] of Object.entries(shortcutBindings.timers || {})) {
+    for (const key of TIMER_COMMAND_KEYS) {
+      push(`timer:${timerId}:${key}`, commands?.[key]);
+    }
   }
-  for (const [entryId, raw] of Object.entries(shortcutBindings.entrySelectById || {})) {
-    push(`selectEntry:${entryId}`, raw);
-  }
-  for (const [timerId, raw] of Object.entries(shortcutBindings.timerToggleById || {})) {
-    push(`timerToggle:${timerId}`, raw);
-  }
-  for (const [timerId, raw] of Object.entries(shortcutBindings.timerResetById || {})) {
-    push(`timerReset:${timerId}`, raw);
+  for (const key of GLOBAL_COMMAND_KEYS) {
+    push(`global:${key}`, shortcutBindings.global?.[key]);
   }
 
   return results;
@@ -96,9 +100,11 @@ const createGlobalShortcutManager = ({ globalShortcut, getMainWindow, log }) => 
       }
     }
 
-    // Register new
+    // Register new. Failed registrations (key already taken by another app)
+    // are reported as {accelerator, raw, action} so the renderer can match
+    // them back to binding rows and warn the operator.
     const conflicts = [];
-    for (const { accelerator, action } of desired) {
+    for (const { accelerator, action, raw } of desired) {
       if (registered.has(accelerator)) continue;
       try {
         const ok = globalShortcut.register(accelerator, () => {
@@ -112,7 +118,7 @@ const createGlobalShortcutManager = ({ globalShortcut, getMainWindow, log }) => 
           }
         });
         if (!ok) {
-          conflicts.push(accelerator);
+          conflicts.push({ accelerator, raw, action });
           log?.(`global-shortcut:register-failed ${accelerator} (taken by another app)`);
         } else {
           registered.set(accelerator, action);

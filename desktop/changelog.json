@@ -1,5 +1,29 @@
 {
   "$comment": "Per-version changelog shown in the post-update dialog and on the Updates page. Keep entries short (see release-notes style). Add a new top-level key for each release; the desktop shell picks the entry matching the running app version. ru/en are arrays of bullet strings.",
+  "0.4.11": {
+    "date": "2026-07-02",
+    "title": "Web Title Pro 0.4.11",
+    "ru": [
+      "Панель превью переработана: окна строго 16:9, титр масштабируется целиком (раньше был виден только угол), панель растягивается за нижний край и живёт только во вкладке Live.",
+      "Кнопки PVW IN / PVW OUT вернулись — титр можно показать на превью-шине, не трогая эфир.",
+      "У каждого окна превью/лайва появилась кнопка «открыть в отдельном окне» — удобно вынести на второй монитор.",
+      "Шорткаты: если глобальная клавиша занята другой программой — предупреждение в настройках; занятая комбинация при назначении переносится со старого действия с уведомлением.",
+      "Защита от неудачных обновлений: перед установкой апдейта создаётся резервная копия данных, повреждённые файлы состояния уходят в карантин вместо тихой поломки, при недоступном пути сохранения открывается диалог «Сохранить как», интерфейс больше не может загрузиться из устаревшего кэша.",
+      "В Settings → System появились «Сбросить приложение» (чистый перезапуск после кривого апдейта) и «Полностью удалить» (стирает приложение и все его данные; сохранённые файлы проектов не трогает).",
+      "Portable-распаковка теперь идёт в одну постоянную папку — временные файлы не копятся.",
+      "Полностью переделаны шорткаты: у каждого output свой набор команд (Title IN/OUT, PVW IN/OUT, листание строк ↑/↓, старт/стоп/сброс текущего таймера), у каждого таймера — свои, плюс общая «паника» (снять все титры). Одно нажатие — одна команда, без выбора output заранее. В настройках команды сгруппированы по output и таймерам с цветовыми метками."
+    ],
+    "en": [
+      "Preview panel reworked: frames are strict 16:9 and show the whole scaled title (previously only a corner was visible), the panel resizes by dragging its bottom edge and lives only on the Live tab.",
+      "PVW IN / PVW OUT buttons are back — show a title on the preview bus without touching air.",
+      "Each preview/live frame gets an open-in-separate-window button — handy for a second monitor.",
+      "Shortcuts: a warning appears when a global key is taken by another app; assigning an already-used combination moves it from the old action with a notice.",
+      "Bad-update protection: data is backed up before installing an update, corrupt state files are quarantined instead of silently breaking, an unavailable save path falls back to a Save dialog, and the UI can no longer load from a stale cache.",
+      "Settings → System gains Reset app (clean restart after a bad update) and Remove completely (wipes the app and all its data; saved project files are untouched).",
+      "Portable unpacking now uses one fixed folder — temp files no longer pile up.",
+      "Shortcuts fully reworked: every output has its own command set (Title IN/OUT, PVW IN/OUT, data-row ↑/↓, start/stop/reset of its current timer), every timer has its own, plus a global panic (hide all titles). One keypress = one command, no need to pre-select an output. Settings group the commands per output and per timer with colour tags."
+    ]
+  },
   "0.4.10": {
     "date": "2026-07-01",
     "title": "Web Title Pro 0.4.10",

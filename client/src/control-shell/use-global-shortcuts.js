@@ -1,52 +1,37 @@
 import { useEffect, useRef } from 'react';
 import { formatShortcutFromEvent, isTypingTarget } from './shortcut-utils.js';
+import { findActionForShortcut } from './shortcut-model.js';
 
 /**
- * Global keyboard/mouse-shortcut listener.
+ * Global keyboard/mouse-shortcut listener (model v2).
  *
- * Reads bindings from the snapshot's `shortcuts` map and dispatches the
- * appropriate API call. Learn mode (when `learningShortcut` is set) intercepts
- * the next captured combination and saves it via `onSaveShortcut`.
+ * Every binding maps a key combination to exactly one canonical action id
+ * (output:<id>:<cmd> / timer:<id>:<cmd> / global:<cmd>). This hook only does
+ * capture + match + dispatch — all command semantics live in `dispatchAction`
+ * (in ControlShell), so the OS-global path and the in-window path run through
+ * the same code.
  *
- * Also runs a click-outside watcher that closes any compact-mode dropdowns
- * by invoking the supplied `onCloseFloatingMenus` callback.
+ * Learn mode (when `learningShortcut` is set) intercepts the next captured
+ * combination and saves it via `saveGlobalShortcut(actionId, value)`.
  *
- * Internally uses a single ref so that the window event listeners are attached
- * exactly once for the lifetime of the component. Without this pattern, the
- * `snapshot` / `shortcutBindings` deps would cause React to detach + reattach
- * three window listeners on every WebSocket timer-tick (10×/sec).
+ * A single ref keeps the window listeners attached exactly once for the
+ * component lifetime, so WebSocket timer-ticks (10x/sec) don't thrash them.
  */
 export const useGlobalShortcuts = ({
-  api,
   shortcutBindings,
   learningShortcut,
-  outputs,
-  snapshot,
-  selectedOutput,
   setLearningShortcut,
-  setLocalSelectedOutputId,
   saveGlobalShortcut,
-  triggerGlobalShortcut,
-  triggerNavigationShortcut,
-  commandTimer,
-  pushFeedback,
+  dispatchAction,
   onCloseFloatingMenus,
 }) => {
   const stateRef = useRef({});
   stateRef.current = {
-    api,
     shortcutBindings,
     learningShortcut,
-    outputs,
-    snapshot,
-    selectedOutput,
     setLearningShortcut,
-    setLocalSelectedOutputId,
     saveGlobalShortcut,
-    triggerGlobalShortcut,
-    triggerNavigationShortcut,
-    commandTimer,
-    pushFeedback,
+    dispatchAction,
     onCloseFloatingMenus,
   };
 
@@ -70,7 +55,6 @@ export const useGlobalShortcuts = ({
       }
 
       const shortcutValue = formatShortcutFromEvent(event);
-
       if (!shortcutValue) {
         return;
       }
@@ -83,72 +67,10 @@ export const useGlobalShortcuts = ({
         return;
       }
 
-      const bindings = s.shortcutBindings || {};
-
-      if (
-        bindings.show === shortcutValue ||
-        bindings.live === shortcutValue ||
-        bindings.hide === shortcutValue
-      ) {
+      const actionId = findActionForShortcut(s.shortcutBindings || {}, shortcutValue);
+      if (actionId) {
         event.preventDefault();
-        const action =
-          bindings.show === shortcutValue
-            ? 'show'
-            : bindings.live === shortcutValue
-              ? 'live'
-              : 'hide';
-        void s.triggerGlobalShortcut(action);
-        return;
-      }
-
-      if (bindings.nextTitle === shortcutValue || bindings.previousTitle === shortcutValue) {
-        event.preventDefault();
-        void s.triggerNavigationShortcut(
-          bindings.nextTitle === shortcutValue ? 'nextTitle' : 'previousTitle',
-        );
-        return;
-      }
-
-      const outputShortcutEntry = Object.entries(bindings.outputSelectById || {})
-        .find(([, value]) => value === shortcutValue);
-      if (outputShortcutEntry) {
-        event.preventDefault();
-        s.setLocalSelectedOutputId(outputShortcutEntry[0]);
-        s.pushFeedback(
-          `Output switched to ${
-            (s.outputs || []).find((output) => output.id === outputShortcutEntry[0])?.name ||
-            'selected output'
-          }`,
-        );
-        return;
-      }
-
-      const entryShortcutEntry = Object.entries(bindings.entrySelectById || {})
-        .find(([, value]) => value === shortcutValue);
-      if (entryShortcutEntry) {
-        event.preventDefault();
-        void s.api(`/api/entries/${entryShortcutEntry[0]}/select`, {
-          method: 'POST',
-          body: { outputId: s.selectedOutput?.id },
-        }).catch(() => {});
-        return;
-      }
-
-      const timerToggleEntry = Object.entries(bindings.timerToggleById || {})
-        .find(([, value]) => value === shortcutValue);
-      if (timerToggleEntry) {
-        event.preventDefault();
-        const timer = s.snapshot?.timers?.find((item) => item.id === timerToggleEntry[0]);
-        const nextAction = timer?.running ? 'stop' : 'start';
-        void s.commandTimer(timerToggleEntry[0], nextAction);
-        return;
-      }
-
-      const timerResetEntry = Object.entries(bindings.timerResetById || {})
-        .find(([, value]) => value === shortcutValue);
-      if (timerResetEntry) {
-        event.preventDefault();
-        void s.commandTimer(timerResetEntry[0], 'reset');
+        void s.dispatchAction(actionId);
       }
     };
 

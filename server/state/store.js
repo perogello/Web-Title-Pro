@@ -132,13 +132,6 @@ const normalizeEntryShortcuts = (shortcuts = {}) => ({
   hide: typeof shortcuts.hide === 'string' ? shortcuts.hide : '',
 });
 
-const normalizeIdMap = (value) =>
-  value && typeof value === 'object'
-    ? Object.fromEntries(
-        Object.entries(value).map(([key, raw]) => [key, typeof raw === 'string' ? raw : '']),
-      )
-    : {};
-
 const normalizeBooleanMap = (value) =>
   value && typeof value === 'object'
     ? Object.fromEntries(
@@ -148,16 +141,46 @@ const normalizeBooleanMap = (value) =>
       )
     : {};
 
+// Shortcut model (v2): one keypress = one concrete command.
+//   outputs[<id>] — a full command set bound to a specific output.
+//   timers[<id>]  — start/stop/reset bound to a specific timer.
+//   global        — app-wide commands (panic).
+//   globalActions — which canonical action ids also register as OS-global.
+// The legacy flat model (show/live/hide/outputSelectById/entrySelectById/...)
+// is intentionally dropped: it has no 1:1 mapping onto per-output commands, so
+// old keyboard bindings reset on load (titles/timers/project data untouched).
+const OUTPUT_COMMAND_KEYS = [
+  'titleIn',
+  'titleOut',
+  'previewIn',
+  'previewOut',
+  'rowPrev',
+  'rowNext',
+  'timerStart',
+  'timerStop',
+  'timerReset',
+];
+const TIMER_COMMAND_KEYS = ['start', 'stop', 'reset'];
+const GLOBAL_COMMAND_KEYS = ['allOutputsOut'];
+
+const normalizeCommandMap = (value, keys) => {
+  const source = value && typeof value === 'object' ? value : {};
+  return Object.fromEntries(
+    keys.map((key) => [key, typeof source[key] === 'string' ? source[key] : '']),
+  );
+};
+
+const normalizeNestedCommandMap = (value, keys) =>
+  value && typeof value === 'object'
+    ? Object.fromEntries(
+        Object.entries(value).map(([id, commands]) => [id, normalizeCommandMap(commands, keys)]),
+      )
+    : {};
+
 const normalizeGlobalShortcuts = (shortcuts = {}) => ({
-  show: typeof shortcuts.show === 'string' ? shortcuts.show : '',
-  live: typeof shortcuts.live === 'string' ? shortcuts.live : '',
-  hide: typeof shortcuts.hide === 'string' ? shortcuts.hide : '',
-  nextTitle: typeof shortcuts.nextTitle === 'string' ? shortcuts.nextTitle : '',
-  previousTitle: typeof shortcuts.previousTitle === 'string' ? shortcuts.previousTitle : '',
-  outputSelectById: normalizeIdMap(shortcuts.outputSelectById),
-  entrySelectById: normalizeIdMap(shortcuts.entrySelectById),
-  timerToggleById: normalizeIdMap(shortcuts.timerToggleById),
-  timerResetById: normalizeIdMap(shortcuts.timerResetById),
+  outputs: normalizeNestedCommandMap(shortcuts.outputs, OUTPUT_COMMAND_KEYS),
+  timers: normalizeNestedCommandMap(shortcuts.timers, TIMER_COMMAND_KEYS),
+  global: normalizeCommandMap(shortcuts.global, GLOBAL_COMMAND_KEYS),
   globalActions: normalizeBooleanMap(shortcuts.globalActions),
 });
 
@@ -368,6 +391,15 @@ export class TitleStore extends EventEmitter {
       const existing = await fs.readJson(this.stateFile);
       this.state = buildProjectState(existing);
     } catch {
+      // A state file the current version cannot parse must not be silently
+      // overwritten by the default state — quarantine it first so the
+      // operator's data survives a broken update and can be recovered.
+      try {
+        const raw = await fs.readFile(this.stateFile, 'utf8');
+        if (raw.trim()) {
+          await fs.copy(this.stateFile, `${this.stateFile}.corrupt-${Date.now()}.bak`);
+        }
+      } catch {}
       this.state = createDefaultState();
     }
 
@@ -716,7 +748,9 @@ export class TitleStore extends EventEmitter {
   }
 
   getNavigationShortcuts() {
-    return deepClone(this.state.integrations.shortcuts || normalizeGlobalShortcuts());
+    // Always return the v2 shape, migrating any legacy flat bindings that may
+    // still be sitting in loaded state (old projects) on the way out.
+    return normalizeGlobalShortcuts(this.state.integrations.shortcuts || {});
   }
 
   getMidiBindings() {
@@ -734,24 +768,31 @@ export class TitleStore extends EventEmitter {
 
   updateNavigationShortcuts(patch = {}) {
     const current = normalizeGlobalShortcuts(this.state.integrations.shortcuts || {});
-    const mergeMap = (field) => ({
+    const patchObj = patch && typeof patch === 'object' ? patch : {};
+
+    // Per-id blocks (outputs/timers) merge at the command level so a patch for
+    // one output's single command never wipes its other commands or siblings.
+    const mergeNested = (field) => {
+      const next = { ...(current[field] || {}) };
+      const incoming = patchObj[field] && typeof patchObj[field] === 'object' ? patchObj[field] : {};
+      for (const [id, commands] of Object.entries(incoming)) {
+        if (commands && typeof commands === 'object') {
+          next[id] = { ...(next[id] || {}), ...commands };
+        }
+      }
+      return next;
+    };
+    const mergeFlat = (field) => ({
       ...(current[field] || {}),
-      ...((patch && typeof patch[field] === 'object' && patch[field]) || {}),
-    });
-    const normalizedPatch = normalizeGlobalShortcuts({
-      ...current,
-      ...patch,
-      outputSelectById: mergeMap('outputSelectById'),
-      entrySelectById: mergeMap('entrySelectById'),
-      timerToggleById: mergeMap('timerToggleById'),
-      timerResetById: mergeMap('timerResetById'),
-      globalActions: mergeMap('globalActions'),
+      ...((patchObj[field] && typeof patchObj[field] === 'object' && patchObj[field]) || {}),
     });
 
-    this.state.integrations.shortcuts = {
-      ...current,
-      ...normalizedPatch,
-    };
+    this.state.integrations.shortcuts = normalizeGlobalShortcuts({
+      outputs: mergeNested('outputs'),
+      timers: mergeNested('timers'),
+      global: mergeFlat('global'),
+      globalActions: mergeFlat('globalActions'),
+    });
     this.touch();
     return this.getNavigationShortcuts();
   }

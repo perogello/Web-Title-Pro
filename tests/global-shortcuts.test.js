@@ -36,46 +36,42 @@ test('toElectronAccelerator: empty/invalid input returns null', () => {
   assert.equal(toElectronAccelerator(undefined), null);
 });
 
-test('collectGlobalAccelerators: returns only globally-flagged bindings', () => {
+test('collectGlobalAccelerators: returns only globally-flagged per-output bindings', () => {
   const result = collectGlobalAccelerators({
-    show: 'F5',
-    live: 'F6',
-    hide: 'F7',
-    globalActions: { show: true, hide: true },
+    outputs: {
+      main: { titleIn: 'F5', titleOut: 'F6', previewIn: 'F7' },
+    },
+    globalActions: { 'output:main:titleIn': true, 'output:main:previewIn': true },
   });
   const actions = result.map((r) => r.action);
-  assert.ok(actions.includes('show'));
-  assert.ok(actions.includes('hide'));
-  assert.ok(!actions.includes('live'), 'live is not flagged global');
-  assert.equal(result.find((r) => r.action === 'show').accelerator, 'F5');
+  assert.ok(actions.includes('output:main:titleIn'));
+  assert.ok(actions.includes('output:main:previewIn'));
+  assert.ok(!actions.includes('output:main:titleOut'), 'titleOut is not flagged global');
+  assert.equal(result.find((r) => r.action === 'output:main:titleIn').accelerator, 'F5');
 });
 
 test('collectGlobalAccelerators: skips mouse bindings even when flagged', () => {
   const result = collectGlobalAccelerators({
-    show: 'Mouse Back',
-    globalActions: { show: true },
+    outputs: { main: { titleIn: 'Mouse Back' } },
+    globalActions: { 'output:main:titleIn': true },
   });
   assert.equal(result.length, 0);
 });
 
-test('collectGlobalAccelerators: outputs/entries/timers id-maps', () => {
+test('collectGlobalAccelerators: timers and global commands', () => {
   const result = collectGlobalAccelerators({
-    outputSelectById: { 'output-1': 'F8' },
-    entrySelectById: { 'entry-1': 'F9' },
-    timerToggleById: { main: 'F10' },
-    timerResetById: { main: 'F11' },
+    timers: { abc: { start: 'F10', reset: 'F11' } },
+    global: { allOutputsOut: 'Escape' },
     globalActions: {
-      'selectOutput:output-1': true,
-      'selectEntry:entry-1': true,
-      'timerToggle:main': true,
-      'timerReset:main': true,
+      'timer:abc:start': true,
+      'timer:abc:reset': true,
+      'global:allOutputsOut': true,
     },
   });
   const map = Object.fromEntries(result.map((r) => [r.action, r.accelerator]));
-  assert.equal(map['selectOutput:output-1'], 'F8');
-  assert.equal(map['selectEntry:entry-1'], 'F9');
-  assert.equal(map['timerToggle:main'], 'F10');
-  assert.equal(map['timerReset:main'], 'F11');
+  assert.equal(map['timer:abc:start'], 'F10');
+  assert.equal(map['timer:abc:reset'], 'F11');
+  assert.equal(map['global:allOutputsOut'], 'Escape');
 });
 
 test('createGlobalShortcutManager: register / sync / unregister flow', () => {
@@ -98,16 +94,16 @@ test('createGlobalShortcutManager: register / sync / unregister flow', () => {
     log: () => {},
   });
 
-  mgr.sync({ show: 'F5', globalActions: { show: true } });
+  mgr.sync({ outputs: { main: { titleIn: 'F5' } }, globalActions: { 'output:main:titleIn': true } });
   assert.ok(registered.has('F5'));
 
   // change binding
-  mgr.sync({ show: 'F6', globalActions: { show: true } });
+  mgr.sync({ outputs: { main: { titleIn: 'F6' } }, globalActions: { 'output:main:titleIn': true } });
   assert.ok(!registered.has('F5'), 'F5 should be unregistered after rebind');
   assert.ok(registered.has('F6'));
 
   // turn off global
-  mgr.sync({ show: 'F6', globalActions: {} });
+  mgr.sync({ outputs: { main: { titleIn: 'F6' } }, globalActions: {} });
   assert.ok(!registered.has('F6'), 'F6 should be unregistered after unflagging');
 });
 
@@ -121,7 +117,12 @@ test('createGlobalShortcutManager: register failure ends up in conflicts', () =>
     getMainWindow: () => null,
     log: () => {},
   });
-  const result = mgr.sync({ show: 'F5', globalActions: { show: true } });
-  assert.deepEqual(result.conflicts, ['F5']);
+  const result = mgr.sync({
+    outputs: { main: { titleIn: 'F5' } },
+    globalActions: { 'output:main:titleIn': true },
+  });
+  assert.deepEqual(result.conflicts, [
+    { accelerator: 'F5', raw: 'F5', action: 'output:main:titleIn' },
+  ]);
   assert.deepEqual(result.registered, []);
 });

@@ -1,10 +1,19 @@
 import { useMemo, useState } from 'react';
+import {
+  GLOBAL_COMMANDS,
+  OUTPUT_COMMANDS,
+  TIMER_COMMANDS,
+  globalActionId,
+  outputActionId,
+  readCommand,
+  timerActionId,
+} from '../shortcut-model.js';
 
 export default function ShortcutsSettingsTab({
   learningShortcut,
   shortcutBindings,
-  outputs,
-  entries = [],
+  globalShortcutConflicts = [],
+  outputs = [],
   timers = [],
   midiState,
   bitfocusActions,
@@ -20,7 +29,7 @@ export default function ShortcutsSettingsTab({
   onCopyBitfocusUrl,
 }) {
   const [query, setQuery] = useState('');
-  const [collapsed, setCollapsed] = useState({ commands: false, outputs: false, entries: false, timers: false });
+  const [collapsed, setCollapsed] = useState({});
   const [editingAction, setEditingAction] = useState(null);
 
   const isMouseShortcut = (value = '') => /Mouse(\s|$)/i.test(value);
@@ -50,93 +59,40 @@ export default function ShortcutsSettingsTab({
         .filter(Boolean)
         .join(' / ')
     : '';
-  const midiBindings = useMemo(() => {
+
+  // MIDI + Companion are keyed by the same canonical action ids the keyboard
+  // bindings use, so no alias translation is needed anymore.
+  const midiByAction = useMemo(() => {
     const rawBindings = midiState?.bindings || [];
     const map = {};
-    const addBinding = (action, binding) => {
-      if (action && !map[action]) {
-        map[action] = binding;
-      }
-    };
-    const addAliases = (action, binding) => {
-      addBinding(action, binding);
-      if (action === 'previous-title') addBinding('previousTitle', binding);
-      if (action === 'next-title') addBinding('nextTitle', binding);
-
-      const outputMatch = action.match(/^select-output:(.+)$/);
-      if (outputMatch) addBinding(`selectOutput:${outputMatch[1]}`, binding);
-
-      const entryMatch = action.match(/^entry-select:(.+)$/);
-      if (entryMatch) addBinding(`selectEntry:${entryMatch[1]}`, binding);
-
-      const timerToggleMatch = action.match(/^timer-toggle:(.+)$/);
-      if (timerToggleMatch) addBinding(`timerToggle:${timerToggleMatch[1]}`, binding);
-
-      const timerResetMatch = action.match(/^timer-reset:(.+)$/);
-      if (timerResetMatch) addBinding(`timerReset:${timerResetMatch[1]}`, binding);
-    };
-
     if (Array.isArray(rawBindings)) {
-      rawBindings.forEach((binding) => addAliases(String(binding?.action || ''), binding));
+      rawBindings.forEach((binding) => {
+        const action = String(binding?.action || '');
+        if (action && !map[action]) map[action] = binding;
+      });
     } else {
-      Object.entries(rawBindings).forEach(([action, binding]) => addAliases(action, binding));
+      Object.entries(rawBindings).forEach(([action, binding]) => {
+        if (!map[action]) map[action] = binding;
+      });
     }
-
     return map;
   }, [midiState?.bindings]);
 
-  // Bitfocus actions are built in ControlShell with kebab-case ids (e.g.
-  // `select-output-${outputId}`, `previous-title`, `timer-toggle-${id}`).
-  // The UI here addresses them in camelCase + colon form (e.g.
-  // `selectOutput:${outputId}`, `previousTitle`, `timerToggle:${id}`). We
-  // build the lookup map under both spellings so the 🔗 Companion chip
-  // actually surfaces for every binding row.
   const bitfocusByAction = useMemo(() => {
     const map = new Map();
-    const COMMAND_ALIASES = {
-      'show': 'show',
-      'live': 'live',
-      'hide': 'hide',
-      'previous-title': 'previousTitle',
-      'next-title': 'nextTitle',
-    };
     (bitfocusActions || []).forEach((b) => {
-      const id = String(b.id || '');
-      // Original ID (so existing callers that pass the kebab form still work)
-      if (id) map.set(id, b);
       if (b.action) map.set(b.action, b);
-
-      // Top-level commands
-      if (COMMAND_ALIASES[id]) {
-        map.set(COMMAND_ALIASES[id], b);
-      }
-
-      // select-output-<id>  →  selectOutput:<id>
-      const outputMatch = id.match(/^select-output-(.+)$/);
-      if (outputMatch) {
-        map.set(`selectOutput:${outputMatch[1]}`, b);
-      }
-
-      // select-entry-<id>  →  selectEntry:<id>
-      const entryMatch = id.match(/^select-entry-(.+)$/);
-      if (entryMatch) {
-        map.set(`selectEntry:${entryMatch[1]}`, b);
-      }
-
-      // timer-toggle-<id>  →  timerToggle:<id>
-      const toggleMatch = id.match(/^timer-toggle-(.+)$/);
-      if (toggleMatch) {
-        map.set(`timerToggle:${toggleMatch[1]}`, b);
-      }
-
-      // timer-reset-<id>  →  timerReset:<id>
-      const resetMatch = id.match(/^timer-reset-(.+)$/);
-      if (resetMatch) {
-        map.set(`timerReset:${resetMatch[1]}`, b);
-      }
     });
     return map;
   }, [bitfocusActions]);
+
+  const conflictByAction = useMemo(() => {
+    const map = new Map();
+    (globalShortcutConflicts || []).forEach((c) => {
+      if (c?.action) map.set(c.action, c);
+    });
+    return map;
+  }, [globalShortcutConflicts]);
 
   const formatMidiBinding = (binding) => {
     if (!binding) return '';
@@ -153,10 +109,7 @@ export default function ShortcutsSettingsTab({
   };
 
   const updateMidiValueRule = (action, binding, field, value) => {
-    if (!binding || binding.type !== 'cc') {
-      return;
-    }
-
+    if (!binding || binding.type !== 'cc') return;
     const nextMode = field === 'valueMode' ? value : binding.valueMode || 'any';
     const nextValue = field === 'value' ? Number(value) : binding.value ?? 1;
     onUpdateMidiBinding?.(action, {
@@ -165,76 +118,62 @@ export default function ShortcutsSettingsTab({
     });
   };
 
-  const sections = [
-    {
-      id: 'commands',
-      label: 'Commands',
-      icon: '▶',
-      items: [
-        { action: 'show', label: 'Title In' },
-        { action: 'live', label: 'Live' },
-        { action: 'hide', label: 'Title Out' },
-        { action: 'previousTitle', label: 'Previous title' },
-        { action: 'nextTitle', label: 'Next title' },
-      ].map((row) => ({
-        ...row,
-        keyboard: shortcutBindings?.[row.action] || '',
-        midi: midiBindings[row.action],
-        url: bitfocusByAction.get(row.action),
-      })),
-    },
-    {
-      id: 'outputs',
-      label: 'Outputs',
-      icon: '◧',
-      items: outputs.map((output) => ({
-        action: `selectOutput:${output.id}`,
-        label: output.name,
-        keyboard: shortcutBindings?.outputSelectById?.[output.id] || '',
-        midi: midiBindings[`selectOutput:${output.id}`],
-        url: bitfocusByAction.get(`selectOutput:${output.id}`),
-      })),
-    },
-    {
-      id: 'entries',
-      label: 'Title entries',
-      icon: '◉',
-      items: entries.map((entry) => ({
-        action: `selectEntry:${entry.id}`,
-        label: entry.name || entry.templateName || entry.id,
-        keyboard: shortcutBindings?.entrySelectById?.[entry.id] || '',
-        midi: midiBindings[`selectEntry:${entry.id}`],
-        url: bitfocusByAction.get(`selectEntry:${entry.id}`),
-      })),
-    },
-    {
-      id: 'timers',
-      label: 'Timers',
-      icon: '⏱',
-      items: timers.flatMap((timer) => [
-        {
-          action: `timerToggle:${timer.id}`,
-          label: `${timer.name || timer.id} — Start / Stop`,
-          keyboard: shortcutBindings?.timerToggleById?.[timer.id] || '',
-          midi: midiBindings[`timerToggle:${timer.id}`],
-          url: bitfocusByAction.get(`timerToggle:${timer.id}`),
-        },
-        {
-          action: `timerReset:${timer.id}`,
-          label: `${timer.name || timer.id} — Reset`,
-          keyboard: shortcutBindings?.timerResetById?.[timer.id] || '',
-          midi: midiBindings[`timerResetById:${timer.id}`] || midiBindings[`timerReset:${timer.id}`],
-          url: bitfocusByAction.get(`timerReset:${timer.id}`),
-        },
-      ]),
-    },
-  ];
+  // Build one section per output, one per timer, plus the global section. Each
+  // section is a visually distinct card so the operator sees at a glance which
+  // shortcuts belong to which output/timer.
+  const sections = useMemo(() => {
+    const buildRow = (action, label, hint) => ({
+      action,
+      label,
+      hint,
+      keyboard: readCommand(shortcutBindings, action),
+      midi: midiByAction[action],
+      url: bitfocusByAction.get(action),
+      conflict: conflictByAction.get(action),
+    });
+
+    const outputSections = outputs.map((output, index) => ({
+      id: `output:${output.id}`,
+      kind: 'output',
+      accentIndex: index,
+      label: output.name,
+      badge: 'OUTPUT',
+      items: OUTPUT_COMMANDS.map((cmd) =>
+        buildRow(outputActionId(output.id, cmd.key), cmd.label, cmd.hint),
+      ),
+    }));
+
+    const timerSections = timers.map((timer) => ({
+      id: `timer:${timer.id}`,
+      kind: 'timer',
+      accentColor: timer.color || '',
+      label: timer.name || timer.id,
+      badge: 'TIMER',
+      items: TIMER_COMMANDS.map((cmd) =>
+        buildRow(timerActionId(timer.id, cmd.key), cmd.label, cmd.hint),
+      ),
+    }));
+
+    const globalSection = {
+      id: 'global',
+      kind: 'global',
+      label: 'Общие',
+      badge: 'GLOBAL',
+      items: GLOBAL_COMMANDS.map((cmd) => buildRow(globalActionId(cmd.key), cmd.label, cmd.hint)),
+    };
+
+    return [...outputSections, ...timerSections, globalSection];
+  }, [outputs, timers, shortcutBindings, midiByAction, bitfocusByAction, conflictByAction]);
 
   const filtered = sections
     .map((s) => ({
       ...s,
       items: query
-        ? s.items.filter((it) => it.label.toLowerCase().includes(query.toLowerCase()))
+        ? s.items.filter(
+            (it) =>
+              it.label.toLowerCase().includes(query.toLowerCase()) ||
+              s.label.toLowerCase().includes(query.toLowerCase()),
+          )
         : s.items,
     }))
     .filter((s) => s.items.length > 0);
@@ -249,7 +188,7 @@ export default function ShortcutsSettingsTab({
         <input
           type="search"
           className="ctl-search"
-          placeholder="Search actions..."
+          placeholder="Поиск команды / output / таймера..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -288,15 +227,25 @@ export default function ShortcutsSettingsTab({
       <div className="ctl-list">
         {filtered.map((section) => {
           const isOpen = !collapsed[section.id];
+          const accentStyle =
+            section.kind === 'output'
+              ? { '--ctl-accent': `hsl(${(section.accentIndex * 67) % 360} 70% 58%)` }
+              : section.kind === 'timer' && section.accentColor
+                ? { '--ctl-accent': section.accentColor }
+                : undefined;
           return (
-            <div className={`ctl-section ${isOpen ? 'is-open' : 'is-closed'}`} key={section.id}>
+            <div
+              className={`ctl-section ctl-section--${section.kind} ${isOpen ? 'is-open' : 'is-closed'}`}
+              key={section.id}
+              style={accentStyle}
+            >
               <button
                 type="button"
                 className="ctl-section-head"
                 onClick={() => setCollapsed((c) => ({ ...c, [section.id]: !!isOpen }))}
               >
                 <span className="ctl-section-toggle">{isOpen ? '▾' : '▸'}</span>
-                <span className="ctl-section-icon">{section.icon}</span>
+                <span className="ctl-section-badge">{section.badge}</span>
                 <span className="ctl-section-label">{section.label}</span>
                 <span className="ctl-section-count">{section.items.length}</span>
               </button>
@@ -315,9 +264,17 @@ export default function ShortcutsSettingsTab({
                           className="ctl-row-label"
                           onClick={() => setEditingAction(isExpanded ? null : row.action)}
                         >
-                          <span className="ctl-row-name">{row.label}</span>
+                          <span className="ctl-row-name" title={row.hint || ''}>{row.label}</span>
                           <span className="ctl-row-summary">
                             {row.keyboard && <span className="ctl-binding-pill ctl-pill-kb" title={`Keyboard: ${row.keyboard}`}>⌨ {row.keyboard}</span>}
+                            {row.conflict && (
+                              <span
+                                className="ctl-binding-pill ctl-pill-warn"
+                                title={`Глобальная клавиша ${row.conflict.raw || row.conflict.accelerator} занята другой программой. В фокусе приложения шорткат работает.`}
+                              >
+                                ⚠ занята
+                              </span>
+                            )}
                             {row.midi && <span className="ctl-binding-pill ctl-pill-md" title="MIDI binding">🎹 {formatMidiBinding(row.midi)}</span>}
                             {row.url && <span className="ctl-binding-pill ctl-pill-cp" title="Companion URL configured">🔗</span>}
                             {!row.keyboard && !row.midi && !row.url && <span className="ctl-binding-empty">Not bound</span>}
@@ -330,17 +287,17 @@ export default function ShortcutsSettingsTab({
                             <div className="ctl-detail-row">
                               <span className="ctl-detail-label">⌨ Keyboard</span>
                               <code className={`ctl-binding-value ${row.keyboard ? '' : 'is-unset'}`}>
-                                {kbLearning ? 'Press a key...' : (row.keyboard || 'Not assigned')}
+                                {kbLearning ? 'Нажмите клавишу...' : (row.keyboard || 'Не назначено')}
                               </code>
                               <div className="ctl-detail-actions">
                                 {canBeGlobal && !kbLearning && (
-                                  <label className={`ctl-global-toggle ${isGlobal ? 'is-on' : ''}`} title="Global: works when app is unfocused">
+                                  <label className={`ctl-global-toggle ${isGlobal ? 'is-on' : ''}`} title="Global: работает, когда окно не в фокусе">
                                     <input type="checkbox" checked={isGlobal} onChange={(e) => onToggleGlobal?.(row.action, e.target.checked)} />
                                     Global
                                   </label>
                                 )}
                                 {kbLearning ? (
-                                  <button type="button" className="btn-v3-ghost btn-v3-sm is-cancel-learn" onClick={onCancelLearning}>Cancel</button>
+                                  <button type="button" className="btn-v3-ghost btn-v3-sm is-cancel-learn" onClick={onCancelLearning}>Отмена</button>
                                 ) : (
                                   <>
                                     <button type="button" className="btn-v3-ghost btn-v3-sm" onClick={() => onStartLearning?.(null, row.action)}>Learn</button>
@@ -353,11 +310,11 @@ export default function ShortcutsSettingsTab({
                             <div className="ctl-detail-row">
                               <span className="ctl-detail-label">🎹 MIDI</span>
                               <code className={`ctl-binding-value ${row.midi ? '' : 'is-unset'}`}>
-                                {mdLearning ? 'Press a MIDI key/pad...' : (formatMidiBinding(row.midi) || 'Not assigned')}
+                                {mdLearning ? 'Нажмите MIDI-кнопку/пэд...' : (formatMidiBinding(row.midi) || 'Не назначено')}
                               </code>
                               <div className="ctl-detail-actions">
                                 {mdLearning ? (
-                                  <button type="button" className="btn-v3-ghost btn-v3-sm is-cancel-learn" onClick={() => onStopMidiLearn?.(row.action)}>Cancel</button>
+                                  <button type="button" className="btn-v3-ghost btn-v3-sm is-cancel-learn" onClick={() => onStopMidiLearn?.(row.action)}>Отмена</button>
                                 ) : (
                                   <>
                                     <button type="button" className="btn-v3-ghost btn-v3-sm" onClick={() => onStartMidiLearn?.(row.action)}>Learn</button>
@@ -413,7 +370,7 @@ export default function ShortcutsSettingsTab({
           );
         })}
         {filtered.length === 0 && (
-          <div className="empty-v3">No actions match "{query}".</div>
+          <div className="empty-v3">Ничего не найдено по запросу "{query}".</div>
         )}
       </div>
     </div>

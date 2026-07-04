@@ -31,6 +31,9 @@ contextBridge.exposeInMainWorld('webTitleDesktop', {
   openTemplateFolders: () => ipcRenderer.invoke('templates:open-folders'),
   pickTemplateFolder: () => ipcRenderer.invoke('templates:pick-folder'),
   syncGlobalShortcuts: (shortcutBindings) => ipcRenderer.invoke('shortcuts:sync-global', shortcutBindings),
+  openRenderWindow: (payload) => ipcRenderer.invoke('render-window:open', payload),
+  resetApp: () => ipcRenderer.invoke('maintenance:reset'),
+  uninstallApp: () => ipcRenderer.invoke('maintenance:uninstall'),
   onGlobalShortcutFired: (callback) => {
     const listener = (_event, payload) => callback?.(payload);
     ipcRenderer.on('global-shortcut-fired', listener);

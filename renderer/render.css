@@ -45,6 +45,14 @@ body[data-embed='1'] .render-stage {
   height: 1080px;
   border-radius: 0;
   background: transparent;
+  /* Centre the scaled stage in the viewport: scale() applies about the
+     top-left first, then the calc() shifts by half the leftover space, so
+     the letterbox stays symmetric when the host box is not exactly 16:9. */
+  transform: translate(
+      calc((100vw - 1920px * var(--preview-scale, 1)) / 2),
+      calc((100vh - 1080px * var(--preview-scale, 1)) / 2)
+    )
+    scale(var(--preview-scale, 1));
 }
 .render-stage.is-hidden {
   opacity: 0;

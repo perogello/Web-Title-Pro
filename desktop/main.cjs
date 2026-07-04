@@ -4,8 +4,10 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
 const electron = require('electron');
+const { spawn } = require('node:child_process');
 const { createUpdaterIntegration } = require('./integrations/updater.cjs');
 const { createGlobalShortcutManager } = require('./integrations/global-shortcuts.cjs');
+const { collectCleanupTargets, buildCleanupScript } = require('./integrations/maintenance.cjs');
 const { createYandexAuthIntegration } = require('./integrations/yandex-auth.cjs');
 const { createSystemFontsIntegration } = require('./integrations/system-fonts.cjs');
 
@@ -203,12 +205,26 @@ const deserializeIntegrationSecrets = (value = {}) => {
 };
 
 const loadProjectSession = async () => {
+  const sessionFile = getProjectSessionFile();
+  let raw = null;
   try {
-    const sessionFile = getProjectSessionFile();
-    const existing = await fsp.readFile(sessionFile, 'utf8');
-    projectSession = normalizeProjectSession(JSON.parse(existing));
+    raw = await fsp.readFile(sessionFile, 'utf8');
   } catch {
+    projectSession = normalizeProjectSession(); // fresh install — no file yet
+    return;
+  }
+
+  try {
+    projectSession = normalizeProjectSession(JSON.parse(raw));
+  } catch (error) {
+    // A session an older/newer version can't parse must not silently poison
+    // the app (a broken session once made every project save fail until the
+    // operator wiped AppData by hand). Quarantine it and start clean.
     projectSession = normalizeProjectSession();
+    try {
+      await fsp.rename(sessionFile, `${sessionFile}.corrupt-${Date.now()}.bak`);
+      log(`project-session: corrupt file quarantined (${error.message})`);
+    } catch {}
   }
 };
 
@@ -513,24 +529,46 @@ ipcMain.handle('project:open-recent', async (_event, projectPath) => {
 
 ipcMain.handle('project:save', async (_event, payload = {}) => {
   const suggestedName = String(payload.suggestedName || 'WebTitleProject').trim() || 'WebTitleProject';
-  const targetPath =
-    payload.path ||
-    projectSession.currentProjectPath ||
-    (await (async () => {
-      const result = await dialog.showSaveDialog(mainWindow, {
-        title: 'Save Project',
-        defaultPath: `${suggestedName}.${PROJECT_EXTENSION}`,
-        filters: [{ name: 'Web Title Pro Project', extensions: ['json', 'wtp-project'] }],
-      });
-      return result.canceled ? null : result.filePath;
-    })());
+  const askForSavePath = async (title) => {
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title,
+      defaultPath: `${suggestedName}.${PROJECT_EXTENSION}`,
+      filters: [{ name: 'Web Title Pro Project', extensions: ['json', 'wtp-project'] }],
+    });
+    return result.canceled ? null : result.filePath;
+  };
+
+  let targetPath =
+    payload.path || projectSession.currentProjectPath || (await askForSavePath('Save Project'));
 
   if (!targetPath) {
     return { canceled: true };
   }
 
-  await fsp.mkdir(path.dirname(targetPath), { recursive: true });
-  await fsp.writeFile(targetPath, JSON.stringify(payload.project || {}, null, 2), 'utf8');
+  const writeProject = async (filePath) => {
+    await fsp.mkdir(path.dirname(filePath), { recursive: true });
+    await fsp.writeFile(filePath, JSON.stringify(payload.project || {}, null, 2), 'utf8');
+  };
+
+  try {
+    await writeProject(targetPath);
+  } catch (error) {
+    // The remembered project path can go stale between sessions or app
+    // versions (folder removed, drive letter changed). Silently failing here
+    // used to make EVERY save fail until the operator wiped AppData — fall
+    // back to a Save dialog instead so the operator can re-point the project.
+    if (payload.path) {
+      throw error;
+    }
+    log(`project:save failed for stored path ${targetPath}: ${error.message}`);
+    const fallbackPath = await askForSavePath('Save Project (previous location is unavailable)');
+    if (!fallbackPath) {
+      return { canceled: true, error: error.message };
+    }
+    targetPath = fallbackPath;
+    await writeProject(targetPath);
+  }
+
   await touchRecentProject(targetPath);
 
   return {
@@ -890,6 +928,57 @@ ipcMain.handle('shortcuts:sync-global', async (_event, shortcutBindings = {}) =>
   return { ...result, available: true };
 });
 
+// Pop-out render windows (preview / live view of an output). Keyed by
+// output+mode so a repeat request focuses the existing window instead of
+// stacking duplicates. Only local render URLs are allowed.
+const renderWindows = new Map();
+
+ipcMain.handle('render-window:open', async (_event, payload = {}) => {
+  const url = typeof payload?.url === 'string' ? payload.url : '';
+  if (!/^https?:\/\/(localhost|127\.0\.0\.1|\[?::1\]?|\d{1,3}(\.\d{1,3}){3})(:\d+)?\//i.test(url)) {
+    return { ok: false, error: 'Only local render URLs can be opened.' };
+  }
+
+  const key = String(payload?.key || url);
+  const existing = renderWindows.get(key);
+  if (existing && !existing.isDestroyed()) {
+    try { existing.focus(); } catch {}
+    return { ok: true, focused: true };
+  }
+
+  const renderWindow = new BrowserWindow({
+    width: 960,
+    height: 540,
+    minWidth: 320,
+    minHeight: 180,
+    backgroundColor: '#050608',
+    autoHideMenuBar: true,
+    title: payload?.title || 'Web Title Pro — Render',
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+    },
+  });
+
+  try { renderWindow.setAspectRatio(16 / 9); } catch {}
+  renderWindow.setMenuBarVisibility(false);
+  // The render page sets document.title; keep the operator-facing name instead.
+  renderWindow.on('page-title-updated', (event) => event.preventDefault());
+  renderWindow.on('closed', () => {
+    renderWindows.delete(key);
+  });
+  renderWindows.set(key, renderWindow);
+  log(`render-window:open key=${key}`);
+
+  try {
+    await renderWindow.loadURL(url);
+  } catch (error) {
+    log(`render-window:load-failed ${error.message}`);
+  }
+
+  return { ok: true };
+});
+
 const waitForHealth = async (retries = 80) => {
   for (let attempt = 0; attempt < retries; attempt += 1) {
     try {
@@ -1018,9 +1107,45 @@ const createMainWindow = async () => {
   return mainWindow;
 };
 
+// Snapshot the operator's state before applying an update, so a broken
+// update can be rolled back by restoring these files instead of losing the
+// working project. Keeps the last 3 snapshots.
+const backupUserDataBeforeUpdate = async (targetVersion = 'unknown') => {
+  try {
+    const userData = app.getPath('userData');
+    const backupsRoot = path.join(userData, 'backups');
+    const backupDir = path.join(
+      backupsRoot,
+      `pre-${String(targetVersion).replace(/[^\w.-]+/g, '_')}-${Date.now()}`,
+    );
+    await fsp.mkdir(backupDir, { recursive: true });
+
+    const candidates = [
+      getProjectSessionFile(),
+      getIntegrationSecretsFile(),
+      path.join(userData, 'data', 'state.json'),
+    ];
+    for (const source of candidates) {
+      try {
+        await fsp.copyFile(source, path.join(backupDir, path.basename(source)));
+      } catch {}
+    }
+
+    const entries = (await fsp.readdir(backupsRoot)).filter((name) => name.startsWith('pre-')).sort();
+    while (entries.length > 3) {
+      const oldest = entries.shift();
+      await fsp.rm(path.join(backupsRoot, oldest), { recursive: true, force: true });
+    }
+    log(`updates:pre-update-backup ${backupDir}`);
+  } catch (error) {
+    log(`updates:pre-update-backup-failed ${error.message}`);
+  }
+};
+
 ipcMain.handle('updates:install-available', async (_event, payload = {}) => {
   log(`updates:ipc-install-available payload=${JSON.stringify({ available: payload?.available, latest: payload?.latestVersion, hasAssetUrl: Boolean(payload?.assetUrl) })}`);
   try {
+    await backupUserDataBeforeUpdate(payload?.latestVersion);
     const result = await updaterIntegration.installAvailableUpdate(payload);
     log(`updates:ipc-install-result ${JSON.stringify({ ok: result?.ok, reason: result?.reason })}`);
     return result;
@@ -1028,6 +1153,90 @@ ipcMain.handle('updates:install-available', async (_event, payload = {}) => {
     log(`updates:ipc-install-throw ${error.stack || error.message}`);
     throw error;
   }
+});
+
+// --- Maintenance: reset app data / full uninstall -------------------------
+// Both quit the app and hand the actual file removal to a detached
+// PowerShell helper (a running exe cannot delete its own files).
+const launchCleanupAndQuit = async (mode) => {
+  const tempDir = app.getPath('temp');
+  const userDataDir = app.getPath('userData');
+  const portableFile =
+    typeof process.env.PORTABLE_EXECUTABLE_FILE === 'string'
+      ? process.env.PORTABLE_EXECUTABLE_FILE.trim()
+      : '';
+  const portableDir =
+    typeof process.env.PORTABLE_EXECUTABLE_DIR === 'string'
+      ? process.env.PORTABLE_EXECUTABLE_DIR.trim()
+      : '';
+  const stableExePath = portableDir
+    ? path.join(portableDir, STABLE_PORTABLE_EXE_NAME)
+    : portableFile
+      ? path.join(path.dirname(portableFile), STABLE_PORTABLE_EXE_NAME)
+      : '';
+
+  const script = buildCleanupScript({
+    mode,
+    pid: process.pid,
+    targets: collectCleanupTargets({ userDataDir, tempDir }),
+    exePaths: mode === 'uninstall' ? [...new Set([portableFile, stableExePath].filter(Boolean))] : [],
+    relaunchExePath: mode === 'reset' ? (stableExePath || portableFile) : '',
+    tempDir,
+  });
+
+  const scriptPath = path.join(tempDir, `web-title-pro-cleanup-${Date.now()}.ps1`);
+  await fsp.writeFile(scriptPath, script, 'utf8');
+
+  const child = spawn(
+    'powershell.exe',
+    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', scriptPath],
+    { detached: true, stdio: 'ignore', windowsHide: true },
+  );
+  child.unref();
+  log(`maintenance:${mode} cleanup helper started (${scriptPath})`);
+
+  allowMainWindowClose = true;
+  app.quit();
+};
+
+ipcMain.handle('maintenance:reset', async () => {
+  const choice = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: 'Reset Web Title Pro',
+    message: 'Сбросить приложение и перезапустить начисто?',
+    detail:
+      'Будут удалены: настройки, сессия, токены интеграций и текущее рабочее состояние.\n'
+      + 'Сохранённые файлы проектов (.json) не пострадают — перед сбросом сохраните проект, если нужно.',
+    buttons: ['Сбросить и перезапустить', 'Отмена'],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+  });
+  if (choice.response !== 0) {
+    return { ok: false, cancelled: true };
+  }
+  await launchCleanupAndQuit('reset');
+  return { ok: true };
+});
+
+ipcMain.handle('maintenance:uninstall', async () => {
+  const choice = await dialog.showMessageBox(mainWindow, {
+    type: 'warning',
+    title: 'Remove Web Title Pro',
+    message: 'Полностью удалить Web Title Pro с этого компьютера?',
+    detail:
+      'Будут удалены: приложение (WebTitlePro.exe), все его данные, настройки и токены.\n'
+      + 'Сохранённые файлы проектов (.json) останутся на месте.',
+    buttons: ['Удалить всё', 'Отмена'],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+  });
+  if (choice.response !== 0) {
+    return { ok: false, cancelled: true };
+  }
+  await launchCleanupAndQuit('uninstall');
+  return { ok: true };
 });
 
 const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));

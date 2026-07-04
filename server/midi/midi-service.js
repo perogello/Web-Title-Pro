@@ -41,15 +41,10 @@ export const normalizeMidiBindings = (bindings = []) =>
 
 export const SUPPORTED_MIDI_ACTIONS = ['show', 'live', 'hide', 'next-title', 'previous-title'];
 
-export const normalizeMidiActionForDispatch = (action = '') => {
-  if (action === 'nextTitle') return 'next-title';
-  if (action === 'previousTitle') return 'previous-title';
-  if (action.startsWith('selectOutput:')) return `select-output:${action.slice('selectOutput:'.length)}`;
-  if (action.startsWith('selectEntry:')) return `entry-select:${action.slice('selectEntry:'.length)}`;
-  if (action.startsWith('timerToggle:')) return `timer-toggle:${action.slice('timerToggle:'.length)}`;
-  if (action.startsWith('timerReset:')) return `timer-reset:${action.slice('timerReset:'.length)}`;
-  return action;
-};
+// Shortcut model v2 uses canonical action ids directly
+// (output:<id>:<cmd> / timer:<id>:<cmd> / global:<cmd>), so MIDI stores and
+// dispatches the exact same id — no translation layer.
+export const normalizeMidiActionForDispatch = (action = '') => action;
 
 export const parseMidiMessage = (data = []) => {
   const [status, data1, data2] = data;
@@ -75,12 +70,13 @@ export const parseMidiMessage = (data = []) => {
   return null;
 };
 
+const OUTPUT_COMMANDS_RE =
+  /^output:[^:]+:(titleIn|titleOut|previewIn|previewOut|rowPrev|rowNext|timerStart|timerStop|timerReset)$/;
+const TIMER_COMMANDS_RE = /^timer:[^:]+:(start|stop|reset)$/;
+const GLOBAL_COMMANDS_RE = /^global:(allOutputsOut)$/;
+
 const isSupportedAction = (action = '') =>
-  ['show', 'live', 'hide', 'next-title', 'previous-title'].includes(normalizeMidiActionForDispatch(action)) ||
-  /^select-output:[\w-]+$/.test(normalizeMidiActionForDispatch(action)) ||
-  /^entry-select:[\w-]+$/.test(normalizeMidiActionForDispatch(action)) ||
-  /^timer-toggle:[\w-]+$/.test(normalizeMidiActionForDispatch(action)) ||
-  /^timer-reset:[\w-]+$/.test(normalizeMidiActionForDispatch(action));
+  OUTPUT_COMMANDS_RE.test(action) || TIMER_COMMANDS_RE.test(action) || GLOBAL_COMMANDS_RE.test(action);
 
 const isPressTrigger = (parsed = {}) => {
   if (parsed.type === 'noteon') {

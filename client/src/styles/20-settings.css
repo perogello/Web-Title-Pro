@@ -282,3 +282,19 @@
   font-size: 11px;
   color: var(--select-accent-v2);
 }
+
+/* Settings → System → Maintenance: reset / full uninstall actions. */
+.shell-v2 .maintenance-actions-v3 {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.shell-v2 .maintenance-actions-v3 .btn-v3-ghost.is-danger {
+  color: var(--live-v2);
+  border-color: rgba(249, 50, 50, 0.45);
+}
+.shell-v2 .maintenance-actions-v3 .btn-v3-ghost.is-danger:hover {
+  background: rgba(249, 50, 50, 0.12);
+  border-color: var(--live-v2);
+}

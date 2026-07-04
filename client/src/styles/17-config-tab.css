@@ -75,6 +75,27 @@
   border-radius: 8px;
   overflow: hidden;
 }
+/* Per-output / per-timer sections get a coloured left accent so different
+   targets are visually separated at a glance. --ctl-accent is set inline. */
+.shell-v2 .ctl-section--output,
+.shell-v2 .ctl-section--timer {
+  border-left: 3px solid var(--ctl-accent, var(--border-strong-v2));
+}
+.shell-v2 .ctl-section-badge {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #0a0a0c;
+  background: var(--ctl-accent, var(--text-dim-v2));
+}
+.shell-v2 .ctl-section--global .ctl-section-badge {
+  color: var(--text-dim-v2);
+  background: var(--bg-2-v2);
+}
 .shell-v2 .ctl-section-head {
   width: 100%;
   display: flex !important;
@@ -182,6 +203,7 @@
 .shell-v2 .ctl-pill-kb { color: var(--text-v2); }
 .shell-v2 .ctl-pill-md { color: var(--vmix-v2); border-color: rgba(106,163,255,0.35); background: rgba(106,163,255,0.06); }
 .shell-v2 .ctl-pill-cp { color: var(--good-v2); border-color: rgba(0,184,107,0.35); background: rgba(0,184,107,0.06); }
+.shell-v2 .ctl-pill-warn { color: #f5b942; border-color: rgba(245,185,66,0.4); background: rgba(245,185,66,0.07); }
 .shell-v2 .ctl-binding-empty {
   color: var(--text-faint-v2);
   font-size: 11px;

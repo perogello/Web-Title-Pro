@@ -113,67 +113,61 @@ test('normalizeMidiBindings: empty input has no preassigned bindings', () => {
 
 test('normalizeMidiBindings: filters out unsupported actions', () => {
   const result = normalizeMidiBindings([
-    { device: 'any', type: 'noteon', note: 60, action: 'show' },
+    { device: 'any', type: 'noteon', note: 60, action: 'output:main:titleIn' },
     { device: 'any', type: 'noteon', note: 61, action: 'ghost-action' },
   ]);
   assert.equal(result.length, 1);
-  assert.equal(result[0].action, 'show');
+  assert.equal(result[0].action, 'output:main:titleIn');
 });
 
-test('normalizeMidiBindings: accepts select-output:<id> action', () => {
+test('normalizeMidiBindings: accepts all per-output command ids', () => {
   const result = normalizeMidiBindings([
-    { device: 'any', type: 'noteon', note: 50, action: 'select-output:output-main' },
+    { device: 'any', type: 'noteon', note: 50, action: 'output:main:titleOut' },
+    { device: 'any', type: 'noteon', note: 51, action: 'output:aux:previewIn' },
+    { device: 'any', type: 'noteon', note: 52, action: 'output:main:rowNext' },
+    { device: 'any', type: 'noteon', note: 53, action: 'output:main:timerStart' },
   ]);
-  assert.equal(result.length, 1);
-  assert.equal(result[0].action, 'select-output:output-main');
-});
-
-test('normalizeMidiBindings: accepts entry-select / timer-toggle / timer-reset', () => {
-  const result = normalizeMidiBindings([
-    { device: 'any', type: 'noteon', note: 51, action: 'entry-select:abc-123' },
-    { device: 'any', type: 'noteon', note: 52, action: 'timer-toggle:main' },
-    { device: 'any', type: 'noteon', note: 53, action: 'timer-reset:main' },
-  ]);
-  assert.equal(result.length, 3);
-  assert.deepEqual(result.map((b) => b.action), ['entry-select:abc-123', 'timer-toggle:main', 'timer-reset:main']);
-});
-
-test('normalizeMidiBindings: accepts current UI action ids', () => {
-  const result = normalizeMidiBindings([
-    { device: 'any', type: 'noteon', note: 54, action: 'previousTitle' },
-    { device: 'any', type: 'noteon', note: 55, action: 'selectOutput:output-main' },
-    { device: 'any', type: 'noteon', note: 56, action: 'selectEntry:title-1' },
-    { device: 'any', type: 'noteon', note: 57, action: 'timerToggle:main' },
-    { device: 'any', type: 'noteon', note: 58, action: 'timerReset:main' },
-  ]);
-  assert.equal(result.length, 5);
+  assert.equal(result.length, 4);
   assert.deepEqual(result.map((b) => b.action), [
-    'previousTitle',
-    'selectOutput:output-main',
-    'selectEntry:title-1',
-    'timerToggle:main',
-    'timerReset:main',
+    'output:main:titleOut',
+    'output:aux:previewIn',
+    'output:main:rowNext',
+    'output:main:timerStart',
   ]);
 });
 
-test('normalizeMidiActionForDispatch maps UI ids to command ids', () => {
-  assert.equal(normalizeMidiActionForDispatch('previousTitle'), 'previous-title');
-  assert.equal(normalizeMidiActionForDispatch('selectOutput:output-main'), 'select-output:output-main');
-  assert.equal(normalizeMidiActionForDispatch('selectEntry:title-1'), 'entry-select:title-1');
-  assert.equal(normalizeMidiActionForDispatch('timerToggle:main'), 'timer-toggle:main');
-  assert.equal(normalizeMidiActionForDispatch('timerReset:main'), 'timer-reset:main');
+test('normalizeMidiBindings: accepts per-timer and global command ids', () => {
+  const result = normalizeMidiBindings([
+    { device: 'any', type: 'noteon', note: 54, action: 'timer:main:start' },
+    { device: 'any', type: 'noteon', note: 55, action: 'timer:main:stop' },
+    { device: 'any', type: 'noteon', note: 56, action: 'timer:main:reset' },
+    { device: 'any', type: 'noteon', note: 57, action: 'global:allOutputsOut' },
+  ]);
+  assert.equal(result.length, 4);
+  assert.deepEqual(result.map((b) => b.action), [
+    'timer:main:start',
+    'timer:main:stop',
+    'timer:main:reset',
+    'global:allOutputsOut',
+  ]);
 });
 
-test('normalizeMidiBindings: rejects select-output without id', () => {
+test('normalizeMidiActionForDispatch is a passthrough (v2 ids are canonical)', () => {
+  assert.equal(normalizeMidiActionForDispatch('output:main:titleIn'), 'output:main:titleIn');
+  assert.equal(normalizeMidiActionForDispatch('timer:abc:start'), 'timer:abc:start');
+  assert.equal(normalizeMidiActionForDispatch('global:allOutputsOut'), 'global:allOutputsOut');
+});
+
+test('normalizeMidiBindings: rejects an unknown command on a valid target', () => {
   const result = normalizeMidiBindings([
-    { device: 'any', type: 'noteon', note: 50, action: 'select-output:' },
+    { device: 'any', type: 'noteon', note: 50, action: 'output:main:bogus' },
   ]);
   assert.equal(result.length, 0);
 });
 
 test('normalizeMidiBindings: normalizes type to noteon when invalid', () => {
   const result = normalizeMidiBindings([
-    { device: 'any', type: 'noteoff', note: 60, action: 'show' },
+    { device: 'any', type: 'noteoff', note: 60, action: 'output:main:titleIn' },
   ]);
   assert.equal(result[0].type, 'noteon');
 });
@@ -188,7 +182,7 @@ test('normalizeMidiBindings: keeps numeric note + controller', () => {
       controller: 7,
       valueMode: 'gte',
       value: 100,
-      action: 'live',
+      action: 'timer:main:start',
     },
   ]);
   assert.equal(result[0].controller, 7);
@@ -201,9 +195,9 @@ test('normalizeMidiBindings: keeps numeric note + controller', () => {
 
 test('normalizeMidiBindings: drops invalid numeric fields', () => {
   const result = normalizeMidiBindings([
-    { device: 'any', type: 'noteon', channel: 99, note: 'bad', controller: -1, action: 'show' },
+    { device: 'any', type: 'noteon', channel: 99, note: 'bad', controller: -1, action: 'output:main:titleIn' },
   ]);
-  assert.deepEqual(result[0], { device: 'any', type: 'noteon', action: 'show' });
+  assert.deepEqual(result[0], { device: 'any', type: 'noteon', action: 'output:main:titleIn' });
 });
 
 test('MidiService.refresh opens JZZ input even when and() does not pass a port argument', async () => {
@@ -320,7 +314,7 @@ test('MidiService learn stores portable binding and does not fire action immedia
   service.on('action', (event) => firedActions.push(event.action));
 
   await service.refresh();
-  service.startLearn('selectEntry:title-1');
+  service.startLearn('output:main:previewIn');
   fake.ports[0].emit([0x91, 64, 100]);
 
   assert.equal(firedActions.length, 0);
@@ -329,7 +323,7 @@ test('MidiService learn stores portable binding and does not fire action immedia
     device: 'any',
     deviceName: 'AKAI MPK mini',
     type: 'noteon',
-    action: 'selectEntry:title-1',
+    action: 'output:main:previewIn',
     channel: 2,
     note: 64,
   });
@@ -340,14 +334,14 @@ test('MidiService dispatches learned bindings on later MIDI press', async () => 
   const firedActions = [];
   const service = new MidiService({
     jzzFactory: fake.jzzFactory,
-    bindings: [{ device: 'any', type: 'noteon', channel: 2, note: 64, action: 'selectEntry:title-1' }],
+    bindings: [{ device: 'any', type: 'noteon', channel: 2, note: 64, action: 'output:main:previewIn' }],
   });
   service.on('action', (event) => firedActions.push(event.action));
 
   await service.refresh();
   fake.ports[0].emit([0x91, 64, 100]);
 
-  assert.deepEqual(firedActions, ['selectEntry:title-1']);
+  assert.deepEqual(firedActions, ['output:main:previewIn']);
 });
 
 test('MidiService learn stores CC value rule for faders', async () => {
@@ -359,7 +353,7 @@ test('MidiService learn stores CC value rule for faders', async () => {
   });
 
   await service.refresh();
-  service.startLearn('live');
+  service.startLearn('timer:main:start');
   fake.ports[0].emit([0xB0, 7, 96]);
 
   assert.equal(savedBindings.length, 1);
@@ -367,7 +361,7 @@ test('MidiService learn stores CC value rule for faders', async () => {
     device: 'any',
     deviceName: 'AKAI MPK mini',
     type: 'cc',
-    action: 'live',
+    action: 'timer:main:start',
     channel: 1,
     controller: 7,
     valueMode: 'eq',
@@ -380,7 +374,7 @@ test('MidiService CC binding can require value at or above threshold', async () 
   const firedActions = [];
   const service = new MidiService({
     jzzFactory: fake.jzzFactory,
-    bindings: [{ device: 'any', type: 'cc', channel: 1, controller: 7, valueMode: 'gte', value: 100, action: 'live' }],
+    bindings: [{ device: 'any', type: 'cc', channel: 1, controller: 7, valueMode: 'gte', value: 100, action: 'timer:main:start' }],
   });
   service.on('action', (event) => firedActions.push(event.action));
 
@@ -388,7 +382,7 @@ test('MidiService CC binding can require value at or above threshold', async () 
   fake.ports[0].emit([0xB0, 7, 99]);
   fake.ports[0].emit([0xB0, 7, 100]);
 
-  assert.deepEqual(firedActions, ['live']);
+  assert.deepEqual(firedActions, ['timer:main:start']);
 });
 
 test('MidiService can update CC value rule', async () => {
@@ -396,14 +390,14 @@ test('MidiService can update CC value rule', async () => {
   let savedBindings = [];
   const service = new MidiService({
     jzzFactory: fake.jzzFactory,
-    bindings: [{ device: 'any', type: 'cc', channel: 1, controller: 7, valueMode: 'eq', value: 64, action: 'live' }],
+    bindings: [{ device: 'any', type: 'cc', channel: 1, controller: 7, valueMode: 'eq', value: 64, action: 'timer:main:start' }],
     onBindingsChange: (bindings) => {
       savedBindings = bindings;
     },
   });
 
   await service.refresh();
-  const state = service.updateBinding('live', { valueMode: 'lte', value: 10 });
+  const state = service.updateBinding('timer:main:start', { valueMode: 'lte', value: 10 });
 
   assert.equal(state.bindings[0].valueMode, 'lte');
   assert.equal(state.bindings[0].value, 10);
@@ -415,7 +409,7 @@ test('MidiService updateBinding can create a CC binding', async () => {
   const service = new MidiService({ jzzFactory: fake.jzzFactory });
 
   await service.refresh();
-  const state = service.updateBinding('live', {
+  const state = service.updateBinding('timer:main:start', {
     type: 'cc',
     channel: 1,
     controller: 7,
@@ -430,6 +424,6 @@ test('MidiService updateBinding can create a CC binding', async () => {
     channel: 1,
     valueMode: 'gte',
     value: 100,
-    action: 'live',
+    action: 'timer:main:start',
   });
 });

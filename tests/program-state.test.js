@@ -251,3 +251,97 @@ test('program state: adding titles and outputs does not rewrite existing output 
     await fs.remove(dir);
   }
 });
+
+test('init: corrupt state.json is quarantined to a .corrupt-*.bak, not silently lost', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-corrupt-'));
+  const stateFile = path.join(dir, 'state.json');
+  await fs.writeFile(stateFile, '{ this is not : json !!!', 'utf8');
+
+  const templateService = createStubTemplateService();
+  templateService.getTemplate = (id) =>
+    templateService.getTemplates().find((tpl) => tpl.id === id) || null;
+  const store = new TitleStore({ stateFile, templateService });
+
+  try {
+    await store.init();
+    // The store must fall back to a working default state...
+    assert.ok(Array.isArray(store.getSnapshot().entries));
+    // ...and preserve the unreadable original next to it.
+    const backups = (await fs.readdir(dir)).filter((name) => /state\.json\.corrupt-\d+\.bak/.test(name));
+    assert.equal(backups.length, 1);
+    const preserved = await fs.readFile(path.join(dir, backups[0]), 'utf8');
+    assert.equal(preserved, '{ this is not : json !!!');
+  } finally {
+    await store.close?.();
+    await fs.remove(dir);
+  }
+});
+
+test('init: empty state.json (fresh install) does not create a corrupt backup', async () => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-fresh-'));
+  const stateFile = path.join(dir, 'state.json');
+
+  const templateService = createStubTemplateService();
+  templateService.getTemplate = (id) =>
+    templateService.getTemplates().find((tpl) => tpl.id === id) || null;
+  const store = new TitleStore({ stateFile, templateService });
+
+  try {
+    await store.init();
+    const backups = (await fs.readdir(dir)).filter((name) => name.includes('.corrupt-'));
+    assert.equal(backups.length, 0);
+  } finally {
+    await store.close?.();
+    await fs.remove(dir);
+  }
+});
+
+test('shortcuts v2: nested per-output/per-timer patches merge without clobbering', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    store.updateNavigationShortcuts({ outputs: { main: { titleIn: 'F5' } } });
+    store.updateNavigationShortcuts({ outputs: { main: { titleOut: 'F6' } } });
+    store.updateNavigationShortcuts({ outputs: { aux: { titleIn: 'F7' } } });
+    store.updateNavigationShortcuts({ timers: { t1: { start: 'Space' } } });
+    store.updateNavigationShortcuts({ global: { allOutputsOut: 'Escape' } });
+    store.updateNavigationShortcuts({ globalActions: { 'output:main:titleIn': true } });
+
+    const s = store.getNavigationShortcuts();
+    // Setting titleOut must NOT wipe titleIn on the same output.
+    assert.equal(s.outputs.main.titleIn, 'F5');
+    assert.equal(s.outputs.main.titleOut, 'F6');
+    // A different output is untouched.
+    assert.equal(s.outputs.aux.titleIn, 'F7');
+    assert.equal(s.timers.t1.start, 'Space');
+    assert.equal(s.global.allOutputsOut, 'Escape');
+    assert.equal(s.globalActions['output:main:titleIn'], true);
+    // All command keys are present and normalized to strings.
+    assert.equal(s.outputs.main.previewIn, '');
+    assert.equal(s.timers.t1.reset, '');
+  } finally {
+    await fs.remove(dir);
+  }
+});
+
+test('shortcuts v2: legacy flat bindings load without crashing and reset to empty', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    // Simulate a project saved by the old flat model.
+    store.updateNavigationShortcuts({});
+    store.state.integrations.shortcuts = {
+      show: 'Ctrl+S',
+      hide: 'Ctrl+H',
+      outputSelectById: { 'output-1': 'Ctrl+1' },
+      timerToggleById: { main: 'Space' },
+      globalActions: { show: true },
+    };
+    const s = store.getNavigationShortcuts();
+    // New shape is always present; unknown legacy keys are dropped.
+    assert.deepEqual(Object.keys(s).sort(), ['global', 'globalActions', 'outputs', 'timers']);
+    assert.equal(s.show, undefined);
+    assert.deepEqual(s.outputs, {});
+    assert.deepEqual(s.timers, {});
+  } finally {
+    await fs.remove(dir);
+  }
+});

@@ -82,17 +82,17 @@ test('project bundle exports and imports referenced custom templates', async () 
       integrations: {
         vmix: { host: 'http://127.0.0.1:8088', selectedTimerInputKey: 'vmix-key-1' },
         shortcuts: {
-          show: 'Ctrl+Shift+S',
-          nextTitle: 'ArrowDown',
-          outputSelectById: { 'output-1': 'Ctrl+1' },
-          entrySelectById: { 'entry-2': 'Ctrl+2' },
-          timerToggleById: { main: 'Space' },
-          globalActions: { show: true, 'selectEntry:entry-2': true },
+          outputs: {
+            'output-1': { titleIn: 'Ctrl+Shift+S', rowNext: 'ArrowDown' },
+          },
+          timers: { main: { start: 'Space' } },
+          global: { allOutputsOut: 'Escape' },
+          globalActions: { 'output:output-1:titleIn': true },
         },
         midi: {
           bindings: [
             {
-              action: 'selectEntry:entry-2',
+              action: 'output:output-1:titleIn',
               type: 'noteon',
               channel: 1,
               note: 64,
@@ -169,11 +169,11 @@ test('project bundle exports and imports referenced custom templates', async () 
   assert.equal(exportedProject.sources.items.length, 1);
   assert.equal(exportedProject.runtime.vmix.inputs.length, 1);
   assert.equal(exportedProject.state.integrations.vmix.selectedTimerInputKey, 'vmix-key-1');
-  assert.equal(exportedProject.state.integrations.shortcuts.show, 'Ctrl+Shift+S');
-  assert.equal(exportedProject.state.integrations.shortcuts.entrySelectById['entry-2'], 'Ctrl+2');
-  assert.equal(exportedProject.state.integrations.midi.bindings[0].action, 'selectEntry:entry-2');
+  assert.equal(exportedProject.state.integrations.shortcuts.outputs['output-1'].titleIn, 'Ctrl+Shift+S');
+  assert.equal(exportedProject.state.integrations.shortcuts.outputs['output-1'].rowNext, 'ArrowDown');
+  assert.equal(exportedProject.state.integrations.midi.bindings[0].action, 'output:output-1:titleIn');
   assert.equal(result.project.meta.name, 'Bundle Test');
-  assert.equal(result.project.state.integrations.shortcuts.timerToggleById.main, 'Space');
+  assert.equal(result.project.state.integrations.shortcuts.timers.main.start, 'Space');
   assert.equal(result.project.state.integrations.midi.bindings[0].note, 64);
   assert.deepEqual(result.importedTemplates, [{ slug: 'custom-one', fileCount: 2 }]);
   assert.equal(

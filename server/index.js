@@ -9,7 +9,7 @@ import { config } from './config.js';
 import { TemplateService } from './templates/template-service.js';
 import { TitleStore } from './state/store.js';
 import { TimerManager } from './timers/timer-manager.js';
-import { MidiService, normalizeMidiActionForDispatch } from './midi/midi-service.js';
+import { MidiService } from './midi/midi-service.js';
 import { createApiRouter } from './routes/api.js';
 import { WebSocketHub } from './ws/hub.js';
 import { VmixService } from './vmix/vmix-service.js';
@@ -29,6 +29,81 @@ const installProcessHandlers = () => {
   process.on('unhandledRejection', (reason) => {
     console.error('unhandledRejection:', reason?.stack || reason?.message || reason);
   });
+};
+
+// Dispatch a MIDI-triggered canonical action id (model v2) server-side.
+// Row stepping and an output's "current timer" are resolved from the client's
+// data-source library, so MIDI handles them best-effort: row stepping is a
+// no-op here, and per-output timer commands fall back to a timer explicitly
+// bound to that output (targetOutputId).
+const dispatchMidiAction = (store, action = '') => {
+  const parseId = (str) => {
+    if (str.startsWith('output:')) {
+      const rest = str.slice('output:'.length);
+      const i = rest.lastIndexOf(':');
+      return i === -1 ? null : { kind: 'output', id: rest.slice(0, i), command: rest.slice(i + 1) };
+    }
+    if (str.startsWith('timer:')) {
+      const rest = str.slice('timer:'.length);
+      const i = rest.lastIndexOf(':');
+      return i === -1 ? null : { kind: 'timer', id: rest.slice(0, i), command: rest.slice(i + 1) };
+    }
+    if (str.startsWith('global:')) return { kind: 'global', command: str.slice('global:'.length) };
+    return null;
+  };
+
+  const runTimer = (timerId, command) => {
+    if (!timerId) return;
+    if (command === 'start') store.startTimer(timerId);
+    else if (command === 'stop') store.stopTimer(timerId);
+    else if (command === 'reset') store.resetTimer(timerId);
+  };
+
+  const parsed = parseId(action);
+  if (!parsed) return;
+
+  if (parsed.kind === 'global') {
+    if (parsed.command === 'allOutputsOut') {
+      for (const output of store.getSnapshot().outputs || []) {
+        if (output.program?.visible) store.hideProgram(output.id);
+      }
+    }
+    return;
+  }
+
+  if (parsed.kind === 'timer') {
+    runTimer(parsed.id, parsed.command);
+    return;
+  }
+
+  // output commands
+  const outputId = parsed.id;
+  switch (parsed.command) {
+    case 'titleIn':
+      store.showSelected(null, outputId);
+      break;
+    case 'titleOut':
+      store.hideProgram(outputId);
+      break;
+    case 'previewIn':
+      store.showPreview(null, outputId);
+      break;
+    case 'previewOut':
+      store.hidePreview(outputId);
+      break;
+    case 'timerStart':
+    case 'timerStop':
+    case 'timerReset': {
+      const boundTimer = store.getTimers().find((t) => t.targetOutputId === outputId);
+      const command =
+        parsed.command === 'timerStart' ? 'start' : parsed.command === 'timerStop' ? 'stop' : 'reset';
+      runTimer(boundTimer?.id, command);
+      break;
+    }
+    default:
+      // rowPrev / rowNext — client-only, no server-side equivalent.
+      break;
+  }
 };
 
 export const startServer = async (options = {}) => {
@@ -70,49 +145,7 @@ export const startServer = async (options = {}) => {
   });
   midiService.on('action', ({ action }) => {
     try {
-      const normalizedAction = normalizeMidiActionForDispatch(action);
-
-      if (normalizedAction === 'show') {
-        store.showSelected();
-      }
-
-      if (normalizedAction === 'update' || normalizedAction === 'live') {
-        store.updateProgram();
-      }
-
-      if (normalizedAction === 'hide') {
-        store.hideProgram();
-      }
-
-      if (normalizedAction === 'next-title') {
-        store.selectAdjacentEntry('next');
-      }
-
-      if (normalizedAction === 'previous-title') {
-        store.selectAdjacentEntry('previous');
-      }
-
-      if (normalizedAction.startsWith('select-output:')) {
-        store.selectOutput(normalizedAction.slice('select-output:'.length));
-      }
-
-      if (normalizedAction.startsWith('entry-select:')) {
-        store.selectEntry(normalizedAction.slice('entry-select:'.length));
-      }
-
-      if (normalizedAction.startsWith('timer-toggle:')) {
-        const timerId = normalizedAction.slice('timer-toggle:'.length);
-        const timer = store.getTimers().find((item) => item.id === timerId);
-        if (timer?.running) {
-          store.stopTimer(timerId);
-        } else if (timer) {
-          store.startTimer(timerId);
-        }
-      }
-
-      if (normalizedAction.startsWith('timer-reset:')) {
-        store.resetTimer(normalizedAction.slice('timer-reset:'.length));
-      }
+      dispatchMidiAction(store, action);
     } catch (error) {
       console.warn(`MIDI action skipped: ${error.message}`);
     }
@@ -151,14 +184,34 @@ export const startServer = async (options = {}) => {
   app.use('/api', createApiRouter({ store, templateService, midiService, vmixService, updateService }));
   app.use('/template-assets/builtin', express.static(config.builtinTemplatesDir));
   app.use('/template-assets/custom', express.static(config.customTemplatesDir));
-  app.use('/renderer-assets', express.static(config.rendererDir));
+  // Renderer files carry no content hash in their names, so a browser cache
+  // could keep serving the previous version's render.js/css after an app
+  // update. Force revalidation.
+  app.use(
+    '/renderer-assets',
+    express.static(config.rendererDir, {
+      setHeaders: (response) => response.setHeader('Cache-Control', 'no-cache'),
+    }),
+  );
 
   app.get(['/render', '/render.html'], (_request, response) => {
+    response.setHeader('Cache-Control', 'no-cache');
     response.sendFile(path.join(config.rendererDir, 'render.html'));
   });
 
+  // Serve the built client. HTML must never be cached (a stale index.html
+  // would reference the OLD hashed bundle after an update and show the
+  // previous UI); the hashed assets themselves stay cacheable.
   if (await fs.pathExists(path.join(config.clientDistDir, 'index.html'))) {
-    app.use(express.static(config.clientDistDir));
+    app.use(
+      express.static(config.clientDistDir, {
+        setHeaders: (response, filePath) => {
+          if (filePath.endsWith('.html')) {
+            response.setHeader('Cache-Control', 'no-cache');
+          }
+        },
+      }),
+    );
   }
 
   app.use((request, response, next) => {
@@ -177,6 +230,7 @@ export const startServer = async (options = {}) => {
     const indexPath = path.join(config.clientDistDir, 'index.html');
 
     if (fs.existsSync(indexPath)) {
+      response.setHeader('Cache-Control', 'no-cache');
       response.sendFile(indexPath);
       return;
     }

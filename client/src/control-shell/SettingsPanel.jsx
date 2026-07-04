@@ -1,6 +1,7 @@
 import OutputSettingsTab from './settings/OutputSettingsTab.jsx';
 import ShortcutsSettingsTab from './settings/ShortcutsSettingsTab.jsx';
 import UpdatesSettingsTab from './settings/UpdatesSettingsTab.jsx';
+import MaintenanceSettingsTab from './settings/MaintenanceSettingsTab.jsx';
 import YandexSettingsTab from './settings/YandexSettingsTab.jsx';
 import VmixSettingsTab from './settings/VmixSettingsTab.jsx';
 import AboutSettingsTab from './settings/AboutSettingsTab.jsx';
@@ -23,6 +24,7 @@ export default function SettingsPanel({
   outputs,
   learningShortcut,
   shortcutBindings,
+  globalShortcutConflicts,
   shortcutEntries,
   shortcutTimers,
   bitfocusActions,
@@ -62,6 +64,9 @@ export default function SettingsPanel({
   onSetVmixHostDraft,
   onConnectVmix,
   onRefreshVmixState,
+  isDesktop,
+  onResetApp,
+  onUninstallApp,
 }) {
   const activeId = settingsTab === 'output' ? 'outputs' : (settingsTab || 'outputs');
   const activeNav = NAV.find((item) => item.id === activeId) || NAV[0];
@@ -110,8 +115,8 @@ export default function SettingsPanel({
             <ShortcutsSettingsTab
               learningShortcut={learningShortcut}
               shortcutBindings={shortcutBindings}
+              globalShortcutConflicts={globalShortcutConflicts}
               outputs={outputs}
-              entries={shortcutEntries}
               timers={shortcutTimers}
               midiState={midiState}
               bitfocusActions={bitfocusActions}
@@ -163,6 +168,11 @@ export default function SettingsPanel({
                 projectStatus={projectStatus}
                 outputInfo={outputInfo}
                 onCopyBaseUrl={onCopyBaseUrl}
+              />
+              <MaintenanceSettingsTab
+                isDesktop={isDesktop}
+                onResetApp={onResetApp}
+                onUninstallApp={onUninstallApp}
               />
             </div>
           )}

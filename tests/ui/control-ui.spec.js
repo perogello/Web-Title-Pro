@@ -73,7 +73,9 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
   await page.getByRole('button', { name: 'Live', exact: true }).click();
 
   await expect(page.getByText('Live data source')).toBeVisible();
-  await expect(page.getByRole('button', { name: /Preview/i })).toBeVisible();
+  // Exact match: the preview overlay's pop-out buttons ("Open Preview … in
+  // separate window") would ambiguously match a loose /Preview/i.
+  await expect(page.getByRole('button', { name: 'Preview ▾' })).toBeVisible();
 
   await page.getByRole('button', { name: /Notes/i }).click();
   const notes = page.getByRole('textbox', { name: 'Notes editor' });
@@ -293,7 +295,14 @@ test('Controls exposes MIDI CC value rule controls for fader bindings', async ({
   await seedSourceLibrary(page);
   await waitForBackend(request);
   await page.goto('/');
-  await request.patch('http://127.0.0.1:4000/api/midi/bindings/live', {
+
+  // Shortcut model v2 keys everything by canonical action ids. Bind a CC to a
+  // real per-output command (Title IN) and assert the value-rule controls show
+  // up on that row inside the output's section.
+  const state = await (await request.get('http://127.0.0.1:4000/api/state')).json();
+  const outputId = state.outputs[0].id;
+  const action = `output:${outputId}:titleIn`;
+  await request.patch(`http://127.0.0.1:4000/api/midi/bindings/${encodeURIComponent(action)}`, {
     data: {
       device: 'any',
       deviceName: 'AKAI MPK mini',
@@ -308,12 +317,14 @@ test('Controls exposes MIDI CC value rule controls for fader bindings', async ({
   await page.getByRole('button', { name: /SETTINGS/i }).click();
   await page.getByRole('button', { name: /Controls/i }).click();
 
-  const liveRow = page.locator('.ctl-row').filter({ has: page.locator('.ctl-row-name', { hasText: 'Live' }) });
-  await liveRow.locator('.ctl-row-label').click();
+  const titleInRow = page
+    .locator('.ctl-row')
+    .filter({ has: page.locator('.ctl-row-name', { hasText: 'Title IN' }) });
+  await titleInRow.locator('.ctl-row-label').click();
 
-  await expect(liveRow.getByText('CC Value')).toBeVisible();
-  await expect(liveRow.locator('select')).toHaveValue('gte');
-  await expect(liveRow.locator('input[type="number"]')).toHaveValue('100');
+  await expect(titleInRow.getByText('CC Value')).toBeVisible();
+  await expect(titleInRow.locator('select')).toHaveValue('gte');
+  await expect(titleInRow.locator('input[type="number"]')).toHaveValue('100');
 });
 
 test('Add Title modal uses app-styled mode and upload controls', async ({ page, request }) => {
@@ -396,5 +407,84 @@ test('Timers: a running countdown visibly ticks down in the UI', async ({ page, 
       .not.toBe(first);
   } finally {
     await request.delete(`http://127.0.0.1:4000/api/timers/${timer.id}`);
+  }
+});
+
+test('Preview overlay: embed frames, PVW bus, pop-out and Live-tab gating', async ({ page, request }) => {
+  await seedSourceLibrary(page);
+  await waitForBackend(request);
+
+  const apiState = async () =>
+    (await request.get('http://127.0.0.1:4000/api/state')).json();
+  const before = await apiState();
+  const output = before.outputs?.[0];
+  const previousSelectedEntryId = output?.selectedEntryId || null;
+
+  try {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Live', exact: true }).click();
+
+    await page.getByRole('button', { name: 'Preview ▾' }).click();
+    const overlay = page.locator('.preview-overlay-v2');
+    await expect(overlay).toHaveClass(/is-open/);
+
+    // Both in-app frames must load the scaled embed page; the live frame must
+    // NOT load the raw ?output= URL (the old bug showed a 1920x1080 corner).
+    const srcs = await overlay
+      .locator('.preview-frame-v2 iframe')
+      .evaluateAll((els) => els.map((el) => el.getAttribute('src')));
+    expect(srcs.length).toBe(2);
+    for (const src of srcs) expect(src).toContain('embed=1');
+    expect(srcs[0]).toContain('preview=1');
+    expect(srcs[1]).not.toContain('preview=1');
+
+    // Frames keep a strict 16:9 footprint.
+    const box = await overlay.locator('.preview-frame-v2').first().boundingBox();
+    expect(Math.abs(box.width / box.height - 16 / 9)).toBeLessThan(0.02);
+
+    // PVW IN needs a selected title; pick the first entry if none is set.
+    const pvwIn = overlay.locator('.pvw-cmd.is-in');
+    if (await pvwIn.isDisabled()) {
+      const entryId = before.entries?.[0]?.id;
+      expect(entryId).toBeTruthy();
+      await request.post(`http://127.0.0.1:4000/api/entries/${entryId}/select`, {
+        data: { outputId: output?.id },
+      });
+      await expect(pvwIn).toBeEnabled();
+    }
+
+    await pvwIn.click();
+    await expect
+      .poll(async () => (await apiState()).outputs?.[0]?.previewProgram?.visible)
+      .toBe(true);
+
+    await overlay.locator('.pvw-cmd.is-out').click();
+    await expect
+      .poll(async () => (await apiState()).outputs?.[0]?.previewProgram?.visible)
+      .toBe(false);
+
+    // Pop-out falls back to window.open outside Electron.
+    const popupPromise = page.waitForEvent('popup');
+    await overlay.locator('.pf-popout').first().click();
+    const popup = await popupPromise;
+    expect(popup.url()).toContain('preview=1');
+    await popup.close();
+
+    // The overlay lives only on the Live tab.
+    await page.getByRole('button', { name: 'Config', exact: true }).click();
+    await expect(overlay).not.toHaveClass(/is-open/);
+    await page.getByRole('button', { name: 'Live', exact: true }).click();
+    await expect(overlay).toHaveClass(/is-open/);
+    await expect(overlay.locator('.preview-resize-handle')).toBeVisible();
+  } finally {
+    // Restore the operator's original selection in the shared dev state.
+    if (previousSelectedEntryId) {
+      await request.post(`http://127.0.0.1:4000/api/entries/${previousSelectedEntryId}/select`, {
+        data: { outputId: output?.id },
+      });
+    }
+    await request.post('http://127.0.0.1:4000/api/preview/hide', {
+      data: { outputId: output?.id },
+    });
   }
 });
