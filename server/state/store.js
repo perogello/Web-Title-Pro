@@ -401,6 +401,9 @@ const createDefaultState = () => ({
   // Capability grants for external surfaces (plugins). App-level, not project
   // data: stripped from project export so tokens never travel in a bundle.
   access: { grants: [] },
+  // Per-plugin enabled state + settings (keyed by plugin id). App-level too:
+  // references a grant by id, so it never leaves the machine in a project.
+  plugins: { installed: {} },
   timers: [
     {
       id: 'main',
@@ -464,7 +467,22 @@ const buildProjectState = (incoming = {}, { preserveAccess = false } = {}) => {
     // Grants persist across restarts (disk load) but are never adopted from an
     // imported/shared project — a project file must not inject access tokens.
     access: preserveAccess ? normalizeAccess(incoming?.access) : { grants: [] },
+    plugins: preserveAccess ? normalizePlugins(incoming?.plugins) : { installed: {} },
   };
+};
+
+const normalizePlugins = (plugins) => {
+  const installed = plugins?.installed && typeof plugins.installed === 'object' ? plugins.installed : {};
+  const out = {};
+  for (const [id, entry] of Object.entries(installed)) {
+    if (!id || typeof entry !== 'object' || !entry) continue;
+    out[id] = {
+      enabled: Boolean(entry.enabled),
+      settings: entry.settings && typeof entry.settings === 'object' ? entry.settings : {},
+      grantId: typeof entry.grantId === 'string' ? entry.grantId : null,
+    };
+  }
+  return { installed: out };
 };
 
 export class TitleStore extends EventEmitter {
@@ -581,9 +599,10 @@ export class TitleStore extends EventEmitter {
   }
 
   exportProjectState() {
-    // Access grants are app-level credentials, not project data — never let
-    // them leave the machine inside an exported/shared project.
-    const { access, ...rest } = this.state;
+    // Access grants and plugin state are app-level (credentials / local
+    // config), not project data — never let them leave the machine inside an
+    // exported/shared project.
+    const { access, plugins, ...rest } = this.state;
     return deepClone(rest);
   }
 
@@ -1029,6 +1048,82 @@ export class TitleStore extends EventEmitter {
 
   grantHasCapability(token, capability) {
     return hasCapability(this.resolveGrantByToken(token), capability);
+  }
+
+  // --- Plugin registry (enabled state + settings, app-level) ---------------
+
+  #ensurePlugins() {
+    if (!this.state.plugins || typeof this.state.plugins !== 'object') {
+      this.state.plugins = { installed: {} };
+    }
+    if (!this.state.plugins.installed || typeof this.state.plugins.installed !== 'object') {
+      this.state.plugins.installed = {};
+    }
+    return this.state.plugins;
+  }
+
+  getPluginState(pluginId) {
+    const entry = this.#ensurePlugins().installed[pluginId];
+    return entry ? { enabled: Boolean(entry.enabled), settings: { ...entry.settings }, grantId: entry.grantId || null } : null;
+  }
+
+  listPluginStates() {
+    const installed = this.#ensurePlugins().installed;
+    return Object.fromEntries(
+      Object.entries(installed).map(([id, entry]) => [
+        id,
+        { enabled: Boolean(entry.enabled), settings: { ...entry.settings }, grantId: entry.grantId || null },
+      ]),
+    );
+  }
+
+  // Enable/disable a plugin. Enabling mints a scoped grant with exactly the
+  // plugin's requested capabilities (the bridge enforces it); disabling revokes
+  // that grant so a disabled plugin holds no access. Returns { state, token }
+  // where token is the raw grant token, exposed only to the trusted host.
+  setPluginEnabled(pluginId, enabled, requestedCapabilities = []) {
+    const plugins = this.#ensurePlugins();
+    const entry = plugins.installed[pluginId] || { enabled: false, settings: {}, grantId: null };
+    let token = null;
+
+    if (enabled) {
+      if (entry.grantId) {
+        // Re-issue a fresh grant to match current requested capabilities.
+        this.revokeAccessGrant(entry.grantId);
+      }
+      const grant = this.createAccessGrant({ name: `plugin:${pluginId}`, capabilities: requestedCapabilities });
+      entry.grantId = grant.id;
+      entry.enabled = true;
+      token = grant.token;
+    } else {
+      if (entry.grantId) {
+        this.revokeAccessGrant(entry.grantId);
+      }
+      entry.grantId = null;
+      entry.enabled = false;
+    }
+
+    plugins.installed[pluginId] = entry;
+    this.touch();
+    return { state: this.getPluginState(pluginId), token };
+  }
+
+  updatePluginSettings(pluginId, settings = {}) {
+    const plugins = this.#ensurePlugins();
+    const entry = plugins.installed[pluginId] || { enabled: false, settings: {}, grantId: null };
+    entry.settings = settings && typeof settings === 'object' ? settings : {};
+    plugins.installed[pluginId] = entry;
+    this.touch();
+    return this.getPluginState(pluginId);
+  }
+
+  // The raw grant token for an enabled plugin (host-only; used to hand the
+  // plugin a scoped token or to authorize its bridge calls). Null if disabled.
+  getPluginGrantToken(pluginId) {
+    const entry = this.#ensurePlugins().installed[pluginId];
+    if (!entry?.enabled || !entry.grantId) return null;
+    const grant = this.#ensureAccess().grants.find((item) => item.id === entry.grantId);
+    return grant ? grant.token : null;
   }
 
   // Record which data-source row is applied to an output. Set by the control

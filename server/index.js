@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { config } from './config.js';
 import { TemplateService } from './templates/template-service.js';
+import { PluginService } from './plugins/plugin-service.js';
 import { TitleStore } from './state/store.js';
 import { TimerManager } from './timers/timer-manager.js';
 import { MidiService } from './midi/midi-service.js';
@@ -56,6 +57,12 @@ export const startServer = async (options = {}) => {
   });
 
   await templateService.init();
+
+  const pluginService = new PluginService({
+    builtinPluginsDir: config.builtinPluginsDir,
+    customPluginsDir: config.customPluginsDir,
+  });
+  await pluginService.init();
 
   reportProgress('Loading project state...', 44);
   const store = new TitleStore({
@@ -108,9 +115,14 @@ export const startServer = async (options = {}) => {
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
-  app.use('/api', createApiRouter({ store, templateService, midiService, vmixService, updateService }));
+  app.use('/api', createApiRouter({ store, templateService, pluginService, midiService, vmixService, updateService }));
   app.use('/template-assets/builtin', express.static(config.builtinTemplatesDir));
   app.use('/template-assets/custom', express.static(config.customTemplatesDir));
+  // Plugin assets. Served same-origin so the host iframe can load them; the
+  // capability grant + postMessage bridge (not the network layer) is what
+  // scopes a plugin's actions.
+  app.use('/plugin-assets/builtin', express.static(config.builtinPluginsDir));
+  app.use('/plugin-assets/custom', express.static(config.customPluginsDir));
   // Renderer files carry no content hash in their names, so a browser cache
   // could keep serving the previous version's render.js/css after an app
   // update. Force revalidation.

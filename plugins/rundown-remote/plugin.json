@@ -1,0 +1,9 @@
+{
+  "name": "Rundown Remote",
+  "version": "1.0.0",
+  "description": "A minimal reference plugin: shows the first output's current row and title state, and steps rows / takes the title in and out through the command bus.",
+  "author": "Web Title Pro",
+  "entry": "index.html",
+  "capabilities": ["state:read", "command:send"],
+  "mount": { "type": "panel", "location": "live", "label": "Rundown Remote" }
+}

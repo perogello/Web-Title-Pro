@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rundown Remote</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 13px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        color: #e8eaed;
+        background: #14161a;
+        padding: 12px;
+      }
+      .card {
+        background: #1d2026;
+        border: 1px solid #2b2f37;
+        border-radius: 10px;
+        padding: 12px;
+      }
+      h1 { font-size: 13px; margin: 0 0 8px; letter-spacing: 0.02em; text-transform: uppercase; color: #9aa0a6; }
+      .out { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+      .state { font-size: 12px; color: #9aa0a6; margin-bottom: 10px; }
+      .state .on { color: #34d399; }
+      .state .off { color: #6b7280; }
+      .fields { display: grid; gap: 4px; margin-bottom: 12px; min-height: 20px; }
+      .field { display: flex; gap: 8px; }
+      .field .k { color: #9aa0a6; min-width: 84px; }
+      .field .v { color: #e8eaed; font-weight: 500; }
+      .row { display: flex; gap: 6px; }
+      button {
+        flex: 1;
+        appearance: none;
+        border: 1px solid #343a44;
+        background: #262b33;
+        color: #e8eaed;
+        border-radius: 8px;
+        padding: 8px 6px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:hover { background: #2f3540; }
+      button.in { border-color: #2f6f4f; }
+      button.out { border-color: #6f2f2f; }
+      .muted { color: #6b7280; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Rundown Remote</h1>
+      <div id="out" class="out muted">Waiting for host…</div>
+      <div id="titleState" class="state"></div>
+      <div id="fields" class="fields"></div>
+      <div class="row" style="margin-bottom:6px">
+        <button id="prev">▲ Prev row</button>
+        <button id="next">▼ Next row</button>
+      </div>
+      <div class="row">
+        <button id="in" class="in">Title IN</button>
+        <button id="out-btn" class="out">Title OUT</button>
+      </div>
+    </div>
+
+    <script>
+      // Bridge protocol: the plugin only talks to the parent host via
+      // postMessage. The host checks the plugin's granted capabilities before
+      // forwarding a snapshot (state:read) or a command (command:send). This
+      // plugin has no direct network access to the app.
+      const HOST = 'wtp-host';
+      const SELF = 'wtp-plugin';
+      let outputId = null;
+
+      const post = (msg) => parent.postMessage({ source: SELF, ...msg }, '*');
+      const send = (actionId) => post({ type: 'command', actionId, requestId: Math.random().toString(36).slice(2) });
+
+      const el = (id) => document.getElementById(id);
+
+      const render = (snapshot) => {
+        const output = (snapshot.outputs || [])[0];
+        if (!output) {
+          el('out').textContent = 'No output';
+          return;
+        }
+        outputId = output.id;
+        el('out').classList.remove('muted');
+        el('out').textContent = output.name || output.id;
+
+        const visible = output.program && output.program.visible;
+        el('titleState').innerHTML = visible
+          ? 'Title: <span class="on">ON AIR</span>'
+          : 'Title: <span class="off">off</span>';
+
+        const entry = (snapshot.entries || []).find((e) => e.id === output.selectedEntryId);
+        const fields = (entry && entry.fields) || {};
+        const keys = Object.keys(fields);
+        el('fields').innerHTML = keys.length
+          ? keys
+              .map(
+                (k) =>
+                  `<div class="field"><span class="k">${k}</span><span class="v">${String(fields[k] ?? '')}</span></div>`,
+              )
+              .join('')
+          : '<span class="muted">No selected title</span>';
+      };
+
+      window.addEventListener('message', (event) => {
+        const data = event.data;
+        if (!data || data.source !== HOST) return;
+        if (data.type === 'init') {
+          post({ type: 'subscribe' });
+        } else if (data.type === 'snapshot') {
+          render(data.snapshot || {});
+        }
+      });
+
+      el('prev').onclick = () => outputId && send(`output:${outputId}:rowPrev`);
+      el('next').onclick = () => outputId && send(`output:${outputId}:rowNext`);
+      el('in').onclick = () => outputId && send(`output:${outputId}:titleIn`);
+      el('out-btn').onclick = () => outputId && send(`output:${outputId}:titleOut`);
+
+      // Announce readiness so the host sends the init handshake.
+      post({ type: 'ready' });
+    </script>
+  </body>
+</html>

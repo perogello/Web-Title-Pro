@@ -28,7 +28,7 @@ const sendError = (response, error) => {
   });
 };
 
-export const createApiRouter = ({ store, templateService, midiService, vmixService, updateService }) => {
+export const createApiRouter = ({ store, templateService, pluginService, midiService, vmixService, updateService }) => {
   const router = Router();
   const allowedFontRoots = [
     path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts'),
@@ -368,6 +368,88 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
 
   router.get('/templates', (_request, response) => {
     response.json(templateService.getTemplates());
+  });
+
+  // --- Plugins (host management) -------------------------------------------
+  // The discovered plugin (manifest) merged with its stored enabled/settings.
+  const describePlugin = (plugin) => {
+    const state = store.getPluginState(plugin.id) || { enabled: false, settings: {}, grantId: null };
+    return {
+      id: plugin.id,
+      slug: plugin.slug,
+      source: plugin.source,
+      name: plugin.name,
+      version: plugin.version,
+      description: plugin.description,
+      author: plugin.author,
+      capabilities: plugin.capabilities,
+      mount: plugin.mount,
+      entryUrl: plugin.entryUrl,
+      enabled: state.enabled,
+      settings: state.settings,
+    };
+  };
+
+  router.get('/plugins', (_request, response) => {
+    if (!pluginService) {
+      response.json({ plugins: [] });
+      return;
+    }
+    response.json({ plugins: pluginService.getPlugins().map(describePlugin) });
+  });
+
+  router.post('/plugins/:pluginId/enable', (request, response) => {
+    try {
+      const plugin = pluginService?.getPlugin(request.params.pluginId);
+      if (!plugin) {
+        throw new Error('Plugin not found.');
+      }
+      // Mint a grant scoped to exactly what the manifest requests.
+      const { token } = store.setPluginEnabled(plugin.id, true, plugin.capabilities);
+      response.json({ plugin: describePlugin(plugin), token });
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  router.post('/plugins/:pluginId/disable', (request, response) => {
+    try {
+      const plugin = pluginService?.getPlugin(request.params.pluginId);
+      if (!plugin) {
+        throw new Error('Plugin not found.');
+      }
+      store.setPluginEnabled(plugin.id, false);
+      response.json({ plugin: describePlugin(plugin) });
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  router.put('/plugins/:pluginId/settings', (request, response) => {
+    try {
+      const plugin = pluginService?.getPlugin(request.params.pluginId);
+      if (!plugin) {
+        throw new Error('Plugin not found.');
+      }
+      store.updatePluginSettings(plugin.id, request.body?.settings || {});
+      response.json({ plugin: describePlugin(plugin) });
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  // Host-only: the scoped token for an enabled plugin, so the bridge can
+  // authorize the plugin's requests. Served over loopback to the trusted panel.
+  router.get('/plugins/:pluginId/token', (request, response) => {
+    try {
+      const plugin = pluginService?.getPlugin(request.params.pluginId);
+      if (!plugin) {
+        throw new Error('Plugin not found.');
+      }
+      response.json({ token: store.getPluginGrantToken(plugin.id) });
+    } catch (error) {
+      sendError(response, error);
+    }
   });
 
   // Project bundle (.wtpkg): full self-contained export and import. The

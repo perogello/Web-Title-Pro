@@ -14,5 +14,7 @@ export const config = {
   rendererDir: path.join(rootDir, 'renderer'),
   builtinTemplatesDir: path.join(rootDir, 'templates'),
   customTemplatesDir: path.join(storageDir, 'templates'),
+  builtinPluginsDir: path.join(rootDir, 'plugins'),
+  customPluginsDir: path.join(storageDir, 'plugins'),
   stateFile: path.join(dataDir, 'state.json'),
 };
