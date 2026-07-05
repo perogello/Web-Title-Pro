@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 import fs from 'fs-extra';
 import { nanoid } from 'nanoid';
 import { applyRowToFields, buildEffectiveEntryFieldMap } from './field-mapping.js';
+import { normalizeAccess, normalizeGrant, publicGrant, hasCapability } from './access.js';
 
 const deepClone = (value) => JSON.parse(JSON.stringify(value));
 
@@ -397,6 +398,9 @@ const createDefaultState = () => ({
   program: createDefaultProgram(),
   entries: [],
   sources: [],
+  // Capability grants for external surfaces (plugins). App-level, not project
+  // data: stripped from project export so tokens never travel in a bundle.
+  access: { grants: [] },
   timers: [
     {
       id: 'main',
@@ -415,7 +419,7 @@ const createDefaultState = () => ({
   ],
 });
 
-const buildProjectState = (incoming = {}) => {
+const buildProjectState = (incoming = {}, { preserveAccess = false } = {}) => {
   const baseState = createDefaultState();
   const outputs =
     incoming?.outputs?.length
@@ -457,6 +461,9 @@ const buildProjectState = (incoming = {}) => {
     timers: incoming?.timers?.length ? incoming.timers.map((timer) => normalizeTimer(timer)) : baseState.timers,
     entries: Array.isArray(incoming?.entries) ? incoming.entries : [],
     sources: normalizeSources(incoming?.sources),
+    // Grants persist across restarts (disk load) but are never adopted from an
+    // imported/shared project — a project file must not inject access tokens.
+    access: preserveAccess ? normalizeAccess(incoming?.access) : { grants: [] },
   };
 };
 
@@ -478,7 +485,7 @@ export class TitleStore extends EventEmitter {
 
     try {
       const existing = await fs.readJson(this.stateFile);
-      this.state = buildProjectState(existing);
+      this.state = buildProjectState(existing, { preserveAccess: true });
     } catch {
       // A state file the current version cannot parse must not be silently
       // overwritten by the default state — quarantine it first so the
@@ -574,7 +581,10 @@ export class TitleStore extends EventEmitter {
   }
 
   exportProjectState() {
-    return deepClone(this.state);
+    // Access grants are app-level credentials, not project data — never let
+    // them leave the machine inside an exported/shared project.
+    const { access, ...rest } = this.state;
+    return deepClone(rest);
   }
 
   async loadProjectState(nextState = {}, { seedExamples = false } = {}) {
@@ -954,6 +964,71 @@ export class TitleStore extends EventEmitter {
     this.state.sources = normalizeSources(library);
     this.touch();
     return this.getSources();
+  }
+
+  // --- Access grants (capability model for plugins) ------------------------
+  // Kept out of getSnapshot() so raw tokens are never broadcast over WS.
+
+  #ensureAccess() {
+    if (!this.state.access || typeof this.state.access !== 'object') {
+      this.state.access = { grants: [] };
+    }
+    if (!Array.isArray(this.state.access.grants)) {
+      this.state.access.grants = [];
+    }
+    return this.state.access;
+  }
+
+  // Public view for UIs: grants without their raw token (only a preview).
+  listAccessGrants() {
+    return this.#ensureAccess().grants.map((grant) => publicGrant(grant));
+  }
+
+  // Create a grant and return it *with* its raw token — the only time the token
+  // is exposed, so the operator can hand it to the plugin/client.
+  createAccessGrant({ name, capabilities } = {}) {
+    const access = this.#ensureAccess();
+    const grant = normalizeGrant({ name, capabilities });
+    access.grants.push(grant);
+    this.touch();
+    return grant;
+  }
+
+  updateAccessGrant(id, { name, capabilities } = {}) {
+    const access = this.#ensureAccess();
+    const grant = access.grants.find((item) => item.id === id);
+    if (!grant) {
+      throw new Error('Grant not found.');
+    }
+    const next = normalizeGrant({ ...grant, name: name ?? grant.name, capabilities: capabilities ?? grant.capabilities });
+    Object.assign(grant, next);
+    this.touch();
+    return publicGrant(grant);
+  }
+
+  revokeAccessGrant(id) {
+    const access = this.#ensureAccess();
+    const before = access.grants.length;
+    access.grants = access.grants.filter((item) => item.id !== id);
+    if (access.grants.length !== before) {
+      this.touch();
+    }
+    return { ok: true, removed: before - access.grants.length };
+  }
+
+  // Internal: resolve a raw token to its grant (used by the plugin bridge to
+  // authorize). Records last use. Returns null for unknown/empty tokens.
+  resolveGrantByToken(token) {
+    if (!token) return null;
+    const grant = this.#ensureAccess().grants.find((item) => item.token === token);
+    if (!grant) return null;
+    grant.lastUsedAt = Date.now();
+    this.schedulePersist();
+    return grant;
+  }
+
+  grantHasCapability(token, capability) {
+    return hasCapability(this.resolveGrantByToken(token), capability);
   }
 
   // Record which data-source row is applied to an output. Set by the control

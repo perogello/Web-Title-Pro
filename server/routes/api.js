@@ -6,6 +6,7 @@ import multer from 'multer';
 import { fetchRemoteSourceData } from '../remote-sources/index.js';
 import { dispatchCommand } from '../state/command-bus.js';
 import { buildCommandCatalog, COMMAND_API_VERSION, COMMAND_API_VERSION_STRING } from '../state/command-catalog.js';
+import { ALL_CAPABILITIES, CAPABILITIES } from '../state/access.js';
 import {
   createProjectBundleStream,
   getBundleFilename,
@@ -204,6 +205,42 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
 
   router.get('/state', (_request, response) => {
     response.json(store.getSnapshot());
+  });
+
+  // --- Access grants (capability model for plugins / external surfaces) -----
+  // Operator-only management, served over loopback. Listing never returns raw
+  // tokens; creation returns the token exactly once so it can be handed off.
+  router.get('/access/capabilities', (_request, response) => {
+    response.json({ capabilities: ALL_CAPABILITIES, labels: CAPABILITIES });
+  });
+
+  router.get('/access/grants', (_request, response) => {
+    response.json({ grants: store.listAccessGrants() });
+  });
+
+  router.post('/access/grants', (request, response) => {
+    try {
+      // Full grant incl. the raw token — shown once for the operator to copy.
+      response.status(201).json(store.createAccessGrant(request.body || {}));
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  router.patch('/access/grants/:grantId', (request, response) => {
+    try {
+      response.json(store.updateAccessGrant(request.params.grantId, request.body || {}));
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  router.delete('/access/grants/:grantId', (request, response) => {
+    try {
+      response.json(store.revokeAccessGrant(request.params.grantId));
+    } catch (error) {
+      sendError(response, error);
+    }
   });
 
   router.get('/sources', (_request, response) => {

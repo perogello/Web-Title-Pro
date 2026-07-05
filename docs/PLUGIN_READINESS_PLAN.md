@@ -39,7 +39,19 @@ live playout.
   - **[todo, deliberate]** Hard removal of the legacy verb routes is *not* done:
     it needs a deprecation cycle (existing Companion buttons would break), so
     they stay `@deprecated` until a version that announces their removal.
-- **[todo]** Phases 4–5 below (permissions/token, plugin host).
+- **[done] Phase 4 — capability model & tokens.** `server/state/access.js`
+  defines two capabilities (`state:read`, `command:send`), token generation,
+  and grant normalisation. The store owns a persisted grant registry
+  (`createAccessGrant` returns the raw token *once*; `listAccessGrants` never
+  leaks it; `resolveGrantByToken` / `grantHasCapability` for the future bridge).
+  Grants are **app-level**: kept out of the WS snapshot (never broadcast),
+  stripped from project export, and never adopted from an imported project.
+  Operator management over loopback: `GET/POST/PATCH/DELETE /api/access/grants`,
+  `GET /api/access/capabilities`.
+  - The loopback API stays open for the operator's own panel and existing
+    Companion/MIDI — capabilities gate the **plugin bridge** (Phase 5), not the
+    trusted local client. Enforcement lives at the bridge, added with the host.
+- **[todo]** Phase 5 below (plugin host — needs a UX/security checkpoint first).
 
 "Server" throughout means the **in-process local backend** (Express on
 `localhost:4000`, bundled inside the portable `.exe`). Nothing goes to the cloud;
@@ -125,9 +137,12 @@ code runs in the main process for the first milestone.
 - **[todo]** Remove legacy command routes; converge on the command bus. Held
   back for a deprecation cycle so existing Companion setups keep working.
 
-### Phase 4 — Permissions & auth
-- Capability model per client/plugin: read-only snapshot vs command rights.
-- Local token so external surfaces/plugins must be granted access.
+### Phase 4 — Permissions & auth  *(done)*
+- **[done]** Capability model per client/plugin: read-only snapshot vs command
+  rights (`state:read` / `command:send`) — `server/state/access.js`.
+- **[done]** Local token so external surfaces/plugins must be granted access;
+  grant registry in the store, managed via `/api/access/grants`. Tokens never
+  broadcast, never exported. Enforcement is wired in with the Phase 5 bridge.
 
 ### Phase 5 — Plugin host  *(only after 1–4)*
 - `plugins/` folder + manifest (`plugin.json`: name, version, entry html,
