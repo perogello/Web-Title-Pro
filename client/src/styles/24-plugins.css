@@ -6,6 +6,19 @@
   justify-content: space-between;
   gap: 12px;
 }
+.plugin-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.plugin-install-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
 
 .plugin-badge {
   display: inline-block;

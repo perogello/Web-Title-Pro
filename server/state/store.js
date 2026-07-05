@@ -1117,6 +1117,20 @@ export class TitleStore extends EventEmitter {
     return this.getPluginState(pluginId);
   }
 
+  // Forget a plugin entirely (on uninstall): revoke its grant and drop its
+  // enabled/settings record so no stale access or config lingers.
+  removePluginState(pluginId) {
+    const plugins = this.#ensurePlugins();
+    const entry = plugins.installed[pluginId];
+    if (!entry) return { ok: true, removed: false };
+    if (entry.grantId) {
+      this.revokeAccessGrant(entry.grantId);
+    }
+    delete plugins.installed[pluginId];
+    this.touch();
+    return { ok: true, removed: true };
+  }
+
   // The raw grant token for an enabled plugin (host-only; used to hand the
   // plugin a scoped token or to authorize its bridge calls). Null if disabled.
   getPluginGrantToken(pluginId) {

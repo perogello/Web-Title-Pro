@@ -4,7 +4,32 @@ import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 import { TitleStore } from '../server/state/store.js';
+import { ZipArchive } from 'archiver';
 import { PluginService, parsePluginManifest, applySettingsDefaults } from '../server/plugins/plugin-service.js';
+
+const file = (name, content) => ({ originalname: name, buffer: Buffer.from(content) });
+const manifest = (extra = {}) => JSON.stringify({ name: 'Imported', entry: 'index.html', ...extra });
+
+const makeService = async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-imp-'));
+  const service = new PluginService({
+    builtinPluginsDir: path.join(root, 'builtin'),
+    customPluginsDir: path.join(root, 'custom'),
+  });
+  await service.init();
+  return { service, root };
+};
+
+const makeZip = (entries) =>
+  new Promise((resolve, reject) => {
+    const archive = new ZipArchive();
+    const chunks = [];
+    archive.on('data', (c) => chunks.push(c));
+    archive.on('end', () => resolve(Buffer.concat(chunks)));
+    archive.on('error', reject);
+    for (const [name, content] of entries) archive.append(content, { name });
+    archive.finalize();
+  });
 
 const makeTemplateService = () => ({
   scanTemplates: async () => {},
@@ -120,6 +145,118 @@ test('PluginService scans builtin + custom dirs and skips non-plugin folders', a
     assert.equal(service.getPlugin('custom:beta').name, 'Beta');
   } finally {
     await fs.remove(root);
+  }
+});
+
+test('importPluginPackage installs from loose files', async () => {
+  const { service, root } = await makeService();
+  try {
+    const plugin = await service.importPluginPackage(
+      [file('plugin.json', manifest({ name: 'Loose' })), file('index.html', '<title>x</title>')],
+      'Loose',
+    );
+    assert.equal(plugin.source, 'custom');
+    assert.equal(plugin.name, 'Loose');
+    assert.ok(service.getPlugin(plugin.id));
+  } finally {
+    await fs.remove(root);
+  }
+});
+
+test('importPluginPackage strips a single wrapping folder so plugin.json is at root', async () => {
+  const { service, root } = await makeService();
+  try {
+    // Mirrors a browser folder pick: files carry a top-folder prefix.
+    const plugin = await service.importPluginPackage([
+      file('my-plugin/plugin.json', manifest({ name: 'Wrapped' })),
+      file('my-plugin/index.html', '<title>x</title>'),
+    ]);
+    assert.equal(plugin.name, 'Wrapped');
+    assert.ok(await fs.pathExists(path.join(plugin.directory, 'plugin.json')));
+  } finally {
+    await fs.remove(root);
+  }
+});
+
+test('importPluginPackage installs from a .zip', async () => {
+  const { service, root } = await makeService();
+  try {
+    const zip = await makeZip([
+      ['plugin.json', manifest({ name: 'Zipped' })],
+      ['index.html', '<title>x</title>'],
+    ]);
+    const plugin = await service.importPluginPackage([{ originalname: 'pack.zip', buffer: zip }], 'Zipped');
+    assert.equal(plugin.name, 'Zipped');
+  } finally {
+    await fs.remove(root);
+  }
+});
+
+test('importPluginPackage rejects a missing manifest or a bad file type, leaving nothing behind', async () => {
+  const { service, root } = await makeService();
+  try {
+    await assert.rejects(
+      () => service.importPluginPackage([file('index.html', '<title>x</title>')]),
+      /validation failed|plugin.json/i,
+    );
+    await assert.rejects(
+      () => service.importPluginPackage([file('plugin.json', manifest()), file('bad.exe', 'MZ')]),
+      /validation failed|not allowed/i,
+    );
+    // Failed installs are cleaned up.
+    assert.equal(service.getPlugins().length, 0);
+    const customDir = path.join(root, 'custom');
+    assert.deepEqual(await fs.readdir(customDir), []);
+  } finally {
+    await fs.remove(root);
+  }
+});
+
+test('importPluginDirectory copies an on-disk folder in', async () => {
+  const { service, root } = await makeService();
+  try {
+    const src = path.join(root, 'src-plugin');
+    await fs.ensureDir(src);
+    await fs.writeFile(path.join(src, 'plugin.json'), manifest({ name: 'FromDir' }));
+    await fs.writeFile(path.join(src, 'index.html'), '<title>x</title>');
+    const plugin = await service.importPluginDirectory(src, 'FromDir');
+    assert.equal(plugin.name, 'FromDir');
+    assert.equal(plugin.source, 'custom');
+  } finally {
+    await fs.remove(root);
+  }
+});
+
+test('deletePlugin removes a custom plugin and refuses built-ins', async () => {
+  const { service, root } = await makeService();
+  try {
+    const plugin = await service.importPluginPackage([file('plugin.json', manifest()), file('index.html', 'x')]);
+    await service.deletePlugin(plugin.id);
+    assert.equal(service.getPlugin(plugin.id), null);
+    assert.equal(await fs.pathExists(plugin.directory), false);
+
+    // A builtin can't be deleted.
+    await fs.ensureDir(path.join(root, 'builtin', 'core'));
+    await fs.writeFile(path.join(root, 'builtin', 'core', 'plugin.json'), manifest({ name: 'Core' }));
+    await fs.writeFile(path.join(root, 'builtin', 'core', 'index.html'), 'x');
+    await service.scanPlugins();
+    await assert.rejects(() => service.deletePlugin('builtin:core'), /cannot be removed/i);
+  } finally {
+    await fs.remove(root);
+  }
+});
+
+test('store.removePluginState revokes the grant and drops the record', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    const { token } = store.setPluginEnabled('custom:x', true, ['command:send']);
+    assert.equal(store.listAccessGrants().length, 1);
+    store.removePluginState('custom:x');
+    assert.equal(store.getPluginState('custom:x'), null);
+    assert.equal(store.grantHasCapability(token, 'command:send'), false);
+    assert.equal(store.listAccessGrants().length, 0);
+  } finally {
+    await fs.remove(dir);
   }
 });
 

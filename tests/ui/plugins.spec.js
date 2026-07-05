@@ -83,3 +83,40 @@ test('Plugins: enable reference plugin, it mounts on Live and the bridge round-t
   // Cleanup: hide any program and disable the plugin again.
   await request.post('http://127.0.0.1:4000/api/plugins/builtin:rundown-remote/disable');
 });
+
+// Install a custom plugin from loose files, then remove it.
+test('Plugins: install a custom plugin from files, then delete it', async ({ page, request }) => {
+  await waitForBackend(request);
+  await page.goto('/');
+  await page.getByRole('button', { name: /SETTINGS/i }).click();
+  await page.getByRole('button', { name: /Plugins/i }).click();
+
+  // Upload a minimal valid package (manifest + entry) via the hidden file input.
+  await page.locator('input[type="file"][accept*=".webm"]').setInputFiles([
+    {
+      name: 'plugin.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(
+        JSON.stringify({ name: 'E2E Import', version: '1.0.0', entry: 'index.html', mount: { type: 'panel', location: 'live' } }),
+      ),
+    },
+    { name: 'index.html', mimeType: 'text/html', buffer: Buffer.from('<title>e2e</title>') },
+  ]);
+
+  const card = page.locator('.plugin-card-v3').filter({ hasText: 'E2E Import' });
+  await expect(card).toBeVisible({ timeout: 10_000 });
+  await expect(card).toContainText('пользовательский');
+  await expect.poll(async () => {
+    const list = await (await request.get('http://127.0.0.1:4000/api/plugins')).json();
+    return list.plugins.some((p) => p.name === 'E2E Import');
+  }).toBe(true);
+
+  // Delete it (auto-accept the confirm dialog).
+  page.on('dialog', (dialog) => dialog.accept());
+  await card.getByRole('button', { name: 'Удалить' }).click();
+  await expect(card).toBeHidden({ timeout: 10_000 });
+  await expect.poll(async () => {
+    const list = await (await request.get('http://127.0.0.1:4000/api/plugins')).json();
+    return list.plugins.some((p) => p.name === 'E2E Import');
+  }).toBe(false);
+});

@@ -187,9 +187,17 @@ too); revisit if untrusted third-party plugins become a goal.
 manifest; Settings › Plugins renders a form and the host pushes changes live to
 the running iframe over the bridge (`PUT /api/plugins/:id/settings`).
 
-**Remaining polish (not blockers):** custom-plugin install/remove flow (folder
-import like templates), `tab`-type mount rendering (only `panel` is wired), and
-hard-removing the deprecated legacy routes (needs a deprecation cycle).
+**Done since:** custom-plugin install/remove — `POST /api/plugins/upload`
+(.zip or a set of files, single wrapping folder auto-stripped),
+`POST /api/plugins/import-directory` (on-disk folder), `DELETE /api/plugins/:id`
+(revokes grant + drops state + deletes from disk; built-ins protected).
+Validation mirrors the template importer (allowlisted types, size/count limits,
+no traversal, manifest must parse). UI: Settings › Plugins has install
+(archive/files + `webkitdirectory` folder) and a Delete button on custom cards.
+
+**Remaining polish (not blockers):** `tab`-type mount rendering (only `panel`
+is wired), and hard-removing the deprecated legacy routes (needs a deprecation
+cycle).
 
 _Original design intent, now realised:_
 

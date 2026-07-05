@@ -1,5 +1,7 @@
 import path from 'node:path';
 import fs from 'fs-extra';
+import unzipper from 'unzipper';
+import { nanoid } from 'nanoid';
 
 // Plugin discovery. A plugin is a folder with a `plugin.json` manifest and an
 // entry HTML file. Mirrors the template scan: builtin plugins ship with the
@@ -13,6 +15,140 @@ const MOUNT_LOCATIONS = ['live', 'rundown', 'settings'];
 const SETTING_TYPES = ['text', 'number', 'checkbox', 'select'];
 
 const sortByName = (items) => [...items].sort((a, b) => a.name.localeCompare(b.name));
+
+// Install limits + allowlist. A plugin is a sandboxed web app, so (unlike a
+// title template) we don't forbid iframes/external resources — the sandbox
+// contains it — but we still cap size/count and restrict to web asset types.
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_UNPACKED_BYTES = 60 * 1024 * 1024;
+const MAX_FILE_COUNT = 200;
+const MAX_SINGLE_FILE_BYTES = 30 * 1024 * 1024;
+const ALLOWED_EXTENSIONS = new Set([
+  '.html', '.htm', '.css', '.js', '.mjs', '.json', '.map',
+  '.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg', '.ico',
+  '.woff', '.woff2', '.ttf', '.otf', '.mp4', '.webm', '.mp3', '.wav',
+]);
+
+class PluginValidationError extends Error {
+  constructor(message, details = []) {
+    super(message);
+    this.name = 'PluginValidationError';
+    this.details = details;
+  }
+}
+
+const slugify = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48) || 'plugin';
+
+const safeSegments = (relativePath) =>
+  String(relativePath || '')
+    .replace(/\\/g, '/')
+    .split('/')
+    .filter((segment) => segment && segment !== '.' && segment !== '..');
+
+const collectFiles = async (directory) => {
+  const files = [];
+  const visit = async (current) => {
+    for (const entry of await fs.readdir(current, { withFileTypes: true })) {
+      const full = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        await visit(full);
+      } else if (entry.isFile()) {
+        const stats = await fs.stat(full);
+        files.push({ relativePath: path.relative(directory, full).replace(/\\/g, '/'), size: stats.size });
+      }
+    }
+  };
+  await visit(directory);
+  return files;
+};
+
+// A folder is a valid plugin package if it parses as a manifest and every file
+// is an allowed type within the size/count limits.
+const validatePluginDirectory = async (directory) => {
+  const errors = [];
+  const files = await collectFiles(directory);
+
+  if (!files.some((f) => f.relativePath === 'plugin.json')) {
+    errors.push({ file: '(package)', message: 'Missing plugin.json in the package root.' });
+  }
+  if (files.length > MAX_FILE_COUNT) {
+    errors.push({ file: '(package)', message: `Too many files: ${files.length}. Limit is ${MAX_FILE_COUNT}.` });
+  }
+  const total = files.reduce((sum, f) => sum + f.size, 0);
+  if (total > MAX_UNPACKED_BYTES) {
+    errors.push({ file: '(package)', message: `Unpacked size too large: ${Math.ceil(total / 1048576)} MB.` });
+  }
+  for (const file of files) {
+    if (!ALLOWED_EXTENSIONS.has(path.extname(file.relativePath).toLowerCase())) {
+      errors.push({ file: file.relativePath, message: `File type "${path.extname(file.relativePath) || 'none'}" is not allowed.` });
+    }
+    if (file.size > MAX_SINGLE_FILE_BYTES) {
+      errors.push({ file: file.relativePath, message: `File too large: ${Math.ceil(file.size / 1048576)} MB.` });
+    }
+  }
+  if (errors.length) {
+    throw new PluginValidationError('Plugin validation failed.', errors);
+  }
+
+  // Manifest must parse (name, entry present) — reuse the same parser the scan
+  // uses so an installed plugin is guaranteed loadable.
+  try {
+    await parsePluginManifest({ directory, slug: 'validate', source: 'custom', publicBase: '/validate' });
+  } catch (error) {
+    throw new PluginValidationError('Plugin validation failed.', [{ file: 'plugin.json', message: error.message }]);
+  }
+};
+
+// When a package (zip or a picked folder) wraps everything in a single top
+// folder, strip it so plugin.json lands at the package root.
+const computeStrip = (relPaths) => {
+  const segLists = relPaths.map(safeSegments).filter((s) => s.length);
+  const hasRootManifest = segLists.some((s) => s.join('/') === 'plugin.json');
+  const topDirs = new Set(segLists.map((s) => s[0]));
+  return !hasRootManifest && topDirs.size === 1 ? [...topDirs][0] : null;
+};
+
+const writeUploadedFiles = async (files, targetDirectory) => {
+  const names = files.map((f) => f.originalname || f.fieldname || '');
+  const strip = computeStrip(names);
+  for (const file of files) {
+    let segments = safeSegments(file.originalname || file.fieldname || `asset-${Date.now()}`);
+    if (strip && segments[0] === strip) segments = segments.slice(1);
+    const rel = segments.join('/');
+    if (!rel) continue;
+    const target = path.join(targetDirectory, rel);
+    await fs.ensureDir(path.dirname(target));
+    await fs.writeFile(target, file.buffer);
+  }
+};
+
+const writeZipFiles = async (zipBuffer, targetDirectory) => {
+  if (zipBuffer.length > MAX_UPLOAD_BYTES) {
+    throw new PluginValidationError('Plugin validation failed.', [
+      { file: '(archive)', message: `Archive too large: ${Math.ceil(zipBuffer.length / 1048576)} MB.` },
+    ]);
+  }
+  const directory = await unzipper.Open.buffer(zipBuffer);
+  const fileEntries = directory.files.filter((entry) => entry.type === 'File');
+  const strip = computeStrip(fileEntries.map((e) => e.path));
+
+  for (const entry of fileEntries) {
+    let segments = safeSegments(entry.path);
+    if (strip && segments[0] === strip) segments = segments.slice(1);
+    const rel = segments.join('/');
+    if (!rel) continue;
+    const target = path.join(targetDirectory, rel);
+    await fs.ensureDir(path.dirname(target));
+    await new Promise((resolve, reject) => {
+      entry.stream().pipe(fs.createWriteStream(target)).on('finish', resolve).on('error', reject);
+    });
+  }
+};
 
 const normalizeCapabilities = (value) => {
   const list = Array.isArray(value) ? value : [];
@@ -176,5 +312,83 @@ export class PluginService {
 
   getPlugin(pluginId) {
     return this.plugins.find((plugin) => plugin.id === pluginId) || null;
+  }
+
+  // Install an uploaded package (a single .zip or a set of files) into the
+  // custom plugins dir, validate it, then rescan. Returns the installed plugin.
+  async importPluginPackage(files, preferredName = '') {
+    if (!files?.length) {
+      throw new Error('No plugin files were uploaded.');
+    }
+    const slug = `${slugify(preferredName || files[0].originalname || 'plugin')}-${nanoid(6)}`;
+    const targetDirectory = path.join(this.customPluginsDir, slug);
+    await fs.ensureDir(targetDirectory);
+    try {
+      if (files.length === 1 && /\.zip$/i.test(files[0].originalname || '')) {
+        await writeZipFiles(files[0].buffer, targetDirectory);
+      } else {
+        if (files.length > MAX_FILE_COUNT) {
+          throw new PluginValidationError('Plugin validation failed.', [
+            { file: '(upload)', message: `Too many files: ${files.length}. Limit is ${MAX_FILE_COUNT}.` },
+          ]);
+        }
+        await writeUploadedFiles(files, targetDirectory);
+      }
+      await validatePluginDirectory(targetDirectory);
+      await this.scanPlugins();
+      const installed = this.plugins.find((p) => p.source === 'custom' && p.slug === slug);
+      if (!installed) {
+        throw new Error('The uploaded plugin package could not be parsed.');
+      }
+      return installed;
+    } catch (error) {
+      await fs.remove(targetDirectory).catch(() => {});
+      throw error;
+    }
+  }
+
+  // Install from an on-disk folder (desktop folder picker). Copies it in, then
+  // validates + rescans.
+  async importPluginDirectory(directoryPath, preferredName = '') {
+    if (!directoryPath || typeof directoryPath !== 'string') {
+      throw new Error('Plugin folder path is required.');
+    }
+    const source = path.resolve(directoryPath);
+    if (!(await fs.pathExists(source)) || !(await fs.stat(source)).isDirectory()) {
+      throw new Error('Selected plugin folder does not exist.');
+    }
+    const slug = `${slugify(preferredName || path.basename(source) || 'plugin')}-${nanoid(6)}`;
+    const targetDirectory = path.join(this.customPluginsDir, slug);
+    await fs.ensureDir(targetDirectory);
+    try {
+      await fs.copy(source, targetDirectory, {
+        dereference: true,
+        filter: (srcPath) => !safeSegments(path.relative(source, srcPath)).includes('..'),
+      });
+      await validatePluginDirectory(targetDirectory);
+      await this.scanPlugins();
+      const installed = this.plugins.find((p) => p.source === 'custom' && p.slug === slug);
+      if (!installed) {
+        throw new Error('The selected plugin folder could not be parsed.');
+      }
+      return installed;
+    } catch (error) {
+      await fs.remove(targetDirectory).catch(() => {});
+      throw error;
+    }
+  }
+
+  // Remove a custom plugin from disk (built-ins can't be removed) and rescan.
+  async deletePlugin(pluginId) {
+    const plugin = this.getPlugin(pluginId);
+    if (!plugin) {
+      throw new Error('Plugin not found.');
+    }
+    if (plugin.source !== 'custom') {
+      throw new Error('Built-in plugins cannot be removed.');
+    }
+    await fs.remove(plugin.directory);
+    await this.scanPlugins();
+    return { ok: true, pluginId };
   }
 }

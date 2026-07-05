@@ -442,6 +442,47 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
     }
   });
 
+  // Install a custom plugin from an uploaded .zip or a set of files.
+  router.post('/plugins/upload', upload.any(), async (request, response) => {
+    try {
+      if (!pluginService) {
+        throw new Error('Plugin service unavailable.');
+      }
+      const plugin = await pluginService.importPluginPackage(request.files, request.body?.name || '');
+      response.status(201).json({ plugin: describePlugin(plugin) });
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  // Install a custom plugin from an on-disk folder (desktop folder picker).
+  router.post('/plugins/import-directory', async (request, response) => {
+    try {
+      if (!pluginService) {
+        throw new Error('Plugin service unavailable.');
+      }
+      const plugin = await pluginService.importPluginDirectory(request.body?.directoryPath || '', request.body?.name || '');
+      response.status(201).json({ plugin: describePlugin(plugin) });
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  // Remove a custom plugin: forget its state/grant, then delete it from disk.
+  router.delete('/plugins/:pluginId', async (request, response) => {
+    try {
+      const plugin = pluginService?.getPlugin(request.params.pluginId);
+      if (!plugin) {
+        throw new Error('Plugin not found.');
+      }
+      store.removePluginState(plugin.id);
+      const result = await pluginService.deletePlugin(plugin.id);
+      response.json(result);
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
   // Host-only: the scoped token for an enabled plugin, so the bridge can
   // authorize the plugin's requests. Served over loopback to the trusted panel.
   router.get('/plugins/:pluginId/token', (request, response) => {
