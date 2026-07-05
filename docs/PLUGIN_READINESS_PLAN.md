@@ -172,9 +172,13 @@ on the API (breaks the operator's own open client) or serving plugins from a
 separate CORS-blocked origin. Fine for trusted/in-house plugins (SPX's model
 too); revisit if untrusted third-party plugins become a goal.
 
-**Remaining polish (not blockers):** per-plugin settings UI, custom-plugin
-install/remove flow (folder import like templates), `tab`-type mount rendering
-(only `panel` is wired), and hard-removing the deprecated legacy routes.
+**Done since:** per-plugin settings — plugins declare a settings schema in the
+manifest; Settings › Plugins renders a form and the host pushes changes live to
+the running iframe over the bridge (`PUT /api/plugins/:id/settings`).
+
+**Remaining polish (not blockers):** custom-plugin install/remove flow (folder
+import like templates), `tab`-type mount rendering (only `panel` is wired), and
+hard-removing the deprecated legacy routes (needs a deprecation cycle).
 
 _Original design intent, now realised:_
 
