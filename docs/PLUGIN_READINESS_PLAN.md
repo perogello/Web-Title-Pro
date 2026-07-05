@@ -144,11 +144,39 @@ code runs in the main process for the first milestone.
   grant registry in the store, managed via `/api/access/grants`. Tokens never
   broadcast, never exported. Enforcement is wired in with the Phase 5 bridge.
 
-### Phase 5 — Plugin host  *(only after 1–4; paused — foundation is ready)*
+### Phase 5 — Plugin host  *(implemented — POC verified end to end)*
 
-**Status:** not started. Phases 1–4 are done and committed; the host is the last
-piece and was deliberately paused for a design checkpoint. The direction below
-is decided and should be the starting point for the next session.
+**Status:** built and verified. A reference plugin (`plugins/rundown-remote`)
+discovers, enables from Settings › Plugins, mounts on Live in a sandboxed
+iframe, receives the snapshot over the bridge, and drives the command bus from
+inside the sandbox — proven by an isolated Playwright e2e (`tests/ui/plugins.spec.js`)
+and an HTTP smoke of the whole plugin API. What exists now:
+- **Discovery/serving:** `server/plugins/plugin-service.js` scans
+  `plugins/` + `storage/plugins/` for a `plugin.json` (name, entry, requested
+  capabilities, mount); assets at `/plugin-assets/<source>/<slug>`.
+- **Registry + grants:** store owns per-plugin enabled/settings (app-level, out
+  of snapshot/export); enable mints a Phase-4 grant scoped to the manifest's
+  capabilities, disable revokes it. Routes: `GET /api/plugins`,
+  `POST /api/plugins/:id/enable|disable`, `PUT .../settings`, `GET .../token`.
+- **UI:** Settings › Plugins (list, enable/disable, capabilities/mount).
+- **Bridge:** `client/src/control-shell/PluginHost.jsx` renders enabled plugins
+  in `<iframe sandbox="allow-scripts">` and brokers `postMessage`: snapshot only
+  to `state:read` grants, commands only to `command:send` grants; frames matched
+  by live `contentWindow`.
+
+**Known boundary (honest):** the loopback API stays open, so the bridge is a
+*cooperative* contract + a disable switch, not a hard jail — a
+malicious-by-design plugin could `fetch` `/api/command` directly instead of
+using the bridge. A hard boundary would require origin-scoped token enforcement
+on the API (breaks the operator's own open client) or serving plugins from a
+separate CORS-blocked origin. Fine for trusted/in-house plugins (SPX's model
+too); revisit if untrusted third-party plugins become a goal.
+
+**Remaining polish (not blockers):** per-plugin settings UI, custom-plugin
+install/remove flow (folder import like templates), `tab`-type mount rendering
+(only `panel` is wired), and hard-removing the deprecated legacy routes.
+
+_Original design intent, now realised:_
 
 **Management UI — decided:** a new **"Plugins"** item in **Settings**, showing a
 list of installed plugins with **enable / disable** and **per-plugin settings**.
