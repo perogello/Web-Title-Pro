@@ -5,12 +5,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { TitleStore } from '../server/state/store.js';
 import {
-  CAPABILITIES,
   normalizeCapabilities,
   normalizeGrant,
   hasCapability,
   publicGrant,
-  capabilityForRequest,
 } from '../server/state/access.js';
 
 const makeTemplateService = () => ({
@@ -42,11 +40,6 @@ test('normalizeGrant fills id/token/createdAt and filters caps', () => {
   assert.ok(g.token.startsWith('wtp_'));
   assert.deepEqual(g.capabilities, ['command:send']);
   assert.equal(typeof g.createdAt, 'number');
-});
-
-test('capabilityForRequest maps command vs read', () => {
-  assert.equal(capabilityForRequest({ type: 'command' }), CAPABILITIES.COMMAND_SEND);
-  assert.equal(capabilityForRequest({ type: 'snapshot' }), CAPABILITIES.STATE_READ);
 });
 
 test('publicGrant hides the raw token', () => {

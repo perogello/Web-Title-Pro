@@ -198,7 +198,7 @@ test('program state: hidden entry flag is ignored and not persisted', async () =
 
     store.updateEntry(secondEntry.id, { hidden: true });
     store.selectEntry(firstEntry.id);
-    store.selectAdjacentEntry('next');
+    store.selectEntry(secondEntry.id);
 
     assert.equal(store.getSelectedEntry().id, secondEntry.id);
 

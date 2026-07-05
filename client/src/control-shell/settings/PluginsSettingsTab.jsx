@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
+import { notifyPluginsChanged, usePlugins } from '../use-plugins.js';
 
 // Settings › Plugins: list installed plugins, enable/disable them. Enabling a
 // plugin mints a scoped capability grant on the server; the plugin then renders
-// where its manifest says (a Live-tab panel for the reference plugin). Toggling
-// fires a window event so the live PluginHost re-reads the list immediately.
-const notifyChanged = () => window.dispatchEvent(new CustomEvent('wtp-plugins-changed'));
+// where its manifest says (a Live-tab panel for the reference plugin). Every
+// mutation calls notifyPluginsChanged(), which refreshes the shared plugin
+// store so the live hosts and this list update together.
 
 const CAP_LABELS = {
   'state:read': 'чтение состояния',
@@ -17,8 +18,6 @@ const MOUNT_LABELS = {
   rundown: 'вкладка Rundown',
   settings: 'настройки',
 };
-
-const notifyChangedForm = () => window.dispatchEvent(new CustomEvent('wtp-plugins-changed'));
 
 // A form built from the plugin's declared settings schema. Discrete controls
 // (checkbox/select) save immediately; free-text/number commit on blur to avoid
@@ -38,7 +37,7 @@ function PluginSettingsForm({ plugin }) {
         method: 'PUT',
         body: { settings: next },
       });
-      notifyChangedForm();
+      notifyPluginsChanged();
     } catch {
       /* surfaced elsewhere; keep the form responsive */
     }
@@ -114,25 +113,12 @@ function PluginSettingsForm({ plugin }) {
 }
 
 export default function PluginsSettingsTab() {
-  const [plugins, setPlugins] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { plugins, loading } = usePlugins();
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState(null);
   const [installing, setInstalling] = useState(false);
   const archiveInputRef = useRef(null);
   const folderInputRef = useRef(null);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    api('/api/plugins')
-      .then((res) => setPlugins(res.plugins || []))
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   const toggle = async (plugin) => {
     setBusyId(plugin.id);
@@ -141,8 +127,7 @@ export default function PluginsSettingsTab() {
       await api(`/api/plugins/${encodeURIComponent(plugin.id)}/${plugin.enabled ? 'disable' : 'enable'}`, {
         method: 'POST',
       });
-      notifyChanged();
-      load();
+      notifyPluginsChanged();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -159,8 +144,7 @@ export default function PluginsSettingsTab() {
       const form = new FormData();
       files.forEach((f) => form.append('files', f, f.webkitRelativePath || f.name));
       await api('/api/plugins/upload', { method: 'POST', body: form });
-      notifyChanged();
-      load();
+      notifyPluginsChanged();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -176,8 +160,7 @@ export default function PluginsSettingsTab() {
     setError(null);
     try {
       await api(`/api/plugins/${encodeURIComponent(plugin.id)}`, { method: 'DELETE' });
-      notifyChanged();
-      load();
+      notifyPluginsChanged();
     } catch (err) {
       setError(err.message);
     } finally {

@@ -1822,38 +1822,6 @@ export class TitleStore extends EventEmitter {
     this.touch();
   }
 
-  selectAdjacentEntry(direction = 'next', outputRef = this.state.selectedOutputId) {
-    const output = this.getOutputByRef(outputRef);
-
-    if (!output) {
-      throw new Error('Output not found.');
-    }
-
-    const entries = this.state.entries;
-
-    if (!entries.length) {
-      throw new Error('No titles are available.');
-    }
-
-    const currentIndex = entries.findIndex((entry) => entry.id === output.selectedEntryId);
-    const safeCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
-    const delta = direction === 'previous' ? -1 : 1;
-    const nextIndex = (safeCurrentIndex + delta + entries.length) % entries.length;
-    const nextEntry = entries[nextIndex];
-
-    output.selectedEntryId = nextEntry.id;
-    this.state.selectedOutputId = output.id;
-    this.ensureOutputsConsistent();
-
-    if (!output.program.visible) {
-      this.applyProgramFromEntry(output.id, nextEntry.id, { visible: false, lastAction: 'LOAD' });
-      return nextEntry;
-    }
-
-    this.touch();
-    return nextEntry;
-  }
-
   createEntriesFromText({ templateId, text, outputId } = {}) {
     const template = this.getTemplate(templateId);
 

@@ -28,6 +28,7 @@ import ConfigTab from './control-shell/v2/ConfigTab.jsx';
 import PreviewOverlay from './control-shell/v2/PreviewOverlay.jsx';
 import PluginHost from './control-shell/PluginHost.jsx';
 import PluginSlot from './control-shell/PluginSlot.jsx';
+import { usePlugins } from './control-shell/use-plugins.js';
 import SegmentedTimerInput from './control-shell/v2/SegmentedTimerInput.jsx';
 import { useResizableSidebar } from './control-shell/v2/useResizableSidebar.js';
 import { useGlobalShortcuts } from './control-shell/use-global-shortcuts.js';
@@ -87,8 +88,7 @@ function ControlShell() {
   const [changelogInfo, setChangelogInfo] = useState(null);
   const [draftName, setDraftName] = useState('');
   const [activeTab, setActiveTab] = useState('rundown');
-  const [pluginTabs, setPluginTabs] = useState([]);
-  const [pluginCommands, setPluginCommands] = useState([]);
+  const { plugins: pluginList } = usePlugins();
   const [settingsTab, setSettingsTab] = useState('outputs');
   const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
   const [globalShortcutConflicts, setGlobalShortcutConflicts] = useState([]);
@@ -3117,40 +3117,30 @@ function ControlShell() {
 
   const sidebarHook = useResizableSidebar();
 
-  // Enabled plugins that mount as their own top-level tab. Kept in sync with
-  // Settings › Plugins via the shared change event.
-  useEffect(() => {
-    const loadPlugins = () => {
-      api('/api/plugins')
-        .then((res) => {
-          const enabled = (res.plugins || []).filter((plugin) => plugin.enabled);
-          setPluginTabs(
-            enabled
-              .filter((plugin) => plugin.mount?.type === 'tab')
-              .map((plugin) => ({ id: `plugin:${plugin.id}`, pluginId: plugin.id, label: plugin.mount?.label || plugin.name })),
-          );
-          // Declared commands, bindable to the keyboard (dispatched to the
-          // plugin's iframe client-side).
-          setPluginCommands(
-            enabled.flatMap((plugin) =>
-              (plugin.contributes?.commands || []).map((command) => ({
-                pluginId: plugin.id,
-                pluginName: plugin.name,
-                commandId: command.id,
-                label: command.label || command.id,
-              })),
-            ),
-          );
-        })
-        .catch(() => {
-          setPluginTabs([]);
-          setPluginCommands([]);
-        });
-    };
-    loadPlugins();
-    window.addEventListener('wtp-plugins-changed', loadPlugins);
-    return () => window.removeEventListener('wtp-plugins-changed', loadPlugins);
-  }, []);
+  // Enabled plugins that mount as their own top-level tab, and the commands
+  // plugins declare (bindable to the keyboard). Derived from the shared plugin
+  // store, so they update whenever a plugin is toggled/installed/removed.
+  const pluginTabs = useMemo(
+    () =>
+      pluginList
+        .filter((plugin) => plugin.enabled && plugin.mount?.type === 'tab')
+        .map((plugin) => ({ id: `plugin:${plugin.id}`, pluginId: plugin.id, label: plugin.mount?.label || plugin.name })),
+    [pluginList],
+  );
+  const pluginCommands = useMemo(
+    () =>
+      pluginList
+        .filter((plugin) => plugin.enabled)
+        .flatMap((plugin) =>
+          (plugin.contributes?.commands || []).map((command) => ({
+            pluginId: plugin.id,
+            pluginName: plugin.name,
+            commandId: command.id,
+            label: command.label || command.id,
+          })),
+        ),
+    [pluginList],
+  );
 
   // If the active plugin tab disappears (disabled/removed), fall back to Live.
   useEffect(() => {

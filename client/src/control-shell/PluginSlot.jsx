@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { api } from './api.js';
+import { useMemo } from 'react';
+import { usePlugins } from './use-plugins.js';
 
 // A named host slot that renders native buttons contributed by enabled plugins
 // (manifest `contributes.buttons`). The plugin declares a slot + label +
@@ -8,34 +8,24 @@ import { api } from './api.js';
 // declarative, so a contributed button can only fire a known command, and only
 // for a plugin that was granted `command:send`.
 export default function PluginSlot({ slot, onCommand }) {
-  const [buttons, setButtons] = useState([]);
+  const { plugins } = usePlugins();
 
-  const load = useCallback(() => {
-    api('/api/plugins')
-      .then((res) => {
-        const collected = [];
-        for (const plugin of res.plugins || []) {
-          if (!plugin.enabled || !(plugin.capabilities || []).includes('command:send')) continue;
-          for (const button of plugin.contributes?.buttons || []) {
-            if (button.slot === slot) {
-              collected.push({
-                key: `${plugin.id}:${button.command || button.action}:${button.label}`,
-                pluginId: plugin.id,
-                ...button,
-              });
-            }
-          }
+  const buttons = useMemo(() => {
+    const collected = [];
+    for (const plugin of plugins) {
+      if (!plugin.enabled || !(plugin.capabilities || []).includes('command:send')) continue;
+      for (const button of plugin.contributes?.buttons || []) {
+        if (button.slot === slot) {
+          collected.push({
+            key: `${plugin.id}:${button.command || button.action}:${button.label}`,
+            pluginId: plugin.id,
+            ...button,
+          });
         }
-        setButtons(collected);
-      })
-      .catch(() => setButtons([]));
-  }, [slot]);
-
-  useEffect(() => {
-    load();
-    window.addEventListener('wtp-plugins-changed', load);
-    return () => window.removeEventListener('wtp-plugins-changed', load);
-  }, [load]);
+      }
+    }
+    return collected;
+  }, [plugins, slot]);
 
   if (!buttons.length) return null;
 

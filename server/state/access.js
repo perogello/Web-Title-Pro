@@ -58,11 +58,6 @@ export const normalizeAccess = (access) => {
 export const hasCapability = (grant, capability) =>
   Boolean(grant) && Array.isArray(grant.capabilities) && grant.capabilities.includes(capability);
 
-// The capability a given request needs. Reads need STATE_READ; anything that
-// dispatches a command needs COMMAND_SEND.
-export const capabilityForRequest = ({ type }) =>
-  type === 'command' ? CAPABILITIES.COMMAND_SEND : CAPABILITIES.STATE_READ;
-
 // A grant is safe to expose to UIs / other clients without its secret token.
 export const publicGrant = (grant) => {
   if (!grant) return null;

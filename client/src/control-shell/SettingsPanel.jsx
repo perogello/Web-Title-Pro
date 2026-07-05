@@ -27,7 +27,6 @@ export default function SettingsPanel({
   learningShortcut,
   shortcutBindings,
   globalShortcutConflicts,
-  shortcutEntries,
   shortcutTimers,
   pluginCommands,
   bitfocusActions,

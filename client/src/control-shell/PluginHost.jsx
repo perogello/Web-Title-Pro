@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { api, BACKEND_ORIGIN } from './api.js';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { BACKEND_ORIGIN } from './api.js';
+import { usePlugins } from './use-plugins.js';
 
 // The plugin bridge. Enabled plugins whose manifest mounts them at `location`
 // are rendered in sandboxed iframes. The iframe cannot reach the app directly
@@ -17,33 +18,22 @@ const PLUGIN = 'wtp-plugin';
 // content-area `tab` (the single plugin whose own tab is active). Both share the
 // same bridge, so a plugin behaves identically wherever its manifest puts it.
 export default function PluginHost({ mount = 'panel', location = 'live', activePluginId = null, snapshot, onCommand }) {
-  const [plugins, setPlugins] = useState([]);
+  const { plugins: allPlugins } = usePlugins();
   const framesRef = useRef(new Map()); // pluginId -> { node, subscribed }
   const pluginsRef = useRef([]); // latest plugin metadata (caps, settings) by index
   const snapshotRef = useRef(snapshot);
 
-  const load = useCallback(() => {
+  // The enabled plugins this host is responsible for: a docked panel filters by
+  // location, a tab shows the one active plugin, background takes all headless.
+  const plugins = useMemo(() => {
     const matches = (p) => {
       if (!p.enabled || p.mount?.type !== mount) return false;
       if (mount === 'tab') return p.id === activePluginId;
       if (mount === 'background') return true; // headless: no location/tab
       return p.mount?.location === location;
     };
-    api('/api/plugins')
-      .then((res) => setPlugins((res.plugins || []).filter(matches)))
-      .catch(() => setPlugins([]));
-  }, [mount, location, activePluginId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // Re-read when a plugin is toggled/configured from Settings.
-  useEffect(() => {
-    const handler = () => load();
-    window.addEventListener('wtp-plugins-changed', handler);
-    return () => window.removeEventListener('wtp-plugins-changed', handler);
-  }, [load]);
+    return allPlugins.filter(matches);
+  }, [allPlugins, mount, location, activePluginId]);
 
   const findPlugin = (id) => pluginsRef.current.find((p) => p.id === id) || null;
 
