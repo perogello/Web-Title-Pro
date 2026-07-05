@@ -16,7 +16,7 @@ const SETTING_TYPES = ['text', 'number', 'checkbox', 'select'];
 // Named UI slots a plugin may contribute a native button into. Curated on
 // purpose: the host renders these buttons itself (no DOM injection), so it only
 // allows insertion at points it controls.
-const CONTRIB_SLOTS = ['live.toolbar'];
+const CONTRIB_SLOTS = ['live.toolbar', 'config.toolbar', 'sources.toolbar', 'timers.toolbar'];
 const isActionId = (value) =>
   typeof value === 'string' && /^(output:.+:.+|timer:.+:.+|global:.+)$/.test(value);
 

@@ -323,6 +323,30 @@ test('shortcuts v2: nested per-output/per-timer patches merge without clobbering
   }
 });
 
+test('shortcuts v2: plugin command bindings persist and merge with dynamic keys', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    store.updateNavigationShortcuts({ plugins: { 'builtin:rundown-remote': { takeNext: 'F7' } } });
+    store.updateNavigationShortcuts({ plugins: { 'builtin:rundown-remote': { other: 'F8' } } });
+    store.updateNavigationShortcuts({ outputs: { main: { titleIn: 'F5' } } });
+
+    let s = store.getNavigationShortcuts();
+    // Both plugin commands kept; setting one didn't wipe the other.
+    assert.equal(s.plugins['builtin:rundown-remote'].takeNext, 'F7');
+    assert.equal(s.plugins['builtin:rundown-remote'].other, 'F8');
+    // Other buckets untouched.
+    assert.equal(s.outputs.main.titleIn, 'F5');
+
+    // Clearing a plugin binding (empty string) removes just that key.
+    store.updateNavigationShortcuts({ plugins: { 'builtin:rundown-remote': { takeNext: '' } } });
+    s = store.getNavigationShortcuts();
+    assert.equal(s.plugins['builtin:rundown-remote'].takeNext, undefined);
+    assert.equal(s.plugins['builtin:rundown-remote'].other, 'F8');
+  } finally {
+    await fs.remove(dir);
+  }
+});
+
 test('shortcuts v2: legacy flat bindings load without crashing and reset to empty', async () => {
   const { store, dir } = await makeStore();
   try {
@@ -337,10 +361,11 @@ test('shortcuts v2: legacy flat bindings load without crashing and reset to empt
     };
     const s = store.getNavigationShortcuts();
     // New shape is always present; unknown legacy keys are dropped.
-    assert.deepEqual(Object.keys(s).sort(), ['global', 'globalActions', 'outputs', 'timers']);
+    assert.deepEqual(Object.keys(s).sort(), ['global', 'globalActions', 'outputs', 'plugins', 'timers']);
     assert.equal(s.show, undefined);
     assert.deepEqual(s.outputs, {});
     assert.deepEqual(s.timers, {});
+    assert.deepEqual(s.plugins, {});
   } finally {
     await fs.remove(dir);
   }

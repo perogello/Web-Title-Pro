@@ -5,6 +5,7 @@ import {
   TIMER_COMMANDS,
   globalActionId,
   outputActionId,
+  pluginActionId,
   readCommand,
   timerActionId,
 } from '../shortcut-model.js';
@@ -15,6 +16,7 @@ export default function ShortcutsSettingsTab({
   globalShortcutConflicts = [],
   outputs = [],
   timers = [],
+  pluginCommands = [],
   midiState,
   bitfocusActions,
   onStartLearning,
@@ -162,8 +164,28 @@ export default function ShortcutsSettingsTab({
       items: GLOBAL_COMMANDS.map((cmd) => buildRow(globalActionId(cmd.key), cmd.label, cmd.hint)),
     };
 
-    return [...outputSections, ...timerSections, globalSection];
-  }, [outputs, timers, shortcutBindings, midiByAction, bitfocusByAction, conflictByAction]);
+    // One section per plugin that declares commands. These bind to the keyboard
+    // only (dispatched to the plugin's iframe client-side); MIDI/Companion/OS-
+    // global can't reach a plugin's JS, so those controls are hidden for them.
+    const pluginGroups = new Map();
+    for (const cmd of pluginCommands) {
+      if (!pluginGroups.has(cmd.pluginId)) {
+        pluginGroups.set(cmd.pluginId, { name: cmd.pluginName || cmd.pluginId, items: [] });
+      }
+      pluginGroups.get(cmd.pluginId).items.push(
+        buildRow(pluginActionId(cmd.pluginId, cmd.commandId), cmd.label || cmd.commandId, 'Plugin command'),
+      );
+    }
+    const pluginSections = [...pluginGroups.entries()].map(([pluginId, group]) => ({
+      id: `plugin:${pluginId}`,
+      kind: 'plugin',
+      label: group.name,
+      badge: 'PLUGIN',
+      items: group.items,
+    }));
+
+    return [...outputSections, ...timerSections, ...pluginSections, globalSection];
+  }, [outputs, timers, pluginCommands, shortcutBindings, midiByAction, bitfocusByAction, conflictByAction]);
 
   const filtered = sections
     .map((s) => ({
@@ -254,7 +276,10 @@ export default function ShortcutsSettingsTab({
                   {section.items.map((row) => {
                     const kbLearning = isLearningKey(row.action);
                     const mdLearning = isLearningMidi(row.action);
-                    const canBeGlobal = Boolean(row.keyboard) && !isMouseShortcut(row.keyboard);
+                    // Plugin commands are keyboard-only: their handler lives in
+                    // the plugin iframe (client), so OS-global/MIDI can't reach it.
+                    const isPlugin = row.action.startsWith('plugin:');
+                    const canBeGlobal = Boolean(row.keyboard) && !isMouseShortcut(row.keyboard) && !isPlugin;
                     const isGlobal = Boolean(globalActions[row.action]);
                     const isExpanded = editingAction === row.action;
                     return (
@@ -306,7 +331,9 @@ export default function ShortcutsSettingsTab({
                                 )}
                               </div>
                             </div>
-                            {/* MIDI */}
+                            {/* MIDI — not available for plugin commands. */}
+                            {!isPlugin && (
+                            <>
                             <div className="ctl-detail-row">
                               <span className="ctl-detail-label">🎹 MIDI</span>
                               <code className={`ctl-binding-value ${row.midi ? '' : 'is-unset'}`}>
@@ -348,6 +375,8 @@ export default function ShortcutsSettingsTab({
                                   }
                                 />
                               </div>
+                            )}
+                            </>
                             )}
                             {/* COMPANION */}
                             {row.url && (

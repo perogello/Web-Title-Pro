@@ -239,9 +239,17 @@ configure/remove, panel/tab/background mounts, a capability-scoped postMessage
 bridge, contributed native buttons (command + plugin-logic action), and a
 published, versioned command contract that includes plugin commands.
 
-**Remaining polish (not blockers):** more slots as needed; keyboard-binding of
-plugin commands would need shortcut-schema work (client-only). Arbitrary DOM
-injection into host screens stays intentionally disallowed (sandbox boundary).
+**Done since:** more contribution slots (`config.toolbar`, `sources.toolbar`,
+`timers.toolbar` alongside `live.toolbar`); and **keyboard-binding of plugin
+commands** — the shortcut model gained a `plugins` bucket
+(`plugin:<pluginId>:<command>`), Settings › Controls shows a per-plugin section
+(keyboard-only: MIDI/Companion/OS-global are hidden, as those are server-driven
+and can't reach a plugin's iframe), and pressing a bound key routes client-side
+to the plugin's iframe. Plugin shortcuts are deliberately **not** OS-global.
+
+The plugin system is now complete across the planned scope. Arbitrary DOM
+injection into host screens stays intentionally disallowed (sandbox boundary);
+new slots can be added to `CONTRIB_SLOTS` as concrete needs arise.
 
 _Original design intent, now realised:_
 

@@ -57,8 +57,19 @@ export const parseActionId = (actionId = '') => {
   if (str.startsWith('global:')) {
     return { kind: 'global', id: null, command: str.slice('global:'.length) };
   }
+  // plugin:<pluginId>:<command> — pluginId itself contains a ':'
+  // (e.g. builtin:rundown-remote), but the command never does, so lastIndexOf
+  // splits unambiguously.
+  if (str.startsWith('plugin:')) {
+    const rest = str.slice('plugin:'.length);
+    const idx = rest.lastIndexOf(':');
+    if (idx === -1) return null;
+    return { kind: 'plugin', id: rest.slice(0, idx), command: rest.slice(idx + 1) };
+  }
   return null;
 };
+
+export const pluginActionId = (pluginId, command) => `plugin:${pluginId}:${command}`;
 
 const readCommand = (bindings, actionId) => {
   const parsed = parseActionId(actionId);
@@ -66,6 +77,7 @@ const readCommand = (bindings, actionId) => {
   if (parsed.kind === 'output') return bindings?.outputs?.[parsed.id]?.[parsed.command] || '';
   if (parsed.kind === 'timer') return bindings?.timers?.[parsed.id]?.[parsed.command] || '';
   if (parsed.kind === 'global') return bindings?.global?.[parsed.command] || '';
+  if (parsed.kind === 'plugin') return bindings?.plugins?.[parsed.id]?.[parsed.command] || '';
   return '';
 };
 
@@ -86,6 +98,12 @@ export const forEachBinding = (bindings = {}, callback) => {
   for (const { key } of GLOBAL_COMMANDS) {
     const value = bindings.global?.[key];
     if (value) callback(globalActionId(key), value);
+  }
+  // Plugin commands have dynamic ids, so iterate whatever is stored.
+  for (const [pluginId, commands] of Object.entries(bindings.plugins || {})) {
+    for (const [command, value] of Object.entries(commands || {})) {
+      if (value) callback(pluginActionId(pluginId, command), value);
+    }
   }
 };
 
@@ -110,6 +128,9 @@ export const buildBindingPatch = (actionId, value) => {
   if (parsed.kind === 'timer') {
     return { timers: { [parsed.id]: { [parsed.command]: value } } };
   }
+  if (parsed.kind === 'plugin') {
+    return { plugins: { [parsed.id]: { [parsed.command]: value } } };
+  }
   return { global: { [parsed.command]: value } };
 };
 
@@ -117,7 +138,7 @@ export const buildBindingPatch = (actionId, value) => {
 // binding in one request).
 export const mergeBindingPatches = (a = {}, b = {}) => {
   const out = {};
-  for (const field of ['outputs', 'timers']) {
+  for (const field of ['outputs', 'timers', 'plugins']) {
     if (a[field] || b[field]) {
       out[field] = { ...(a[field] || {}) };
       for (const [id, commands] of Object.entries(b[field] || {})) {

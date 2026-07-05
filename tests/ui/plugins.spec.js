@@ -217,6 +217,75 @@ test('Plugins: a background plugin runs headless and can drive commands', async 
   await card.getByRole('button', { name: 'Удалить' }).click();
 });
 
+// A plugin-declared command can be bound to the keyboard and, when pressed,
+// is routed to the plugin's iframe (client-side) which runs its logic.
+test('Plugins: a declared command can be bound to a key and fired', async ({ page, request }) => {
+  await waitForBackend(request);
+  await page.goto('/');
+  await page.getByRole('button', { name: /SETTINGS/i }).click();
+  await page.getByRole('button', { name: /Plugins/i }).click();
+
+  // A background plugin so it's always mounted; on its "ping" command it fires
+  // a canonical command we can observe.
+  const html =
+    '<script>' +
+    "window.addEventListener('message',function(e){" +
+    "if(e.data&&e.data.source==='wtp-host'&&e.data.type==='action'&&e.data.action==='ping'){" +
+    "parent.postMessage({source:'wtp-plugin',type:'command',actionId:'global:allOutputsOut',requestId:'1'},'*');}});" +
+    "parent.postMessage({source:'wtp-plugin',type:'ready'},'*');" +
+    '</script>';
+  await page.locator('input[type="file"][accept*=".webm"]').setInputFiles([
+    {
+      name: 'plugin.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(
+        JSON.stringify({
+          name: 'Keybind Demo',
+          version: '1.0.0',
+          entry: 'index.html',
+          capabilities: ['command:send'],
+          mount: { type: 'background' },
+          contributes: { commands: [{ id: 'ping', label: 'Ping command' }] },
+        }),
+      ),
+    },
+    { name: 'index.html', mimeType: 'text/html', buffer: Buffer.from(html) },
+  ]);
+
+  const card = page.locator('.plugin-card-v3').filter({ hasText: 'Keybind Demo' });
+  await expect(card).toBeVisible({ timeout: 10_000 });
+  await card.getByRole('button', { name: 'Включить' }).click();
+
+  // Go to Controls; the plugin's command shows up in a PLUGIN section.
+  await page.locator('.settings-nav-item', { hasText: 'Controls' }).click();
+  const section = page.locator('.ctl-section--plugin', { hasText: 'Keybind Demo' });
+  await expect(section).toBeVisible({ timeout: 10_000 });
+
+  // Expand the command row and learn the key F7.
+  const row = section.locator('.ctl-row', { hasText: 'Ping command' });
+  await row.locator('.ctl-row-label').click();
+  await row.getByRole('button', { name: 'Learn', exact: true }).click();
+  await page.keyboard.press('F7');
+
+  // The keyboard pill appears once the binding round-trips back over WS.
+  await expect(row.locator('.ctl-pill-kb')).toContainText('F7', { timeout: 10_000 });
+
+  // Press the key: it routes to the plugin, which fires the canonical command.
+  const commandRequest = page.waitForRequest(
+    (req) =>
+      req.url().endsWith('/api/command') &&
+      req.method() === 'POST' &&
+      JSON.parse(req.postData() || '{}').actionId === 'global:allOutputsOut',
+  );
+  await page.keyboard.press('F7');
+  await commandRequest;
+
+  // Cleanup.
+  await page.getByRole('button', { name: /Plugins/i }).click();
+  page.on('dialog', (dialog) => dialog.accept());
+  await card.getByRole('button', { name: 'Удалить' }).click();
+});
+
 // A plugin whose manifest mounts as a tab gets its own top-level nav tab.
 test('Plugins: a tab-mount plugin adds a top-level tab that shows it full-size', async ({ page, request }) => {
   await waitForBackend(request);

@@ -88,6 +88,7 @@ function ControlShell() {
   const [draftName, setDraftName] = useState('');
   const [activeTab, setActiveTab] = useState('rundown');
   const [pluginTabs, setPluginTabs] = useState([]);
+  const [pluginCommands, setPluginCommands] = useState([]);
   const [settingsTab, setSettingsTab] = useState('outputs');
   const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
   const [globalShortcutConflicts, setGlobalShortcutConflicts] = useState([]);
@@ -2904,6 +2905,16 @@ function ControlShell() {
         return;
       }
 
+      // Plugin commands run client-side: route to the plugin's iframe (a
+      // PluginHost forwards it). The server has no iframe, so these never go
+      // through the command bus.
+      if (parsed.kind === 'plugin') {
+        window.dispatchEvent(
+          new CustomEvent('wtp-plugin-action', { detail: { pluginId: parsed.id, action: parsed.command } }),
+        );
+        return;
+      }
+
       // parsed.kind === 'output'
       const outputId = parsed.id;
       const output = (snapshot?.outputs || []).find((o) => o.id === outputId) || null;
@@ -3109,20 +3120,36 @@ function ControlShell() {
   // Enabled plugins that mount as their own top-level tab. Kept in sync with
   // Settings › Plugins via the shared change event.
   useEffect(() => {
-    const loadTabs = () => {
+    const loadPlugins = () => {
       api('/api/plugins')
-        .then((res) =>
+        .then((res) => {
+          const enabled = (res.plugins || []).filter((plugin) => plugin.enabled);
           setPluginTabs(
-            (res.plugins || [])
-              .filter((plugin) => plugin.enabled && plugin.mount?.type === 'tab')
+            enabled
+              .filter((plugin) => plugin.mount?.type === 'tab')
               .map((plugin) => ({ id: `plugin:${plugin.id}`, pluginId: plugin.id, label: plugin.mount?.label || plugin.name })),
-          ),
-        )
-        .catch(() => setPluginTabs([]));
+          );
+          // Declared commands, bindable to the keyboard (dispatched to the
+          // plugin's iframe client-side).
+          setPluginCommands(
+            enabled.flatMap((plugin) =>
+              (plugin.contributes?.commands || []).map((command) => ({
+                pluginId: plugin.id,
+                pluginName: plugin.name,
+                commandId: command.id,
+                label: command.label || command.id,
+              })),
+            ),
+          );
+        })
+        .catch(() => {
+          setPluginTabs([]);
+          setPluginCommands([]);
+        });
     };
-    loadTabs();
-    window.addEventListener('wtp-plugins-changed', loadTabs);
-    return () => window.removeEventListener('wtp-plugins-changed', loadTabs);
+    loadPlugins();
+    window.addEventListener('wtp-plugins-changed', loadPlugins);
+    return () => window.removeEventListener('wtp-plugins-changed', loadPlugins);
   }, []);
 
   // If the active plugin tab disappears (disabled/removed), fall back to Live.
@@ -3253,6 +3280,10 @@ function ControlShell() {
       )}
 
       {effectiveTab === 'config' && (
+        <PluginSlot slot="config.toolbar" onCommand={sendCommand} />
+      )}
+
+      {effectiveTab === 'config' && (
         <ConfigTab
           outputs={outputs}
           entries={displayEntries}
@@ -3279,6 +3310,10 @@ function ControlShell() {
           onReorderOutputs={reorderOutputsByIds}
           onReorderEntries={reorderEntriesByIds}
         />
+      )}
+
+      {effectiveTab === 'timers' && (
+        <PluginSlot slot="timers.toolbar" onCommand={sendCommand} />
       )}
 
       {effectiveTab === 'timers' && (
@@ -3317,6 +3352,7 @@ function ControlShell() {
           shortcutBindings={shortcutBindings}
           globalShortcutConflicts={globalShortcutConflicts}
           shortcutTimers={snapshot?.timers || []}
+          pluginCommands={pluginCommands}
           bitfocusActions={bitfocusActions}
           midiState={midiState}
           appMeta={appMeta}
@@ -3365,6 +3401,10 @@ function ControlShell() {
           onResetApp={() => window.webTitleDesktop?.resetApp?.().catch(() => {})}
           onUninstallApp={() => window.webTitleDesktop?.uninstallApp?.().catch(() => {})}
         />
+      )}
+
+      {effectiveTab === 'sources' && (
+        <PluginSlot slot="sources.toolbar" onCommand={sendCommand} />
       )}
 
       {effectiveTab === 'sources' && (

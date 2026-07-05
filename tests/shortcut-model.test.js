@@ -7,6 +7,7 @@ import {
   mergeBindingPatches,
   outputActionId,
   parseActionId,
+  pluginActionId,
   readCommand,
   timerActionId,
   globalActionId,
@@ -85,6 +86,36 @@ test('buildBindingPatch produces a minimal nested patch', () => {
   });
   assert.deepEqual(buildBindingPatch('global:allOutputsOut', 'Escape'), {
     global: { allOutputsOut: 'Escape' },
+  });
+});
+
+test('plugin commands: build/parse/read/forEach/merge round-trip', () => {
+  // pluginId itself contains a colon (builtin:rundown-remote); command never does.
+  assert.equal(pluginActionId('builtin:rundown-remote', 'takeNext'), 'plugin:builtin:rundown-remote:takeNext');
+  assert.deepEqual(parseActionId('plugin:builtin:rundown-remote:takeNext'), {
+    kind: 'plugin',
+    id: 'builtin:rundown-remote',
+    command: 'takeNext',
+  });
+
+  const bindings = { plugins: { 'builtin:rundown-remote': { takeNext: 'F7' } } };
+  assert.equal(readCommand(bindings, 'plugin:builtin:rundown-remote:takeNext'), 'F7');
+  assert.equal(findActionForShortcut(bindings, 'F7'), 'plugin:builtin:rundown-remote:takeNext');
+
+  const seen = [];
+  forEachBinding(bindings, (actionId, value) => seen.push([actionId, value]));
+  assert.deepEqual(seen, [['plugin:builtin:rundown-remote:takeNext', 'F7']]);
+
+  assert.deepEqual(buildBindingPatch('plugin:builtin:rundown-remote:takeNext', 'F7'), {
+    plugins: { 'builtin:rundown-remote': { takeNext: 'F7' } },
+  });
+
+  // A conflict move across a plugin and an output binding merges cleanly.
+  const clearOld = buildBindingPatch('plugin:custom:x:go', '');
+  const setNew = buildBindingPatch('output:main:titleIn', 'F7');
+  assert.deepEqual(mergeBindingPatches(clearOld, setNew), {
+    plugins: { 'custom:x': { go: '' } },
+    outputs: { main: { titleIn: 'F7' } },
   });
 });
 

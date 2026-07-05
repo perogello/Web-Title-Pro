@@ -179,9 +179,24 @@ const normalizeNestedCommandMap = (value, keys) =>
       )
     : {};
 
+// Plugin command ids are dynamic (declared by each plugin), so keep every
+// string binding rather than a fixed key set.
+const normalizeDynamicNestedMap = (value) =>
+  value && typeof value === 'object'
+    ? Object.fromEntries(
+        Object.entries(value)
+          .filter(([, commands]) => commands && typeof commands === 'object')
+          .map(([id, commands]) => [
+            id,
+            Object.fromEntries(Object.entries(commands).filter(([, v]) => typeof v === 'string' && v)),
+          ]),
+      )
+    : {};
+
 const normalizeGlobalShortcuts = (shortcuts = {}) => ({
   outputs: normalizeNestedCommandMap(shortcuts.outputs, OUTPUT_COMMAND_KEYS),
   timers: normalizeNestedCommandMap(shortcuts.timers, TIMER_COMMAND_KEYS),
+  plugins: normalizeDynamicNestedMap(shortcuts.plugins),
   global: normalizeCommandMap(shortcuts.global, GLOBAL_COMMAND_KEYS),
   globalActions: normalizeBooleanMap(shortcuts.globalActions),
 });
@@ -908,6 +923,7 @@ export class TitleStore extends EventEmitter {
     this.state.integrations.shortcuts = normalizeGlobalShortcuts({
       outputs: mergeNested('outputs'),
       timers: mergeNested('timers'),
+      plugins: mergeNested('plugins'),
       global: mergeFlat('global'),
       globalActions: mergeFlat('globalActions'),
     });

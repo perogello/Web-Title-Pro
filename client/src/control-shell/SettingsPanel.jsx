@@ -29,6 +29,7 @@ export default function SettingsPanel({
   globalShortcutConflicts,
   shortcutEntries,
   shortcutTimers,
+  pluginCommands,
   bitfocusActions,
   midiState,
   appMeta,
@@ -120,6 +121,7 @@ export default function SettingsPanel({
               globalShortcutConflicts={globalShortcutConflicts}
               outputs={outputs}
               timers={shortcutTimers}
+              pluginCommands={pluginCommands}
               midiState={midiState}
               bitfocusActions={bitfocusActions}
               onStartLearning={onStartLearningShortcut}
