@@ -1,0 +1,10 @@
+{
+  "name": "Bingo",
+  "version": "1.0.0",
+  "description": "Draw bingo numbers from a control panel; a live overlay renders the current call and history for air. A content plugin: owns its data and its render surface.",
+  "author": "Web Title Pro",
+  "entry": "panel.html",
+  "overlay": "overlay.html",
+  "capabilities": ["state:read", "data:read", "data:write"],
+  "mount": { "type": "panel", "location": "live", "label": "Bingo" }
+}

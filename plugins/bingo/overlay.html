@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bingo — overlay</title>
+    <script src="/plugin-sdk.js"></script>
+    <style>
+      /* Transparent so it composites over video as an OBS/vMix browser source. */
+      html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+      body { font-family: system-ui, Segoe UI, Roboto, sans-serif; }
+      #stage {
+        position: absolute;
+        left: 60px;
+        bottom: 60px;
+        display: flex;
+        align-items: flex-end;
+        gap: 24px;
+        opacity: 0;
+        transition: opacity 240ms ease;
+      }
+      #stage.on { opacity: 1; }
+      .call {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: linear-gradient(180deg, #1b8f5a, #0f6d42);
+        color: #fff;
+        border-radius: 20px;
+        padding: 18px 34px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+      }
+      .call .label { font-size: 20px; letter-spacing: 0.3em; text-transform: uppercase; opacity: 0.85; }
+      .call .num { font-size: 120px; font-weight: 800; line-height: 1; }
+      .history { display: flex; gap: 10px; padding-bottom: 12px; }
+      .history .ball {
+        width: 54px; height: 54px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 24px; font-weight: 700; color: #0f1115;
+        background: #fff; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <div class="call">
+        <span class="label">Bingo</span>
+        <span id="num" class="num">—</span>
+      </div>
+      <div id="history" class="history"></div>
+    </div>
+
+    <script>
+      WTP.onData(function (data) {
+        var current = data.current || null;
+        var called = Array.isArray(data.called) ? data.called : [];
+        var stage = document.getElementById('stage');
+        stage.classList.toggle('on', Boolean(current));
+        document.getElementById('num').textContent = current || '—';
+        // Show the previous few calls (excluding the current one).
+        var recent = called.slice(0, -1).slice(-4);
+        document.getElementById('history').innerHTML = recent
+          .map(function (n) { return '<div class="ball">' + n + '</div>'; })
+          .join('');
+      });
+    </script>
+  </body>
+</html>

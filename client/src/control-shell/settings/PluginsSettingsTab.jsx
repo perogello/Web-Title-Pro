@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api } from '../api.js';
+import { api, BACKEND_ORIGIN, copyText } from '../api.js';
 import { notifyPluginsChanged, usePlugins } from '../plugins/use-plugins.js';
 
 // Settings › Plugins: list installed plugins, enable/disable them. Enabling a
@@ -11,6 +11,8 @@ import { notifyPluginsChanged, usePlugins } from '../plugins/use-plugins.js';
 const CAP_LABELS = {
   'state:read': 'чтение состояния',
   'command:send': 'отправка команд',
+  'data:read': 'чтение своих данных',
+  'data:write': 'запись своих данных',
 };
 
 const MOUNT_LABELS = {
@@ -272,6 +274,19 @@ export default function PluginsSettingsTab() {
                 {plugin.enabled ? '● включён' : '○ отключён'}
               </span>
             </div>
+            {plugin.overlayUrl && (
+              <div className="plugin-overlay-url">
+                <span className="plugin-meta-item">Эфирный оверлей (browser-source):</span>
+                <code>{`${BACKEND_ORIGIN}${plugin.overlayUrl}`}</code>
+                <button
+                  type="button"
+                  className="btn-v3-ghost btn-v3-sm"
+                  onClick={() => copyText(`${BACKEND_ORIGIN}${plugin.overlayUrl}`)}
+                >
+                  Copy URL
+                </button>
+              </div>
+            )}
             <PluginSettingsForm plugin={plugin} />
           </div>
         ))

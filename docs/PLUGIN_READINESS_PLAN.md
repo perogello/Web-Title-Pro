@@ -59,6 +59,42 @@ data never leaves the machine.
 
 ---
 
+## 0. Content plugins (the real goal) — in progress
+
+The first plugin milestone shipped a *control* surface (plugins that send the
+app's own commands). That is not enough: a real plugin platform (SPX-GC,
+Lexogrine HUD Manager) treats a plugin as a **trusted content app that owns its
+data and is itself the on-air graphic**, fed live state — not a remote for the
+control panel. We are pivoting to that model. Decisions (operator):
+
+- **Trust:** installed plugins are trusted local code, like an OBS browser
+  source / SPX template / Lexogrine HUD. Capability grants stay for audit, not
+  as a jail.
+- **Render:** the manifest decides — a plugin may ship a standalone **overlay**
+  (browser source) *and/or* drive our render pipeline via a bundled template.
+
+**Done (foundation):**
+- **Plugin data channel.** A plugin owns a JSON blob (`plugins.installed[id].data`),
+  persisted, with `GET/PUT /api/plugins/:id/data`. Writes broadcast on a
+  dedicated WS channel (`plugin-data`) to every surface of that plugin.
+- **Plugin SDK** (`/plugin-sdk.js`, inline-served so it's always bundled).
+  A surface includes it and uses `WTP.onState/onData/getData/setData/command`.
+  It derives its plugin id from its asset path and talks to the local server
+  over relative URLs + a WebSocket — identical whether embedded in the app or
+  loaded standalone as a browser source.
+- **Overlay surface.** Manifest `overlay` declares an on-air HTML render
+  surface, served at its URL (shown in Settings › Plugins to copy into
+  OBS/vMix). New `data:read` / `data:write` capabilities.
+- **Reference content plugin `bingo`** (panel + overlay): the panel draws
+  numbers into the plugin's data; the overlay renders the live call for air.
+  Proven end-to-end (panel writes → server broadcasts → overlay renders live).
+
+**Next:** the template+entry render path (`data:write` into a bundled title
+template, taken to air via the program bus); trust relaxation for
+localStorage/device access (`device:microphone`, `device:camera`) for voice/
+camera plugins; making an overlay a program-bus layer (in/out) rather than only
+an external browser source.
+
 ## 1. Goal
 
 Let plugins add panels and integrations **around** the app through a stable,

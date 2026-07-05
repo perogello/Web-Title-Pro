@@ -217,6 +217,45 @@ test('Plugins: a background plugin runs headless and can drive commands', async 
   await card.getByRole('button', { name: 'Удалить' }).click();
 });
 
+// A content plugin: its control panel writes its own data, the server persists
+// and broadcasts it, and its on-air overlay renders the change live. Both
+// surfaces run as standalone pages (exactly how the overlay is used as a
+// browser source), so no sandboxed-iframe access is needed.
+test('Plugins: content plugin (bingo) — panel writes data, overlay renders it live', async ({ page, context, request }) => {
+  await waitForBackend(request);
+  await request.post('http://127.0.0.1:4000/api/plugins/builtin:bingo/enable');
+  // Start from a clean board.
+  await request.put('http://127.0.0.1:4000/api/plugins/builtin:bingo/data', {
+    data: { data: { current: null, called: [] } },
+  });
+
+  const overlay = await context.newPage();
+  await overlay.goto('http://127.0.0.1:4000/plugin-assets/builtin/bingo/overlay.html');
+  await expect(overlay.locator('#num')).toHaveText('—');
+
+  // The control panel draws a number.
+  await page.goto('http://127.0.0.1:4000/plugin-assets/builtin/bingo/panel.html');
+  await page.locator('#draw').click();
+
+  // The overlay reflects it live (delivered over the WS plugin-data channel).
+  await expect(overlay.locator('#num')).not.toHaveText('—', { timeout: 10_000 });
+  await expect(overlay.locator('#stage')).toHaveClass(/on/);
+  const drawn = Number(await overlay.locator('#num').textContent());
+  expect(drawn).toBeGreaterThanOrEqual(1);
+  expect(drawn).toBeLessThanOrEqual(90);
+
+  // The data persisted server-side (a second surface / restart would see it).
+  const data = await (await request.get('http://127.0.0.1:4000/api/plugins/builtin:bingo/data')).json();
+  expect(data.data.called).toContain(drawn);
+
+  // Reset clears the overlay.
+  await page.locator('#reset').click();
+  await expect(overlay.locator('#num')).toHaveText('—', { timeout: 10_000 });
+
+  await overlay.close();
+  await request.post('http://127.0.0.1:4000/api/plugins/builtin:bingo/disable');
+});
+
 // A plugin-declared command can be bound to the keyboard and, when pressed,
 // is routed to the plugin's iframe (client-side) which runs its logic.
 test('Plugins: a declared command can be bound to a key and fired', async ({ page, request }) => {

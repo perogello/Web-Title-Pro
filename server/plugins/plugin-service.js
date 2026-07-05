@@ -9,7 +9,7 @@ import { nanoid } from 'nanoid';
 // declares the plugin's requested capabilities and where it wants to mount —
 // the host honours that; it does not hard-code placement.
 
-const KNOWN_CAPABILITIES = ['state:read', 'command:send'];
+const KNOWN_CAPABILITIES = ['state:read', 'command:send', 'data:read', 'data:write'];
 const MOUNT_TYPES = ['panel', 'tab', 'background'];
 const MOUNT_LOCATIONS = ['live', 'rundown', 'settings'];
 const SETTING_TYPES = ['text', 'number', 'checkbox', 'select'];
@@ -276,6 +276,21 @@ export const parsePluginManifest = async ({ directory, slug, source, publicBase 
     throw new Error(`Entry file "${entry}" not found.`);
   }
 
+  // Optional on-air render surface (an HTML overlay). Served at its own URL so
+  // it can be used as an OBS/vMix browser source or previewed in the app. Must
+  // stay inside the plugin folder and exist.
+  let overlayUrl = null;
+  const overlayRaw = typeof raw?.overlay === 'string' && raw.overlay.trim() ? raw.overlay.trim().replace(/^\/+/, '') : '';
+  if (overlayRaw) {
+    if (overlayRaw.split('/').some((segment) => segment === '..')) {
+      throw new Error('Manifest "overlay" must stay inside the plugin folder.');
+    }
+    if (!(await fs.pathExists(path.join(directory, overlayRaw)))) {
+      throw new Error(`Overlay file "${overlayRaw}" not found.`);
+    }
+    overlayUrl = `${publicBase}/${overlayRaw}`;
+  }
+
   return {
     id: `${source}:${slug}`,
     slug,
@@ -289,6 +304,7 @@ export const parsePluginManifest = async ({ directory, slug, source, publicBase 
     settingsSchema: normalizeSettingsSchema(raw?.settings),
     contributes: normalizeContributions(raw?.contributes),
     entryUrl: `${publicBase}/${entry}`,
+    overlayUrl,
     directory,
   };
 };

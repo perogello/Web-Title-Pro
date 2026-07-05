@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bingo — control</title>
+    <script src="/plugin-sdk.js"></script>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      body { margin: 0; padding: 12px; font: 13px/1.4 system-ui, Segoe UI, Roboto, sans-serif; color: #e8eaed; background: #14161a; }
+      .card { background: #1d2026; border: 1px solid #2b2f37; border-radius: 10px; padding: 12px; }
+      h1 { font-size: 12px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #9aa0a6; }
+      .current { font-size: 40px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+      .current.empty { color: #4b5563; font-size: 22px; font-weight: 600; }
+      .meta { font-size: 12px; color: #9aa0a6; margin-bottom: 12px; }
+      .row { display: flex; gap: 8px; margin-bottom: 12px; }
+      button { flex: 1; appearance: none; border: 1px solid #343a44; background: #262b33; color: #e8eaed; border-radius: 8px; padding: 10px; font: inherit; font-weight: 700; cursor: pointer; }
+      button.draw { border-color: #2f6f4f; }
+      button.reset { border-color: #6f2f2f; }
+      button:disabled { opacity: 0.4; cursor: default; }
+      .called { display: flex; flex-wrap: wrap; gap: 4px; }
+      .ball { min-width: 26px; text-align: center; padding: 3px 6px; border-radius: 999px; background: #262b33; border: 1px solid #343a44; font-size: 12px; }
+      .ball.last { background: #2f6f4f; border-color: #3f8f66; }
+      .hint { font-size: 11px; color: #6b7280; margin-top: 10px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Bingo — control</h1>
+      <div id="current" class="current empty">—</div>
+      <div id="meta" class="meta">No numbers drawn</div>
+      <div class="row">
+        <button id="draw" class="draw">Draw number</button>
+        <button id="reset" class="reset">Reset</button>
+      </div>
+      <div id="called" class="called"></div>
+      <div class="hint">Overlay (browser source) shows this live. See its URL in Settings › Plugins.</div>
+    </div>
+
+    <script>
+      var MAX = 90;
+      var data = { current: null, called: [] };
+
+      function render() {
+        var cur = document.getElementById('current');
+        if (data.current) { cur.textContent = data.current; cur.className = 'current'; }
+        else { cur.textContent = '—'; cur.className = 'current empty'; }
+        document.getElementById('meta').textContent = data.called.length
+          ? data.called.length + ' / ' + MAX + ' drawn'
+          : 'No numbers drawn';
+        document.getElementById('draw').disabled = data.called.length >= MAX;
+        document.getElementById('called').innerHTML = data.called
+          .map(function (n, i) { return '<span class="ball' + (i === data.called.length - 1 ? ' last' : '') + '">' + n + '</span>'; })
+          .join('');
+      }
+
+      WTP.onData(function (next) {
+        data = { current: next.current || null, called: Array.isArray(next.called) ? next.called : [] };
+        render();
+      });
+
+      document.getElementById('draw').onclick = function () {
+        var pool = [];
+        for (var n = 1; n <= MAX; n++) if (data.called.indexOf(n) === -1) pool.push(n);
+        if (!pool.length) return;
+        var pick = pool[Math.floor(Math.random() * pool.length)];
+        WTP.setData({ current: pick, called: data.called.concat(pick) });
+      };
+      document.getElementById('reset').onclick = function () {
+        WTP.setData({ current: null, called: [] });
+      };
+    </script>
+  </body>
+</html>

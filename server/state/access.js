@@ -17,6 +17,10 @@ export const CAPABILITIES = {
   STATE_READ: 'state:read',
   // Send canonical commands through the command bus (POST /api/command).
   COMMAND_SEND: 'command:send',
+  // Read the plugin's own content data (bingo board, scores, …).
+  DATA_READ: 'data:read',
+  // Write the plugin's own content data (persisted + broadcast to its surfaces).
+  DATA_WRITE: 'data:write',
 };
 
 export const ALL_CAPABILITIES = Object.values(CAPABILITIES);

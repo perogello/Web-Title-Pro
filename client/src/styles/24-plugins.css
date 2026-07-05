@@ -20,6 +20,23 @@
   margin-top: 10px;
 }
 
+.plugin-overlay-url {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+.plugin-overlay-url code {
+  background: var(--surface-3, #262b33);
+  border: 1px solid var(--border-1, #343a44);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--text-1, #e8eaed);
+  word-break: break-all;
+}
+
 .plugin-badge {
   display: inline-block;
   padding: 1px 7px;

@@ -8,6 +8,7 @@ import { WebSocketServer } from 'ws';
 import { config } from './config.js';
 import { TemplateService } from './templates/template-service.js';
 import { PluginService } from './plugins/plugin-service.js';
+import { PLUGIN_SDK_SOURCE } from './plugins/plugin-sdk-source.js';
 import { TitleStore } from './state/store.js';
 import { TimerManager } from './timers/timer-manager.js';
 import { MidiService } from './midi/midi-service.js';
@@ -107,6 +108,10 @@ export const startServer = async (options = {}) => {
     hub.broadcast('snapshot');
     vmixService.scheduleSyncTimers(store.getTimers());
   });
+  // A plugin's own content data gets its own WS channel (not the app snapshot),
+  // so every surface of that plugin — panel, on-air overlay, browser source —
+  // updates live.
+  store.on('plugin-data', (payload) => hub.broadcast('plugin-data', payload));
   timerManager.on('tick', (payload) => {
     hub.broadcast('timer-tick', payload);
     vmixService.scheduleSyncTimers(payload?.timers || store.getTimers());
@@ -123,6 +128,14 @@ export const startServer = async (options = {}) => {
   // scopes a plugin's actions.
   app.use('/plugin-assets/builtin', express.static(config.builtinPluginsDir));
   app.use('/plugin-assets/custom', express.static(config.customPluginsDir));
+  // The plugin SDK (WS state + content data + commands). Served inline so it is
+  // always bundled with the portable build; used by plugin surfaces and by
+  // standalone browser sources alike.
+  app.get('/plugin-sdk.js', (_request, response) => {
+    response.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    response.setHeader('Cache-Control', 'no-cache');
+    response.send(PLUGIN_SDK_SOURCE);
+  });
   // Renderer files carry no content hash in their names, so a browser cache
   // could keep serving the previous version's render.js/css after an app
   // update. Force revalidation.

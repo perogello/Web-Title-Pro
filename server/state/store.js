@@ -495,6 +495,9 @@ const normalizePlugins = (plugins) => {
       enabled: Boolean(entry.enabled),
       settings: entry.settings && typeof entry.settings === 'object' ? entry.settings : {},
       grantId: typeof entry.grantId === 'string' ? entry.grantId : null,
+      // The plugin's own content model (bingo board, scores, …). Owned and
+      // persisted by the plugin, broadcast to all its surfaces over WS.
+      data: entry.data && typeof entry.data === 'object' ? entry.data : {},
     };
   }
   return { installed: out };
@@ -1154,6 +1157,28 @@ export class TitleStore extends EventEmitter {
     if (!entry?.enabled || !entry.grantId) return null;
     const grant = this.#ensureAccess().grants.find((item) => item.id === entry.grantId);
     return grant ? grant.token : null;
+  }
+
+  // --- Plugin content data (the plugin's own model) ------------------------
+  // A plugin owns a JSON blob (bingo board, scores, …). It's persisted and
+  // broadcast to every surface of that plugin (control panel + on-air overlay +
+  // any browser source) so they stay in sync, like a HUD's socket state.
+
+  getPluginData(pluginId) {
+    const entry = this.#ensurePlugins().installed[pluginId];
+    return entry?.data && typeof entry.data === 'object' ? deepClone(entry.data) : {};
+  }
+
+  setPluginData(pluginId, data) {
+    const plugins = this.#ensurePlugins();
+    const entry = plugins.installed[pluginId] || { enabled: false, settings: {}, grantId: null, data: {} };
+    entry.data = data && typeof data === 'object' ? data : {};
+    plugins.installed[pluginId] = entry;
+    this.schedulePersist();
+    // Targeted event: plugin data is not part of the app snapshot, so it gets
+    // its own WS channel instead of a full re-broadcast.
+    this.emit('plugin-data', { pluginId, data: deepClone(entry.data) });
+    return entry.data;
   }
 
   // Record which data-source row is applied to an output. Set by the control

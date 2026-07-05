@@ -73,6 +73,48 @@ test('parsePluginManifest normalizes caps + mount and builds an entry url', asyn
   }
 });
 
+test('parsePluginManifest parses an overlay surface and rejects a missing one', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-ov-'));
+  try {
+    const dir = path.join(root, 'ov');
+    await fs.ensureDir(dir);
+    await fs.writeJson(path.join(dir, 'plugin.json'), { name: 'Ov', entry: 'panel.html', overlay: 'overlay.html' });
+    await fs.writeFile(path.join(dir, 'panel.html'), 'x');
+    // Missing overlay file -> rejected.
+    await assert.rejects(
+      () => parsePluginManifest({ directory: dir, slug: 'ov', source: 'builtin', publicBase: '/plugin-assets/builtin/ov' }),
+      /Overlay file/,
+    );
+    await fs.writeFile(path.join(dir, 'overlay.html'), 'y');
+    const plugin = await parsePluginManifest({ directory: dir, slug: 'ov', source: 'builtin', publicBase: '/plugin-assets/builtin/ov' });
+    assert.equal(plugin.overlayUrl, '/plugin-assets/builtin/ov/overlay.html');
+  } finally {
+    await fs.remove(root);
+  }
+});
+
+test('store: plugin content data persists, clones out, and broadcasts', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    const events = [];
+    store.on('plugin-data', (payload) => events.push(payload));
+
+    assert.deepEqual(store.getPluginData('builtin:bingo'), {});
+    store.setPluginData('builtin:bingo', { current: 7, called: [7] });
+
+    assert.deepEqual(store.getPluginData('builtin:bingo'), { current: 7, called: [7] });
+    assert.equal(events.length, 1);
+    assert.deepEqual(events[0], { pluginId: 'builtin:bingo', data: { current: 7, called: [7] } });
+
+    // Returned data is a clone — mutating it must not corrupt the store.
+    const got = store.getPluginData('builtin:bingo');
+    got.called.push(99);
+    assert.deepEqual(store.getPluginData('builtin:bingo').called, [7]);
+  } finally {
+    await fs.remove(dir);
+  }
+});
+
 test('parsePluginManifest accepts a background mount', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-bg-'));
   try {

@@ -387,6 +387,7 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
       mount: plugin.mount,
       contributes: plugin.contributes,
       entryUrl: plugin.entryUrl,
+      overlayUrl: plugin.overlayUrl,
       enabled: state.enabled,
       settingsSchema: plugin.settingsSchema,
       // Stored values backfilled with schema defaults, so the UI and the plugin
@@ -479,6 +480,26 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
       store.removePluginState(plugin.id);
       const result = await pluginService.deletePlugin(plugin.id);
       response.json(result);
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  // A plugin's own content data (bingo board, scores, …). Any surface of the
+  // plugin reads it here; writing it persists and broadcasts to all surfaces
+  // over WS. Trusted-plugin model: the plugin owns this blob.
+  router.get('/plugins/:pluginId/data', (request, response) => {
+    try {
+      response.json({ data: store.getPluginData(request.params.pluginId) });
+    } catch (error) {
+      sendError(response, error);
+    }
+  });
+
+  router.put('/plugins/:pluginId/data', (request, response) => {
+    try {
+      const data = store.setPluginData(request.params.pluginId, request.body?.data ?? request.body ?? {});
+      response.json({ data });
     } catch (error) {
       sendError(response, error);
     }
