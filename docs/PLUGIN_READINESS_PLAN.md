@@ -144,15 +144,32 @@ code runs in the main process for the first milestone.
   grant registry in the store, managed via `/api/access/grants`. Tokens never
   broadcast, never exported. Enforcement is wired in with the Phase 5 bridge.
 
-### Phase 5 — Plugin host  *(only after 1–4)*
+### Phase 5 — Plugin host  *(only after 1–4; paused — foundation is ready)*
+
+**Status:** not started. Phases 1–4 are done and committed; the host is the last
+piece and was deliberately paused for a design checkpoint. The direction below
+is decided and should be the starting point for the next session.
+
+**Management UI — decided:** a new **"Plugins"** item in **Settings**, showing a
+list of installed plugins with **enable / disable** and **per-plugin settings**.
+Management lives in settings; a plugin's own surface is separate (below).
+
+**Mount point — decided:** the *plugin decides where and how it runs* via its
+manifest. The host does not hard-code a single mount; the manifest declares the
+mount (e.g. `mount: "tab" | "panel"` + where), and the host honours it. Settings
+only enables/configures; the manifest drives placement.
+
 - `plugins/` folder + manifest (`plugin.json`: name, version, entry html,
-  requested capabilities, mount point).
+  requested capabilities, **mount declaration**).
 - Discovery on startup (mirrors the custom-templates scan).
 - Sandbox: plugin runs in `<iframe sandbox>` with no Node; all actions go
   through a `postMessage` bridge → the command bus + scoped WS, gated by the
-  capability grant.
-- Lifecycle: enable / disable / remove; a plugin error is isolated from the
-  main window.
+  Phase 4 capability grant (this is where grant enforcement is wired in).
+- Lifecycle: enable / disable / remove from the Settings › Plugins list; a
+  plugin error is isolated from the main window.
+- Build order suggestion: bridge + one built-in POC plugin in an `<iframe>`
+  first (validate WS-in + command-out end to end under a grant), then the
+  Settings › Plugins list and manifest-driven mount, then folder discovery.
 
 ---
 
