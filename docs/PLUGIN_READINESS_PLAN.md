@@ -29,7 +29,17 @@ live playout.
   - Legacy verb routes (`/commands/:action`, `/program/live`,
     `/timers/:id/toggle`) are marked `@deprecated` but kept working for existing
     Companion/script setups — removal needs a deprecation cycle, not a hard cut.
-- **[todo]** Phases 3–5 below (API versioning, permissions/token, plugin host).
+- **[done] Phase 3 (part 1) — versioned command contract.** A published,
+  versioned command surface (`server/state/command-catalog.js`):
+  `GET /api/command/catalog` returns the API version (`{ major, minor }`), the
+  action-id grammar, the command vocabulary with descriptions, and every
+  concrete action id valid against the live store right now. `/api/app/meta`
+  carries `commandApiVersion` so a client can check compatibility before it
+  binds. This is the stable surface plugins/Companion program to.
+  - **[todo, deliberate]** Hard removal of the legacy verb routes is *not* done:
+    it needs a deprecation cycle (existing Companion buttons would break), so
+    they stay `@deprecated` until a version that announces their removal.
+- **[todo]** Phases 4–5 below (permissions/token, plugin host).
 
 "Server" throughout means the **in-process local backend** (Express on
 `localhost:4000`, bundled inside the portable `.exe`). Nothing goes to the cloud;
@@ -109,9 +119,11 @@ code runs in the main process for the first milestone.
   (ideally server-side). Component only renders + calls commands.
 
 ### Phase 3 — Contract hygiene
-- Remove legacy command routes; converge on the command bus.
-- Version the API (`apiVersion`, compatibility promise, published action-id
-  catalogue).
+- **[done]** Version the API (`apiVersion`, compatibility promise, published
+  action-id catalogue) — see `server/state/command-catalog.js`,
+  `GET /api/command/catalog`, `commandApiVersion` on `/api/app/meta`.
+- **[todo]** Remove legacy command routes; converge on the command bus. Held
+  back for a deprecation cycle so existing Companion setups keep working.
 
 ### Phase 4 — Permissions & auth
 - Capability model per client/plugin: read-only snapshot vs command rights.

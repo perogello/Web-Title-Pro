@@ -5,6 +5,7 @@ import express, { Router } from 'express';
 import multer from 'multer';
 import { fetchRemoteSourceData } from '../remote-sources/index.js';
 import { dispatchCommand } from '../state/command-bus.js';
+import { buildCommandCatalog, COMMAND_API_VERSION, COMMAND_API_VERSION_STRING } from '../state/command-catalog.js';
 import {
   createProjectBundleStream,
   getBundleFilename,
@@ -124,8 +125,21 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     response.json({
       name: 'Web Title Pro',
       version: updateService?.getState().currentVersion || '0.0.0',
+      commandApiVersion: COMMAND_API_VERSION,
+      commandApiVersionString: COMMAND_API_VERSION_STRING,
       updates: updateService?.getState() || null,
     });
+  });
+
+  // Published command contract for plugins / Companion: the API version, the
+  // action-id grammar, and every concrete action id valid against the live
+  // store right now. This is the stable surface external clients program to.
+  router.get('/command/catalog', (_request, response) => {
+    try {
+      response.json(buildCommandCatalog(store));
+    } catch (error) {
+      sendError(response, error);
+    }
   });
 
   router.get('/vmix/status', async (_request, response) => {
