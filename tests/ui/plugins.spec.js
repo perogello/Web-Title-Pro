@@ -143,6 +143,53 @@ test('Plugins: a contributed button appears in the Live toolbar and fires its co
   await request.post('http://127.0.0.1:4000/api/plugins/builtin:rundown-remote/disable');
 });
 
+// A background (headless) plugin runs in a hidden iframe with no visible UI.
+test('Plugins: a background plugin runs headless and can drive commands', async ({ page, request }) => {
+  await waitForBackend(request);
+  await page.goto('/');
+  await page.getByRole('button', { name: /SETTINGS/i }).click();
+  await page.getByRole('button', { name: /Plugins/i }).click();
+
+  const html =
+    '<script>' +
+    "window.addEventListener('message',function(e){" +
+    "if(e.data&&e.data.source==='wtp-host'&&e.data.type==='init'){" +
+    "parent.postMessage({source:'wtp-plugin',type:'command',actionId:'global:allOutputsOut',requestId:'1'},'*');}});" +
+    "parent.postMessage({source:'wtp-plugin',type:'ready'},'*');" +
+    '</script>';
+
+  await page.locator('input[type="file"][accept*=".webm"]').setInputFiles([
+    {
+      name: 'plugin.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(
+        JSON.stringify({ name: 'Headless', version: '1.0.0', entry: 'index.html', capabilities: ['command:send'], mount: { type: 'background' } }),
+      ),
+    },
+    { name: 'index.html', mimeType: 'text/html', buffer: Buffer.from(html) },
+  ]);
+
+  const card = page.locator('.plugin-card-v3').filter({ hasText: 'Headless' });
+  await expect(card).toBeVisible({ timeout: 10_000 });
+
+  // Enabling loads the hidden iframe; on init it fires a command through the bridge.
+  const commandRequest = page.waitForRequest(
+    (req) =>
+      req.url().endsWith('/api/command') &&
+      req.method() === 'POST' &&
+      JSON.parse(req.postData() || '{}').actionId === 'global:allOutputsOut',
+  );
+  await card.getByRole('button', { name: 'Включить' }).click();
+  await commandRequest;
+
+  // It contributes no visible surface: no plugin tab, and the hidden host exists.
+  await expect(page.locator('.tab-v2.is-plugin')).toHaveCount(0);
+  await expect(page.locator('.plugin-host.is-background')).toHaveCount(1);
+
+  page.on('dialog', (dialog) => dialog.accept());
+  await card.getByRole('button', { name: 'Удалить' }).click();
+});
+
 // A plugin whose manifest mounts as a tab gets its own top-level nav tab.
 test('Plugins: a tab-mount plugin adds a top-level tab that shows it full-size', async ({ page, request }) => {
   await waitForBackend(request);

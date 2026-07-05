@@ -25,7 +25,9 @@ export default function PluginHost({ mount = 'panel', location = 'live', activeP
   const load = useCallback(() => {
     const matches = (p) => {
       if (!p.enabled || p.mount?.type !== mount) return false;
-      return mount === 'tab' ? p.id === activePluginId : p.mount?.location === location;
+      if (mount === 'tab') return p.id === activePluginId;
+      if (mount === 'background') return true; // headless: no location/tab
+      return p.mount?.location === location;
     };
     api('/api/plugins')
       .then((res) => setPlugins((res.plugins || []).filter(matches)))
@@ -126,11 +128,12 @@ export default function PluginHost({ mount = 'panel', location = 'live', activeP
   if (!plugins.length) return null;
 
   const isTab = mount === 'tab';
+  const isBackground = mount === 'background';
   return (
-    <div className={`plugin-host ${isTab ? 'is-tab' : ''}`}>
+    <div className={`plugin-host ${isTab ? 'is-tab' : ''} ${isBackground ? 'is-background' : ''}`} aria-hidden={isBackground || undefined}>
       {plugins.map((plugin) => (
         <div className="plugin-frame" key={plugin.id}>
-          {!isTab && <div className="plugin-frame-head">{plugin.mount?.label || plugin.name}</div>}
+          {!isTab && !isBackground && <div className="plugin-frame-head">{plugin.mount?.label || plugin.name}</div>}
           <iframe
             title={plugin.name}
             className="plugin-frame-body"

@@ -107,6 +107,24 @@
   background: transparent;
 }
 
+/* Headless plugin: kept in the DOM (so its iframe loads and runs) but visually
+   removed. Not display:none, so the iframe reliably executes. */
+.plugin-host.is-background {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+.plugin-host.is-background .plugin-frame {
+  border: 0;
+}
+.plugin-host.is-background .plugin-frame-body {
+  width: 1px;
+  height: 1px;
+}
+
 /* Tab-mounted plugin: fills the whole content area instead of a docked panel. */
 .plugin-host.is-tab {
   margin-top: 0;

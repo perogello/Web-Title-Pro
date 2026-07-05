@@ -211,11 +211,19 @@ declared canonical command on click. No plugin DOM is injected — the button is
 host-drawn and can only fire a known actionId, only for a plugin granted
 `command:send`. The reference plugin contributes a PANIC button.
 
-**Remaining polish (not blockers):** more contribution levels — a plugin
-registering its *own* command into the Phase 3 catalogue (so it's bindable to
-keyboard/MIDI/Companion), and buttons that run custom plugin logic (native
-button + background iframe). More slots as needed. Arbitrary DOM injection into
-host screens stays intentionally disallowed (sandbox boundary).
+**Done since:** `background` mount — a plugin with `mount.type: "background"`
+runs headless in a hidden iframe (kept in the DOM so it executes), mounted
+globally regardless of the active tab. It uses the same bridge (state:read
+snapshots + command:send), so it can watch state and drive commands — the base
+for automation plugins. Mount matrix is now panel / tab / background.
+
+**Remaining polish (not blockers):** buttons that run custom plugin *logic*
+(route a contributed `action` to the plugin's iframe — background makes this
+possible now); a plugin registering its *own* command into the Phase 3
+catalogue (client-dispatch only — the server has no iframe, so plugin-JS
+commands can't bind to server-driven MIDI/Companion). More slots as needed.
+Arbitrary DOM injection into host screens stays intentionally disallowed
+(sandbox boundary).
 
 _Original design intent, now realised:_
 

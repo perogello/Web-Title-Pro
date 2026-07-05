@@ -73,6 +73,17 @@ test('parsePluginManifest normalizes caps + mount and builds an entry url', asyn
   }
 });
 
+test('parsePluginManifest accepts a background mount', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-bg-'));
+  try {
+    const directory = await writePlugin(root, 'bg', { name: 'BG', entry: 'index.html', mount: { type: 'background' } });
+    const plugin = await parsePluginManifest({ directory, slug: 'bg', source: 'builtin', publicBase: '/p' });
+    assert.equal(plugin.mount.type, 'background');
+  } finally {
+    await fs.remove(root);
+  }
+});
+
 test('parsePluginManifest rejects a missing entry file and traversal', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-man2-'));
   try {

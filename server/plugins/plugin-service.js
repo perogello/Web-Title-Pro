@@ -10,7 +10,7 @@ import { nanoid } from 'nanoid';
 // the host honours that; it does not hard-code placement.
 
 const KNOWN_CAPABILITIES = ['state:read', 'command:send'];
-const MOUNT_TYPES = ['panel', 'tab'];
+const MOUNT_TYPES = ['panel', 'tab', 'background'];
 const MOUNT_LOCATIONS = ['live', 'rundown', 'settings'];
 const SETTING_TYPES = ['text', 'number', 'checkbox', 'select'];
 // Named UI slots a plugin may contribute a native button into. Curated on

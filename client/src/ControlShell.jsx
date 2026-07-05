@@ -3187,6 +3187,8 @@ function ControlShell() {
         />
 
         <div className="content-v2">
+          {/* Headless plugins run in hidden iframes regardless of the active tab. */}
+          <PluginHost mount="background" snapshot={snapshot} onCommand={sendCommand} />
           <PreviewOverlay
             isOpen={showPreviewOverlay && effectiveTab === 'rundown'}
             onClose={() => setShowPreviewOverlay(false)}
