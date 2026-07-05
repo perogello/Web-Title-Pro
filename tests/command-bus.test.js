@@ -99,6 +99,46 @@ test('dispatchCommand: rowNext/rowPrev map the data row onto the title fields', 
   }
 });
 
+test('dispatchCommand: rowNext fans out to synced outputs, each with its own mapping', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    const primary = store.getSnapshot().outputs[0];
+    // A second output synced into the same group.
+    const second = store.createOutput({ name: 'OUTPUT 2' });
+    store.updateOutput(second.id, { syncGroupId: primary.syncGroupId });
+
+    // Both outputs carry the same local title so the row maps on each.
+    const e1 = store.addEntry({ templateId: 'builtin:test', name: 'T1' });
+    const e2 = store.addEntry({ templateId: 'builtin:test', name: 'T2' });
+    store.selectEntry(e1.id, primary.id);
+    store.selectEntry(e2.id, second.id);
+
+    store.replaceSources([
+      {
+        id: 'src',
+        name: 'G',
+        columns: [{ label: 'Name' }, { label: 'Role' }],
+        rows: [
+          { id: 'r1', values: ['Alice', 'Host'] },
+          { id: 'r2', values: ['Bob', 'Guest'] },
+        ],
+      },
+    ]);
+    store.setOutputAppliedRow(primary.id, { sourceId: 'src', rowId: 'r1' });
+
+    await dispatchCommand(store, `output:${primary.id}:rowNext`);
+
+    // Both synced outputs advanced to r2 and got the mapped fields.
+    assert.equal(store.getEntry(e1.id).fields.name, 'Bob');
+    assert.equal(store.getEntry(e2.id).fields.name, 'Bob');
+    const outs = store.getSnapshot().outputs;
+    assert.deepEqual(outs.find((o) => o.id === primary.id).appliedRow, { sourceId: 'src', rowId: 'r2' });
+    assert.deepEqual(outs.find((o) => o.id === second.id).appliedRow, { sourceId: 'src', rowId: 'r2' });
+  } finally {
+    await fs.remove(dir);
+  }
+});
+
 test('dispatchCommand: rowNext clamps at the last row', async () => {
   const { store, dir } = await makeStore();
   try {

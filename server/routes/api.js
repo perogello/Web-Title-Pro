@@ -531,6 +531,8 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     }
   });
 
+  // @deprecated Kept for existing Companion/script setups (live data swap).
+  // New integrations should use POST /api/command.
   router.post('/program/live', async (request, response) => {
     try {
       store.updateProgram(request.body.entryId, request.body.outputId);
@@ -572,6 +574,9 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     }
   });
 
+  // @deprecated Legacy verb-based commands (show/hide/next-title/select-output,
+  // etc.). Kept for existing Companion/script setups; superseded by the
+  // canonical POST /api/command { actionId }.
   router.post('/commands/:action', async (request, response) => {
     try {
       const { action } = request.params;
@@ -719,6 +724,8 @@ export const createApiRouter = ({ store, templateService, midiService, vmixServi
     }
   });
 
+  // @deprecated Kept for existing Companion setups; explicit start/stop or
+  // POST /api/command are preferred.
   router.post('/timers/:timerId/toggle', (request, response) => {
     try {
       const { timerId } = request.params;

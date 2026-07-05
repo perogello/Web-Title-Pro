@@ -14,19 +14,22 @@ live playout.
   mirrors edits. Each output records its applied data row server-side
   (`POST /api/outputs/:id/applied-row`); the server resolves an output's current
   row and current timer.
-- **[done] Phase 2 (start) — unified command bus.** `POST /api/command
-  { actionId }` (`server/state/command-bus.js`) turns one canonical action id
-  into one store operation. Server-side row stepping (`store.stepOutputRow` +
-  ported `field-mapping.js`) means **MIDI / Companion / plugins can now step
-  data rows and drive per-output timers** — previously keyboard-only. MIDI runs
-  through the same bus.
-  - Known trade-off: the keyboard path still uses the richer client
-    `applySourceRow` (synced-output fan-out + reminders); the server bus applies
-    to a single output. Full unification is the rest of Phase 2.
+- **[done] Phase 2 — unified command bus.** `POST /api/command { actionId }`
+  (`server/state/command-bus.js`) turns one canonical action id into one store
+  operation. It is now the single dispatch path for the keyboard, MIDI,
+  Companion and plugins. Server-side row stepping (`store.stepOutputRow` +
+  ported `field-mapping.js`) fans out to synced outputs, so **MIDI / Companion /
+  plugins step data rows and drive per-output timers** just like the panel.
+  - The keyboard routes titleIn/out, preview in/out, timer and panic through
+    the bus; row stepping keeps the richer client flow so the on-air reminder
+    still fires (per-output timers resolve the current timer client-side, then
+    run through the bus by explicit timer id).
   - Server-side row stepping needs an initial applied row for source context
     (set by applying a row in the UI first).
-- **[todo]** finish Phase 2 (move the rest of dispatch server-side / unify the
-  keyboard path), then Phases 3–5 below.
+  - Legacy verb routes (`/commands/:action`, `/program/live`,
+    `/timers/:id/toggle`) are marked `@deprecated` but kept working for existing
+    Companion/script setups — removal needs a deprecation cycle, not a hard cut.
+- **[todo]** Phases 3–5 below (API versioning, permissions/token, plugin host).
 
 "Server" throughout means the **in-process local backend** (Express on
 `localhost:4000`, bundled inside the portable `.exe`). Nothing goes to the cloud;

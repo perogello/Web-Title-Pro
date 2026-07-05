@@ -982,29 +982,18 @@ export class TitleStore extends EventEmitter {
     return normalizeSourceLinkedTimerId(perOutput) || normalizeSourceLinkedTimerId(source.linkedTimerId);
   }
 
-  // Apply a specific data-source row to one output: map the row's values onto
-  // the output's selected title using the same pure mapping the control panel
-  // uses, then record it as the applied row and push it to air if the output
-  // is live. Single-output (no synced-output fan-out); used by server-side row
-  // stepping for MIDI / Companion / plugins.
-  applyRowToOutput(outputRef, sourceId, rowId) {
-    const output = this.getOutputByRef(outputRef);
-    if (!output) {
-      throw new Error('Output not found.');
+  // Apply a data row to a single output: map the values onto its selected
+  // title, record the applied row, and push it to air if the output is live.
+  // Returns true if it applied (false when the output has no title to fill).
+  #applyRowToSingleOutput(outputId, source, row) {
+    const output = this.getOutputByRef(outputId);
+    const entry = this.getEntry(output?.selectedEntryId);
+    if (!output || !entry) {
+      return false;
     }
-    const entry = this.getEntry(output.selectedEntryId);
-    if (!entry) {
-      throw new Error('No title selected on this output.');
-    }
-    const source = (this.state.sources || []).find((item) => item.id === sourceId);
-    const row = source?.rows?.find((item) => item.id === rowId);
-    if (!source || !row) {
-      throw new Error('Data row not found.');
-    }
-
     const { templateFields } = this.getEntryPresentation(entry);
     if (!templateFields.length) {
-      throw new Error('Selected title has no fields to fill.');
+      return false;
     }
     const fieldMap = buildEffectiveEntryFieldMap(entry, templateFields);
     const nextFields = applyRowToFields(templateFields, row.values, entry.fields || {}, fieldMap);
@@ -1018,9 +1007,38 @@ export class TitleStore extends EventEmitter {
     if (wasVisible && entry.entryType !== 'vmix') {
       this.updateProgram(entry.id, output.id);
     }
-    const liveOutput = this.getOutputByRef(output.id);
+    const liveOutput = this.getOutputByRef(outputId);
     if (liveOutput) {
-      liveOutput.appliedRow = { sourceId, rowId };
+      liveOutput.appliedRow = { sourceId: source.id, rowId: row.id };
+    }
+    return true;
+  }
+
+  // Apply a specific data-source row to an output and every output synced with
+  // it (same syncGroupId), each using its own title + field mapping. Used by
+  // server-side row stepping for MIDI / Companion / plugins so it matches the
+  // control panel's synced-output fan-out.
+  applyRowToOutput(outputRef, sourceId, rowId) {
+    const output = this.getOutputByRef(outputRef);
+    if (!output) {
+      throw new Error('Output not found.');
+    }
+    const source = (this.state.sources || []).find((item) => item.id === sourceId);
+    const row = source?.rows?.find((item) => item.id === rowId);
+    if (!source || !row) {
+      throw new Error('Data row not found.');
+    }
+    if (!this.getEntry(output.selectedEntryId)) {
+      throw new Error('No title selected on this output.');
+    }
+
+    const syncGroupId = output.syncGroupId;
+    const targetOutputIds = syncGroupId
+      ? this.state.outputs.filter((item) => item.syncGroupId === syncGroupId).map((item) => item.id)
+      : [output.id];
+
+    for (const targetId of targetOutputIds) {
+      this.#applyRowToSingleOutput(targetId, source, row);
     }
     this.touch();
     return this.getSnapshot();

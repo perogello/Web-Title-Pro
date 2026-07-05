@@ -2870,26 +2870,21 @@ function ControlShell() {
     await applyRowToOutput(outputId, source, rows[nextIndex]);
   };
 
-  // Single entry point for both the in-window listener and OS-global shortcuts.
-  // Turns a canonical action id into exactly one command.
+  const sendCommand = (actionId) => api('/api/command', { method: 'POST', body: { actionId } });
+
+  // Single entry point for the in-window listener and OS-global shortcuts.
+  // Most commands run through the unified server command bus (the same path
+  // MIDI / Companion / plugins use). Row stepping keeps the richer client flow
+  // so the on-air reminder still fires; per-output timer commands resolve the
+  // current timer client-side (richer than the server's applied-row lookup)
+  // and then run through the bus by explicit timer id.
   const dispatchAction = async (actionId) => {
     const parsed = parseActionId(actionId);
     if (!parsed) return;
 
     try {
-      if (parsed.kind === 'global') {
-        if (parsed.command === 'allOutputsOut') {
-          const visibleOutputs = (snapshot?.outputs || []).filter((o) => o.program?.visible);
-          for (const output of visibleOutputs) {
-            await api('/api/program/hide', { method: 'POST', body: { outputId: output.id } });
-          }
-          pushFeedback('Все выходы: OUT');
-        }
-        return;
-      }
-
-      if (parsed.kind === 'timer') {
-        await commandTimer(parsed.id, parsed.command);
+      if (parsed.kind === 'global' || parsed.kind === 'timer') {
+        await sendCommand(actionId);
         return;
       }
 
@@ -2897,23 +2892,15 @@ function ControlShell() {
       const outputId = parsed.id;
       const output = (snapshot?.outputs || []).find((o) => o.id === outputId) || null;
       switch (parsed.command) {
-        case 'titleIn': {
-          const entryId = output?.selectedEntryId;
-          if (!entryId) return;
-          await api('/api/program/show', { method: 'POST', body: { entryId, outputId } });
+        case 'titleIn':
+        case 'previewIn':
+          // Nothing selected on this output — stay a silent no-op as before.
+          if (!output?.selectedEntryId) return;
+          await sendCommand(actionId);
           break;
-        }
         case 'titleOut':
-          await api('/api/program/hide', { method: 'POST', body: { outputId } });
-          break;
-        case 'previewIn': {
-          const entryId = output?.selectedEntryId;
-          if (!entryId) return;
-          await api('/api/preview/show', { method: 'POST', body: { entryId, outputId } });
-          break;
-        }
         case 'previewOut':
-          await api('/api/preview/hide', { method: 'POST', body: { outputId } });
+          await sendCommand(actionId);
           break;
         case 'rowPrev':
           await stepOutputRow(outputId, 'previous');
@@ -2931,7 +2918,7 @@ function ControlShell() {
           }
           const timerAction =
             parsed.command === 'timerStart' ? 'start' : parsed.command === 'timerStop' ? 'stop' : 'reset';
-          await commandTimer(timerId, timerAction);
+          await sendCommand(`timer:${timerId}:${timerAction}`);
           break;
         }
         default:
