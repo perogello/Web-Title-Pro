@@ -1,0 +1,63 @@
+/* Plugins: Settings › Plugins cards + the Live-tab plugin host frames. */
+
+.plugin-card-v3 .plugin-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.plugin-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: var(--surface-3, #2b2f37);
+  color: var(--text-2, #9aa0a6);
+  border: 1px solid var(--border-1, #343a44);
+}
+.plugin-badge.is-builtin {
+  color: #8fb7ff;
+  border-color: #2f4f7f;
+}
+
+.plugin-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-2, #9aa0a6);
+}
+.plugin-status.is-on {
+  color: #34d399;
+}
+
+/* Live-tab host: a stack of sandboxed plugin panels. */
+.plugin-host {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+.plugin-frame {
+  border: 1px solid var(--border-1, #2b2f37);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-2, #1d2026);
+}
+.plugin-frame-head {
+  padding: 6px 12px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-2, #9aa0a6);
+  border-bottom: 1px solid var(--border-1, #2b2f37);
+}
+.plugin-frame-body {
+  display: block;
+  width: 100%;
+  height: 320px;
+  border: 0;
+  background: transparent;
+}

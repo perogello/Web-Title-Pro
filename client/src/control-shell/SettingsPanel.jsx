@@ -2,6 +2,7 @@ import OutputSettingsTab from './settings/OutputSettingsTab.jsx';
 import ShortcutsSettingsTab from './settings/ShortcutsSettingsTab.jsx';
 import UpdatesSettingsTab from './settings/UpdatesSettingsTab.jsx';
 import MaintenanceSettingsTab from './settings/MaintenanceSettingsTab.jsx';
+import PluginsSettingsTab from './settings/PluginsSettingsTab.jsx';
 import YandexSettingsTab from './settings/YandexSettingsTab.jsx';
 import VmixSettingsTab from './settings/VmixSettingsTab.jsx';
 import AboutSettingsTab from './settings/AboutSettingsTab.jsx';
@@ -10,6 +11,7 @@ const NAV = [
   { id: 'outputs', label: 'Outputs', hint: 'Render & preview URLs' },
   { id: 'controls', label: 'Controls', hint: 'Keyboard, MIDI, Companion' },
   { id: 'integrations', label: 'Integrations', hint: 'Yandex, Google Sheets' },
+  { id: 'plugins', label: 'Plugins', hint: 'Extensions & panels' },
   { id: 'system', label: 'System', hint: 'Updates & app info' },
 ];
 
@@ -151,6 +153,7 @@ export default function SettingsPanel({
               />
             </div>
           )}
+          {activeId === 'plugins' && <PluginsSettingsTab />}
           {activeId === 'system' && (
             <div className="settings-stack">
               <UpdatesSettingsTab

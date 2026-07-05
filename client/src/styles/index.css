@@ -28,6 +28,7 @@
      21-shortcuts       Shortcuts action grid + Bitfocus rows
      22-midi            MIDI device list / monitor rows
      23-live-tables     Source column widths + applied row highlight
+     24-plugins         Settings › Plugins cards + Live plugin host frames
    ================================================================= */
 @import "./01-base.css";
 @import "./02-topbar.css";
@@ -52,3 +53,4 @@
 @import "./21-shortcuts.css";
 @import "./22-midi.css";
 @import "./23-live-tables.css";
+@import "./24-plugins.css";

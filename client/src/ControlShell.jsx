@@ -26,6 +26,7 @@ import OutputsSidebar from './control-shell/v2/OutputsSidebar.jsx';
 import LiveTabV2 from './control-shell/v2/LiveTabV2.jsx';
 import ConfigTab from './control-shell/v2/ConfigTab.jsx';
 import PreviewOverlay from './control-shell/v2/PreviewOverlay.jsx';
+import PluginHost from './control-shell/PluginHost.jsx';
 import SegmentedTimerInput from './control-shell/v2/SegmentedTimerInput.jsx';
 import { useResizableSidebar } from './control-shell/v2/useResizableSidebar.js';
 import { useGlobalShortcuts } from './control-shell/use-global-shortcuts.js';
@@ -3188,6 +3189,10 @@ function ControlShell() {
           onTogglePreview={() => setShowPreviewOverlay((v) => !v)}
           previewOpen={showPreviewOverlay}
         />
+      )}
+
+      {effectiveTab === 'rundown' && (
+        <PluginHost location="live" snapshot={snapshot} onCommand={sendCommand} />
       )}
 
       {effectiveTab === 'config' && (
