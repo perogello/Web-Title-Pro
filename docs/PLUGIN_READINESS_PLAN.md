@@ -224,11 +224,24 @@ to the plugin's iframe (visible or background), which runs its own logic (the
 reference plugin's "Row + Show" composes rowNext + titleIn). This is the "native
 button + plugin logic" contribution level.
 
-**Remaining polish (not blockers):** a plugin registering its *own* command into
-the Phase 3 catalogue (client-dispatch only — the server has no iframe, so
-plugin-JS commands can't bind to server-driven MIDI/Companion; only aliases to
-canonical commands could). More slots as needed. Arbitrary DOM injection into
-host screens stays intentionally disallowed (sandbox boundary).
+**Done since:** plugin-declared commands in the catalogue — a manifest can
+declare `contributes.commands: [{ id, label }]`; enabled plugins' commands are
+published in `GET /api/command/catalog` as `plugin:<pluginId>:<id>` (kind
+`plugin`), with the grammar advertised. This is a **discovery** surface for
+tooling / other plugins. The server does **not** dispatch these (no iframe →
+`dispatchCommand` rejects `plugin:*`, by design); invocation is client-side
+(routed to the plugin's iframe, as with `action` buttons). They therefore
+**cannot** bind to server-driven MIDI/Companion — an architectural limit, not a
+gap.
+
+The plugin system is now feature-complete for the planned scope: install/enable/
+configure/remove, panel/tab/background mounts, a capability-scoped postMessage
+bridge, contributed native buttons (command + plugin-logic action), and a
+published, versioned command contract that includes plugin commands.
+
+**Remaining polish (not blockers):** more slots as needed; keyboard-binding of
+plugin commands would need shortcut-schema work (client-only). Arbitrary DOM
+injection into host screens stays intentionally disallowed (sandbox boundary).
 
 _Original design intent, now realised:_
 

@@ -159,6 +159,30 @@ test('parsePluginManifest normalizes contributed buttons and drops invalid ones'
   }
 });
 
+test('parsePluginManifest normalizes declared commands', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-cmd-'));
+  try {
+    const directory = await writePlugin(root, 'cmd', {
+      name: 'Cmd',
+      entry: 'index.html',
+      contributes: {
+        commands: [
+          { id: 'takeNext', label: 'Take Next' },
+          { id: 'noLabel' }, // label defaults to id
+          { label: 'no id' }, // no id -> dropped
+        ],
+      },
+    });
+    const plugin = await parsePluginManifest({ directory, slug: 'cmd', source: 'builtin', publicBase: '/p' });
+    assert.deepEqual(plugin.contributes.commands, [
+      { id: 'takeNext', label: 'Take Next' },
+      { id: 'noLabel', label: 'noLabel' },
+    ]);
+  } finally {
+    await fs.remove(root);
+  }
+});
+
 test('applySettingsDefaults backfills only missing keys', () => {
   const schema = [
     { key: 'a', default: 1 },

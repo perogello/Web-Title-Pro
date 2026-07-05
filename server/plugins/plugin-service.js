@@ -238,7 +238,21 @@ const normalizeContributions = (value) => {
     if (!slot || !label || (!command && !action)) continue;
     out.push({ slot, label, ...(command ? { command } : {}), ...(action ? { action } : {}) });
   }
-  return { buttons: out };
+
+  // Declared plugin commands. These get a namespaced id `plugin:<pluginId>:<id>`
+  // and are published in the command catalogue for discovery; invocation is
+  // client-side (routed to the plugin's iframe), since the server has no iframe.
+  const commandDecls = Array.isArray(value?.commands) ? value.commands : [];
+  const commands = [];
+  for (const decl of commandDecls) {
+    if (!decl || typeof decl !== 'object') continue;
+    const id = typeof decl.id === 'string' && decl.id.trim() ? decl.id.trim() : '';
+    if (!id) continue;
+    const label = typeof decl.label === 'string' && decl.label.trim() ? decl.label.trim() : id;
+    commands.push({ id, label });
+  }
+
+  return { buttons: out, commands };
 };
 
 // Parse + validate one manifest into the shape the API/UI consume. Throws on a

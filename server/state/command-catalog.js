@@ -42,6 +42,7 @@ export const COMMAND_ID_GRAMMAR = {
   output: 'output:<outputId>:<command>',
   timer: 'timer:<timerId>:<command>',
   global: 'global:<command>',
+  plugin: 'plugin:<pluginId>:<command>',
 };
 
 const commandList = (kind) =>
@@ -50,7 +51,7 @@ const commandList = (kind) =>
 // Build the catalogue resolved against the current store: the static grammar
 // plus every concrete action id that is valid right now (one per live output /
 // timer / global command), each with a label a plugin can show in a picker.
-export const buildCommandCatalog = (store) => {
+export const buildCommandCatalog = (store, pluginService = null) => {
   const snapshot = store.getSnapshot();
   const outputs = snapshot.outputs || [];
   const timers = store.getTimers ? store.getTimers() : snapshot.timers || [];
@@ -92,6 +93,25 @@ export const buildCommandCatalog = (store) => {
       command,
       description,
     });
+  }
+
+  // Enabled plugins' declared commands (plugin:<pluginId>:<id>). Published for
+  // discovery; the server does not dispatch these (no iframe) — invocation is
+  // client-side, routed to the plugin's iframe.
+  if (pluginService?.getPlugins) {
+    for (const plugin of pluginService.getPlugins()) {
+      if (!store.getPluginState?.(plugin.id)?.enabled) continue;
+      for (const command of plugin.contributes?.commands || []) {
+        actions.push({
+          actionId: `plugin:${plugin.id}:${command.id}`,
+          kind: 'plugin',
+          targetId: plugin.id,
+          targetName: plugin.name,
+          command: command.id,
+          description: command.label,
+        });
+      }
+    }
   }
 
   return {

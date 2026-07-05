@@ -138,7 +138,7 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
   // store right now. This is the stable surface external clients program to.
   router.get('/command/catalog', (_request, response) => {
     try {
-      response.json(buildCommandCatalog(store));
+      response.json(buildCommandCatalog(store, pluginService));
     } catch (error) {
       sendError(response, error);
     }

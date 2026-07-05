@@ -10,6 +10,9 @@
     "buttons": [
       { "slot": "live.toolbar", "label": "PANIC", "command": "global:allOutputsOut" },
       { "slot": "live.toolbar", "label": "Row + Show", "action": "takeNext" }
+    ],
+    "commands": [
+      { "id": "takeNext", "label": "Advance data row and take the title to air" }
     ]
   },
   "settings": [

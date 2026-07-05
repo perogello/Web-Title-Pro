@@ -60,6 +60,31 @@ test('buildCommandCatalog lists a valid, parseable action id for every live targ
   }
 });
 
+test('catalog includes enabled plugins commands, excludes disabled', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    const pluginService = {
+      getPlugins: () => [
+        { id: 'custom:demo', name: 'Demo', contributes: { commands: [{ id: 'takeNext', label: 'Take' }] } },
+      ],
+    };
+    // Disabled -> not in catalog.
+    let catalog = buildCommandCatalog(store, pluginService);
+    assert.equal(catalog.actions.some((a) => a.actionId === 'plugin:custom:demo:takeNext'), false);
+    assert.ok(catalog.grammar.plugin);
+
+    store.setPluginEnabled('custom:demo', true, []);
+    catalog = buildCommandCatalog(store, pluginService);
+    const entry = catalog.actions.find((a) => a.actionId === 'plugin:custom:demo:takeNext');
+    assert.ok(entry, 'enabled plugin command should be published');
+    assert.equal(entry.kind, 'plugin');
+    assert.equal(entry.targetId, 'custom:demo');
+    assert.equal(entry.description, 'Take');
+  } finally {
+    await fs.remove(dir);
+  }
+});
+
 test('catalog grows when an output is added', async () => {
   const { store, dir } = await makeStore();
   try {
