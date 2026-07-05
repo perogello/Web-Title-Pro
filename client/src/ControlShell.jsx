@@ -27,6 +27,7 @@ import LiveTabV2 from './control-shell/v2/LiveTabV2.jsx';
 import ConfigTab from './control-shell/v2/ConfigTab.jsx';
 import PreviewOverlay from './control-shell/v2/PreviewOverlay.jsx';
 import PluginHost from './control-shell/PluginHost.jsx';
+import PluginSlot from './control-shell/PluginSlot.jsx';
 import SegmentedTimerInput from './control-shell/v2/SegmentedTimerInput.jsx';
 import { useResizableSidebar } from './control-shell/v2/useResizableSidebar.js';
 import { useGlobalShortcuts } from './control-shell/use-global-shortcuts.js';
@@ -3200,6 +3201,10 @@ function ControlShell() {
           />
 
           <div className="content-v2-inner">
+
+      {effectiveTab === 'rundown' && (
+        <PluginSlot slot="live.toolbar" onCommand={sendCommand} />
+      )}
 
       {effectiveTab === 'rundown' && (
         <LiveTabV2

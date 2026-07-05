@@ -204,10 +204,18 @@ no traversal, manifest must parse). UI: Settings › Plugins has install
 full-size in the content area when active; disabling/removing it falls back to
 Live. `PluginHost` now serves both `panel` and `tab` mounts through one bridge.
 
-**Remaining polish (not blockers):** contribution points (a plugin adding a
-native button/command into an existing host screen — today a plugin only lives
-in its own iframe rectangle; arbitrary DOM injection into the host is
-intentionally not allowed, to keep the sandbox boundary).
+**Done since:** contribution points (level 1) — a plugin's manifest can declare
+`contributes.buttons: [{ slot, label, command }]`; the host renders a **native**
+button in the named slot (first slot: `live.toolbar`) and dispatches the
+declared canonical command on click. No plugin DOM is injected — the button is
+host-drawn and can only fire a known actionId, only for a plugin granted
+`command:send`. The reference plugin contributes a PANIC button.
+
+**Remaining polish (not blockers):** more contribution levels — a plugin
+registering its *own* command into the Phase 3 catalogue (so it's bindable to
+keyboard/MIDI/Companion), and buttons that run custom plugin logic (native
+button + background iframe). More slots as needed. Arbitrary DOM injection into
+host screens stays intentionally disallowed (sandbox boundary).
 
 _Original design intent, now realised:_
 

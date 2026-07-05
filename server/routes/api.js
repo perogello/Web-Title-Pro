@@ -385,6 +385,7 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
       author: plugin.author,
       capabilities: plugin.capabilities,
       mount: plugin.mount,
+      contributes: plugin.contributes,
       entryUrl: plugin.entryUrl,
       enabled: state.enabled,
       settingsSchema: plugin.settingsSchema,

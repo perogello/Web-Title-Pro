@@ -120,6 +120,32 @@ test('parsePluginManifest normalizes a settings schema and drops bad fields', as
   }
 });
 
+test('parsePluginManifest normalizes contributed buttons and drops invalid ones', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-con-'));
+  try {
+    const directory = await writePlugin(root, 'con', {
+      name: 'Con',
+      entry: 'index.html',
+      contributes: {
+        buttons: [
+          { slot: 'live.toolbar', label: 'PANIC', command: 'global:allOutputsOut' },
+          { slot: 'bogus.slot', label: 'X', command: 'global:allOutputsOut' }, // unknown slot -> dropped
+          { slot: 'live.toolbar', label: '', command: 'global:allOutputsOut' }, // no label -> dropped
+          { slot: 'live.toolbar', label: 'Bad', command: 'not-an-action' }, // bad command -> dropped
+          { slot: 'live.toolbar', label: 'Row', command: 'output:output-main:rowNext' },
+        ],
+      },
+    });
+    const plugin = await parsePluginManifest({ directory, slug: 'con', source: 'builtin', publicBase: '/p' });
+    assert.deepEqual(plugin.contributes.buttons, [
+      { slot: 'live.toolbar', label: 'PANIC', command: 'global:allOutputsOut' },
+      { slot: 'live.toolbar', label: 'Row', command: 'output:output-main:rowNext' },
+    ]);
+  } finally {
+    await fs.remove(root);
+  }
+});
+
 test('applySettingsDefaults backfills only missing keys', () => {
   const schema = [
     { key: 'a', default: 1 },

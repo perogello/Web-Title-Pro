@@ -121,6 +121,28 @@ test('Plugins: install a custom plugin from files, then delete it', async ({ pag
   }).toBe(false);
 });
 
+// A plugin contributes a native button into a host slot (live.toolbar).
+test('Plugins: a contributed button appears in the Live toolbar and fires its command', async ({ page, request }) => {
+  await waitForBackend(request);
+  // Enable the reference plugin (it contributes a PANIC button -> global:allOutputsOut).
+  await request.post('http://127.0.0.1:4000/api/plugins/builtin:rundown-remote/enable');
+  await page.goto('/');
+
+  const panic = page.locator('.plugin-slot[data-slot="live.toolbar"] .plugin-slot-btn', { hasText: 'PANIC' });
+  await expect(panic).toBeVisible({ timeout: 10_000 });
+
+  const commandRequest = page.waitForRequest(
+    (req) =>
+      req.url().endsWith('/api/command') &&
+      req.method() === 'POST' &&
+      JSON.parse(req.postData() || '{}').actionId === 'global:allOutputsOut',
+  );
+  await panic.click();
+  await commandRequest;
+
+  await request.post('http://127.0.0.1:4000/api/plugins/builtin:rundown-remote/disable');
+});
+
 // A plugin whose manifest mounts as a tab gets its own top-level nav tab.
 test('Plugins: a tab-mount plugin adds a top-level tab that shows it full-size', async ({ page, request }) => {
   await waitForBackend(request);

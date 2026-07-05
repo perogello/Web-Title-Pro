@@ -6,6 +6,11 @@
   "entry": "index.html",
   "capabilities": ["state:read", "command:send"],
   "mount": { "type": "panel", "location": "live", "label": "Rundown Remote" },
+  "contributes": {
+    "buttons": [
+      { "slot": "live.toolbar", "label": "PANIC", "command": "global:allOutputsOut" }
+    ]
+  },
   "settings": [
     { "key": "heading", "label": "Заголовок панели", "type": "text", "default": "Rundown Remote" },
     { "key": "showRowButtons", "label": "Кнопки листания строк", "type": "checkbox", "default": true },

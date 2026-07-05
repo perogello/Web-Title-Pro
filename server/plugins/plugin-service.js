@@ -13,6 +13,12 @@ const KNOWN_CAPABILITIES = ['state:read', 'command:send'];
 const MOUNT_TYPES = ['panel', 'tab'];
 const MOUNT_LOCATIONS = ['live', 'rundown', 'settings'];
 const SETTING_TYPES = ['text', 'number', 'checkbox', 'select'];
+// Named UI slots a plugin may contribute a native button into. Curated on
+// purpose: the host renders these buttons itself (no DOM injection), so it only
+// allows insertion at points it controls.
+const CONTRIB_SLOTS = ['live.toolbar'];
+const isActionId = (value) =>
+  typeof value === 'string' && /^(output:.+:.+|timer:.+:.+|global:.+)$/.test(value);
 
 const sortByName = (items) => [...items].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -216,6 +222,23 @@ export const applySettingsDefaults = (schema, settings = {}) => {
   return merged;
 };
 
+// Native buttons the plugin contributes into host slots. Each declares a slot,
+// a label and a canonical command (actionId) the host dispatches on click.
+// Malformed / unknown-slot / non-actionId entries are dropped.
+const normalizeContributions = (value) => {
+  const buttons = Array.isArray(value?.buttons) ? value.buttons : [];
+  const out = [];
+  for (const button of buttons) {
+    if (!button || typeof button !== 'object') continue;
+    const slot = CONTRIB_SLOTS.includes(button.slot) ? button.slot : null;
+    const label = typeof button.label === 'string' && button.label.trim() ? button.label.trim() : '';
+    const command = isActionId(button.command) ? button.command : '';
+    if (!slot || !label || !command) continue;
+    out.push({ slot, label, command });
+  }
+  return { buttons: out };
+};
+
 // Parse + validate one manifest into the shape the API/UI consume. Throws on a
 // manifest that can't produce a usable plugin (missing name or entry file).
 export const parsePluginManifest = async ({ directory, slug, source, publicBase }) => {
@@ -248,6 +271,7 @@ export const parsePluginManifest = async ({ directory, slug, source, publicBase 
     capabilities: normalizeCapabilities(raw?.capabilities),
     mount: normalizeMount(raw?.mount),
     settingsSchema: normalizeSettingsSchema(raw?.settings),
+    contributes: normalizeContributions(raw?.contributes),
     entryUrl: `${publicBase}/${entry}`,
     directory,
   };
