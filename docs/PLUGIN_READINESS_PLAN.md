@@ -96,6 +96,17 @@ code runs in the main process for the first milestone.
 3. **Business logic trapped in the `ControlShell` monolith** (~3.5k lines):
    `applySourceRow`, `dispatchAction`, timer resolution, field application. Not
    reusable, hard to test in isolation.
+   - **[resolved for plugins]** The reusable logic was extracted: dispatch, row
+     stepping, field mapping and "current timer" now live server-side
+     (`command-bus.js`, `field-mapping.js`, `store.js`, Phase 2), plus client
+     `lib/` modules (`entry-utils`, `use-project-actions`, `timer-utils`,
+     `shortcut-model`, …). Plugins never touch `ControlShell`. What remains
+     there (~3.1k lines of state/effects/handlers + ~500 of JSX) is an
+     orchestration container, not trapped logic.
+   - **[decision, 2026-07-05]** Deliberately **not** decomposing the container
+     further: no functional or plugin payoff, and it's the on-air control
+     surface (regression risk without upside). Revisit only if a concrete need
+     arises (e.g. a second control surface reusing the same state).
 
 **Cruft to clear (so the plugin contract is coherent)**
 - Legacy command routes: `/commands/:action` still carries `select-output`,
