@@ -142,7 +142,8 @@ test('parsePluginManifest normalizes contributed buttons and drops invalid ones'
           { slot: 'live.toolbar', label: 'PANIC', command: 'global:allOutputsOut' },
           { slot: 'bogus.slot', label: 'X', command: 'global:allOutputsOut' }, // unknown slot -> dropped
           { slot: 'live.toolbar', label: '', command: 'global:allOutputsOut' }, // no label -> dropped
-          { slot: 'live.toolbar', label: 'Bad', command: 'not-an-action' }, // bad command -> dropped
+          { slot: 'live.toolbar', label: 'Bad', command: 'not-an-action' }, // bad command, no action -> dropped
+          { slot: 'live.toolbar', label: 'Custom', action: 'doThing' }, // plugin action -> kept
           { slot: 'live.toolbar', label: 'Row', command: 'output:output-main:rowNext' },
         ],
       },
@@ -150,6 +151,7 @@ test('parsePluginManifest normalizes contributed buttons and drops invalid ones'
     const plugin = await parsePluginManifest({ directory, slug: 'con', source: 'builtin', publicBase: '/p' });
     assert.deepEqual(plugin.contributes.buttons, [
       { slot: 'live.toolbar', label: 'PANIC', command: 'global:allOutputsOut' },
+      { slot: 'live.toolbar', label: 'Custom', action: 'doThing' },
       { slot: 'live.toolbar', label: 'Row', command: 'output:output-main:rowNext' },
     ]);
   } finally {

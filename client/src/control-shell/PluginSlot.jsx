@@ -18,7 +18,11 @@ export default function PluginSlot({ slot, onCommand }) {
           if (!plugin.enabled || !(plugin.capabilities || []).includes('command:send')) continue;
           for (const button of plugin.contributes?.buttons || []) {
             if (button.slot === slot) {
-              collected.push({ key: `${plugin.id}:${button.command}:${button.label}`, ...button });
+              collected.push({
+                key: `${plugin.id}:${button.command || button.action}:${button.label}`,
+                pluginId: plugin.id,
+                ...button,
+              });
             }
           }
         }
@@ -35,6 +39,19 @@ export default function PluginSlot({ slot, onCommand }) {
 
   if (!buttons.length) return null;
 
+  // A `command` button fires a canonical actionId directly; an `action` button
+  // is routed to the plugin's own iframe (a PluginHost forwards it), where the
+  // plugin runs its logic.
+  const fire = (button) => {
+    if (button.command) {
+      onCommand?.(button.command);
+    } else if (button.action) {
+      window.dispatchEvent(
+        new CustomEvent('wtp-plugin-action', { detail: { pluginId: button.pluginId, action: button.action } }),
+      );
+    }
+  };
+
   return (
     <div className="plugin-slot" data-slot={slot}>
       {buttons.map((button) => (
@@ -42,8 +59,8 @@ export default function PluginSlot({ slot, onCommand }) {
           key={button.key}
           type="button"
           className="plugin-slot-btn"
-          onClick={() => onCommand?.(button.command)}
-          title={`Plugin: ${button.command}`}
+          onClick={() => fire(button)}
+          title={button.command ? `Plugin command: ${button.command}` : `Plugin action: ${button.action}`}
         >
           {button.label}
         </button>

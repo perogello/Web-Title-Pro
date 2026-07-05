@@ -143,6 +143,33 @@ test('Plugins: a contributed button appears in the Live toolbar and fires its co
   await request.post('http://127.0.0.1:4000/api/plugins/builtin:rundown-remote/disable');
 });
 
+// A contributed `action` button routes to the plugin's iframe, which runs its
+// own logic (here: compose rowNext + titleIn).
+test('Plugins: a contributed action button runs the plugin logic in its iframe', async ({ page, request }) => {
+  await waitForBackend(request);
+  await request.post('http://127.0.0.1:4000/api/plugins/builtin:rundown-remote/enable');
+  await page.goto('/');
+
+  // Wait until the plugin panel has a snapshot (so it knows the output id).
+  const frame = page.frameLocator('iframe[title="Rundown Remote"]');
+  await expect(frame.locator('#out')).not.toHaveText(/Waiting/, { timeout: 10_000 });
+
+  const actionBtn = page.locator('.plugin-slot[data-slot="live.toolbar"] .plugin-slot-btn', { hasText: 'Row + Show' });
+  await expect(actionBtn).toBeVisible();
+
+  // The action makes the plugin send rowNext (and titleIn) through the bridge.
+  const rowNext = page.waitForRequest(
+    (req) =>
+      req.url().endsWith('/api/command') &&
+      req.method() === 'POST' &&
+      /^output:.*:rowNext$/.test(JSON.parse(req.postData() || '{}').actionId || ''),
+  );
+  await actionBtn.click();
+  await rowNext;
+
+  await request.post('http://127.0.0.1:4000/api/plugins/builtin:rundown-remote/disable');
+});
+
 // A background (headless) plugin runs in a hidden iframe with no visible UI.
 test('Plugins: a background plugin runs headless and can drive commands', async ({ page, request }) => {
   await waitForBackend(request);

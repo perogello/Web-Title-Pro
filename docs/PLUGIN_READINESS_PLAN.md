@@ -217,13 +217,18 @@ globally regardless of the active tab. It uses the same bridge (state:read
 snapshots + command:send), so it can watch state and drive commands — the base
 for automation plugins. Mount matrix is now panel / tab / background.
 
-**Remaining polish (not blockers):** buttons that run custom plugin *logic*
-(route a contributed `action` to the plugin's iframe — background makes this
-possible now); a plugin registering its *own* command into the Phase 3
-catalogue (client-dispatch only — the server has no iframe, so plugin-JS
-commands can't bind to server-driven MIDI/Companion). More slots as needed.
-Arbitrary DOM injection into host screens stays intentionally disallowed
-(sandbox boundary).
+**Done since:** contributed `action` buttons — a `contributes.buttons` entry
+can carry an `action` (plugin-local id) instead of a canonical `command`. The
+host routes it (via a `wtp-plugin-action` event → `PluginHost` → `postMessage`)
+to the plugin's iframe (visible or background), which runs its own logic (the
+reference plugin's "Row + Show" composes rowNext + titleIn). This is the "native
+button + plugin logic" contribution level.
+
+**Remaining polish (not blockers):** a plugin registering its *own* command into
+the Phase 3 catalogue (client-dispatch only — the server has no iframe, so
+plugin-JS commands can't bind to server-driven MIDI/Companion; only aliases to
+canonical commands could). More slots as needed. Arbitrary DOM injection into
+host screens stays intentionally disallowed (sandbox boundary).
 
 _Original design intent, now realised:_
 

@@ -100,6 +100,18 @@ export default function PluginHost({ mount = 'panel', location = 'live', activeP
     return () => window.removeEventListener('message', handler);
   }, [onCommand]);
 
+  // A contributed `action` button (from PluginSlot) is routed here: forward it
+  // to that plugin's iframe if this host holds it (visible or background).
+  useEffect(() => {
+    const onAction = (event) => {
+      const { pluginId, action } = event.detail || {};
+      const win = framesRef.current.get(pluginId)?.node?.contentWindow;
+      if (win) win.postMessage({ source: HOST, type: 'action', action }, '*');
+    };
+    window.addEventListener('wtp-plugin-action', onAction);
+    return () => window.removeEventListener('wtp-plugin-action', onAction);
+  }, []);
+
   // Keep latest metadata; prune dropped frames; push updated settings live.
   useEffect(() => {
     pluginsRef.current = plugins;

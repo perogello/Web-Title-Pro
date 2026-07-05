@@ -223,8 +223,9 @@ export const applySettingsDefaults = (schema, settings = {}) => {
 };
 
 // Native buttons the plugin contributes into host slots. Each declares a slot,
-// a label and a canonical command (actionId) the host dispatches on click.
-// Malformed / unknown-slot / non-actionId entries are dropped.
+// a label and either a canonical `command` (actionId the host dispatches) or an
+// `action` (a plugin-local id the host routes to the plugin's iframe, which runs
+// its own logic). Malformed / unknown-slot / actionless entries are dropped.
 const normalizeContributions = (value) => {
   const buttons = Array.isArray(value?.buttons) ? value.buttons : [];
   const out = [];
@@ -233,8 +234,9 @@ const normalizeContributions = (value) => {
     const slot = CONTRIB_SLOTS.includes(button.slot) ? button.slot : null;
     const label = typeof button.label === 'string' && button.label.trim() ? button.label.trim() : '';
     const command = isActionId(button.command) ? button.command : '';
-    if (!slot || !label || !command) continue;
-    out.push({ slot, label, command });
+    const action = typeof button.action === 'string' && button.action.trim() ? button.action.trim() : '';
+    if (!slot || !label || (!command && !action)) continue;
+    out.push({ slot, label, ...(command ? { command } : {}), ...(action ? { action } : {}) });
   }
   return { buttons: out };
 };

@@ -130,6 +130,13 @@
           applySettings(data.settings);
         } else if (data.type === 'snapshot') {
           render(data.snapshot || {});
+        } else if (data.type === 'action') {
+          // Contributed-button action: run the plugin's own logic. "takeNext"
+          // composes two commands — advance the data row, then take it to air.
+          if (data.action === 'takeNext' && outputId) {
+            send(`output:${outputId}:rowNext`);
+            send(`output:${outputId}:titleIn`);
+          }
         }
       });
 
