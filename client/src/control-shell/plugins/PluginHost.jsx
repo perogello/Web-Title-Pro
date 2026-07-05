@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { BACKEND_ORIGIN } from './api.js';
+import { BACKEND_ORIGIN } from '../api.js';
 import { usePlugins } from './use-plugins.js';
 
 // The plugin bridge. Enabled plugins whose manifest mounts them at `location`

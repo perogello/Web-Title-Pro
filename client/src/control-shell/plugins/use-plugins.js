@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { api } from './api.js';
+import { api } from '../api.js';
 
 // Single source of plugin state for the whole UI. The plugin list is read by
 // the settings tab, every PluginHost (panel/tab/background), and every

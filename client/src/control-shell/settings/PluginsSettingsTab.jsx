@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
-import { notifyPluginsChanged, usePlugins } from '../use-plugins.js';
+import { notifyPluginsChanged, usePlugins } from '../plugins/use-plugins.js';
 
 // Settings › Plugins: list installed plugins, enable/disable them. Enabling a
 // plugin mints a scoped capability grant on the server; the plugin then renders
