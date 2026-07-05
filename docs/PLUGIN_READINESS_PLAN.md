@@ -199,9 +199,15 @@ Validation mirrors the template importer (allowlisted types, size/count limits,
 no traversal, manifest must parse). UI: Settings › Plugins has install
 (archive/files + `webkitdirectory` folder) and a Delete button on custom cards.
 
-**Remaining polish (not blockers):** `tab`-type mount rendering (only `panel`
-is wired), and hard-removing the deprecated legacy routes (needs a deprecation
-cycle).
+**Done since:** `tab`-type mount — a plugin whose manifest sets
+`mount.type: "tab"` gets its own top-level nav tab (TopBar) and renders
+full-size in the content area when active; disabling/removing it falls back to
+Live. `PluginHost` now serves both `panel` and `tab` mounts through one bridge.
+
+**Remaining polish (not blockers):** contribution points (a plugin adding a
+native button/command into an existing host screen — today a plugin only lives
+in its own iframe rectangle; arbitrary DOM injection into the host is
+intentionally not allowed, to keep the sandbox boundary).
 
 _Original design intent, now realised:_
 

@@ -121,6 +121,7 @@ function WindowControls() {
 export default function TopBar({
   activeTab,
   onSetActiveTab,
+  pluginTabs = [],
   autoUpdate,
   onToggleAutoUpdate,
   currentProjectName,
@@ -186,6 +187,18 @@ export default function TopBar({
             title={tab.label}
           >
             <span className="icon">{tab.icon}</span>
+            <span className="label">{tab.label}</span>
+          </button>
+        ))}
+        {/* Plugin-contributed tabs (manifest mount.type === 'tab'). */}
+        {pluginTabs.map((tab) => (
+          <button
+            key={tab.id}
+            className={`tab-v2 is-plugin ${activeTab === tab.id ? 'is-active' : ''}`}
+            onClick={() => onSetActiveTab(tab.id)}
+            title={tab.label}
+          >
+            <span className="icon">{'⧉'}</span>
             <span className="label">{tab.label}</span>
           </button>
         ))}

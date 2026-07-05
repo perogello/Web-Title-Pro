@@ -106,3 +106,22 @@
   border: 0;
   background: transparent;
 }
+
+/* Tab-mounted plugin: fills the whole content area instead of a docked panel. */
+.plugin-host.is-tab {
+  margin-top: 0;
+  height: 100%;
+  min-height: 0;
+}
+.plugin-host.is-tab .plugin-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.plugin-host.is-tab .plugin-frame-body {
+  height: 100%;
+  flex: 1;
+}
+.tab-v2.is-plugin .icon {
+  color: var(--accent, #7aa2ff);
+}

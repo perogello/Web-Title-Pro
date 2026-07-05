@@ -13,23 +13,24 @@ import { api, BACKEND_ORIGIN } from './api.js';
 const HOST = 'wtp-host';
 const PLUGIN = 'wtp-plugin';
 
-export default function PluginHost({ location = 'live', snapshot, onCommand }) {
+// Two mounts: a docked `panel` inside a tab (filtered by location) or a full
+// content-area `tab` (the single plugin whose own tab is active). Both share the
+// same bridge, so a plugin behaves identically wherever its manifest puts it.
+export default function PluginHost({ mount = 'panel', location = 'live', activePluginId = null, snapshot, onCommand }) {
   const [plugins, setPlugins] = useState([]);
   const framesRef = useRef(new Map()); // pluginId -> { node, subscribed }
   const pluginsRef = useRef([]); // latest plugin metadata (caps, settings) by index
   const snapshotRef = useRef(snapshot);
 
   const load = useCallback(() => {
+    const matches = (p) => {
+      if (!p.enabled || p.mount?.type !== mount) return false;
+      return mount === 'tab' ? p.id === activePluginId : p.mount?.location === location;
+    };
     api('/api/plugins')
-      .then((res) =>
-        setPlugins(
-          (res.plugins || []).filter(
-            (p) => p.enabled && p.mount?.type === 'panel' && p.mount?.location === location,
-          ),
-        ),
-      )
+      .then((res) => setPlugins((res.plugins || []).filter(matches)))
       .catch(() => setPlugins([]));
-  }, [location]);
+  }, [mount, location, activePluginId]);
 
   useEffect(() => {
     load();
@@ -124,11 +125,12 @@ export default function PluginHost({ location = 'live', snapshot, onCommand }) {
 
   if (!plugins.length) return null;
 
+  const isTab = mount === 'tab';
   return (
-    <div className="plugin-host">
+    <div className={`plugin-host ${isTab ? 'is-tab' : ''}`}>
       {plugins.map((plugin) => (
         <div className="plugin-frame" key={plugin.id}>
-          <div className="plugin-frame-head">{plugin.mount?.label || plugin.name}</div>
+          {!isTab && <div className="plugin-frame-head">{plugin.mount?.label || plugin.name}</div>}
           <iframe
             title={plugin.name}
             className="plugin-frame-body"

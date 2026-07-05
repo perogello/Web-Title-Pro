@@ -86,6 +86,7 @@ function ControlShell() {
   const [changelogInfo, setChangelogInfo] = useState(null);
   const [draftName, setDraftName] = useState('');
   const [activeTab, setActiveTab] = useState('rundown');
+  const [pluginTabs, setPluginTabs] = useState([]);
   const [settingsTab, setSettingsTab] = useState('outputs');
   const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
   const [globalShortcutConflicts, setGlobalShortcutConflicts] = useState([]);
@@ -3104,6 +3105,32 @@ function ControlShell() {
 
   const sidebarHook = useResizableSidebar();
 
+  // Enabled plugins that mount as their own top-level tab. Kept in sync with
+  // Settings › Plugins via the shared change event.
+  useEffect(() => {
+    const loadTabs = () => {
+      api('/api/plugins')
+        .then((res) =>
+          setPluginTabs(
+            (res.plugins || [])
+              .filter((plugin) => plugin.enabled && plugin.mount?.type === 'tab')
+              .map((plugin) => ({ id: `plugin:${plugin.id}`, pluginId: plugin.id, label: plugin.mount?.label || plugin.name })),
+          ),
+        )
+        .catch(() => setPluginTabs([]));
+    };
+    loadTabs();
+    window.addEventListener('wtp-plugins-changed', loadTabs);
+    return () => window.removeEventListener('wtp-plugins-changed', loadTabs);
+  }, []);
+
+  // If the active plugin tab disappears (disabled/removed), fall back to Live.
+  useEffect(() => {
+    if (activeTab.startsWith('plugin:') && !pluginTabs.some((tab) => tab.id === activeTab)) {
+      setActiveTab('rundown');
+    }
+  }, [pluginTabs, activeTab]);
+
   if (!snapshot || !program) {
     return <div className="loading-shell">Loading control surface...</div>;
   }
@@ -3119,6 +3146,7 @@ function ControlShell() {
       <TopBar
         activeTab={effectiveTab}
         onSetActiveTab={setActiveTab}
+        pluginTabs={pluginTabs}
         autoUpdate={autoUpdate}
         onToggleAutoUpdate={toggleAutoUpdate}
         currentProjectName={currentProjectDisplayName}
@@ -3206,6 +3234,15 @@ function ControlShell() {
 
       {effectiveTab === 'rundown' && (
         <PluginHost location="live" snapshot={snapshot} onCommand={sendCommand} />
+      )}
+
+      {effectiveTab.startsWith('plugin:') && (
+        <PluginHost
+          mount="tab"
+          activePluginId={effectiveTab.slice('plugin:'.length)}
+          snapshot={snapshot}
+          onCommand={sendCommand}
+        />
       )}
 
       {effectiveTab === 'config' && (

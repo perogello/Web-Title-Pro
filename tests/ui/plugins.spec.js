@@ -120,3 +120,45 @@ test('Plugins: install a custom plugin from files, then delete it', async ({ pag
     return list.plugins.some((p) => p.name === 'E2E Import');
   }).toBe(false);
 });
+
+// A plugin whose manifest mounts as a tab gets its own top-level nav tab.
+test('Plugins: a tab-mount plugin adds a top-level tab that shows it full-size', async ({ page, request }) => {
+  await waitForBackend(request);
+  await page.goto('/');
+  await page.getByRole('button', { name: /SETTINGS/i }).click();
+  await page.getByRole('button', { name: /Plugins/i }).click();
+
+  await page.locator('input[type="file"][accept*=".webm"]').setInputFiles([
+    {
+      name: 'plugin.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(
+        JSON.stringify({ name: 'Tab Plugin', version: '1.0.0', entry: 'index.html', mount: { type: 'tab', label: 'Tabby' } }),
+      ),
+    },
+    { name: 'index.html', mimeType: 'text/html', buffer: Buffer.from('<title>t</title><body>TAB PLUGIN BODY</body>') },
+  ]);
+
+  const card = page.locator('.plugin-card-v3').filter({ hasText: 'Tab Plugin' });
+  await expect(card).toBeVisible({ timeout: 10_000 });
+
+  // No tab while disabled; enabling makes the tab appear.
+  await expect(page.locator('.tab-v2.is-plugin')).toHaveCount(0);
+  await card.getByRole('button', { name: 'Включить' }).click();
+
+  const pluginTab = page.locator('.tab-v2.is-plugin', { hasText: 'Tabby' });
+  await expect(pluginTab).toBeVisible({ timeout: 10_000 });
+
+  // Opening the tab renders the plugin iframe full-size in the content area.
+  await pluginTab.click();
+  await expect(page.locator('.plugin-host.is-tab iframe[title="Tab Plugin"]')).toBeVisible({ timeout: 10_000 });
+
+  // Disabling removes the tab and falls back to Live.
+  await page.getByRole('button', { name: /SETTINGS/i }).click();
+  await page.getByRole('button', { name: /Plugins/i }).click();
+  await card.getByRole('button', { name: 'Отключить' }).click();
+  await expect(page.locator('.tab-v2.is-plugin')).toHaveCount(0);
+
+  page.on('dialog', (dialog) => dialog.accept());
+  await card.getByRole('button', { name: 'Удалить' }).click();
+});
