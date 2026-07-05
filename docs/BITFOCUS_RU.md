@@ -1,8 +1,8 @@
 # Интеграция с Bitfocus Companion
 
 Web Title Pro общается с Companion через встроенный модуль **Generic HTTP** —
-устанавливать отдельный плагин не нужно. Здесь — список всех endpoint'ов,
-которые можно повесить на кнопку Stream Deck, и готовые конфигурации.
+устанавливать отдельный плагин не нужно. Все кнопки бьют в **один endpoint**;
+меняется только `actionId` в теле запроса.
 
 > Английская версия: [BITFOCUS.md](BITFOCUS.md)
 
@@ -10,75 +10,77 @@ Web Title Pro общается с Companion через встроенный мо
 
 1. В Companion добавь новое подключение типа **generic-http**.
 2. В качестве base host укажи `http://<ip-машины-с-wtp>:4000` (если WTP и
-   Companion запущены на одной машине — `127.0.0.1`).
-3. На каждую кнопку добавь **HTTP POST** action с URL из таблицы ниже.
-   Headers оставляй пустыми, если иное не указано. Body — JSON, оставь
-   пустым если таблица не показывает body.
+   Companion на одной машине — `127.0.0.1`).
+3. На каждую кнопку добавь **HTTP POST** action:
+   - **URL:** `http://<wtp-host>:4000/api/command`
+   - **Header:** `Content-Type: application/json`
+   - **Body (JSON):** `{ "actionId": "<команда>" }` — id команды из таблиц ниже.
 
-> **Важно:** WTP должен быть запущен в момент когда Companion отправляет
-> команду — иначе Companion покажет ошибку "ECONNREFUSED".
+> **Важно:** WTP должен быть запущен, когда Companion шлёт команду — иначе
+> Companion покажет "ECONNREFUSED".
 
-## Все доступные actions
+> Готовые пары URL + payload для каждой кнопки можно скопировать прямо из
+> приложения: **Settings → Controls**, блок Companion — кнопки «Copy URL» и
+> «Copy payload».
 
-Все URL — относительно `http://<wtp-host>:4000`.
+## Команды
 
-### Программные команды (TITLE IN / LOAD / TITLE OUT / LIVE)
+Все — `POST http://<wtp-host>:4000/api/command`, тело `{ "actionId": "…" }`.
 
-| Кнопка       | Метод | URL                              | Body                       | Что делает |
-|--------------|-------|----------------------------------|----------------------------|------------|
-| TITLE IN     | POST  | `/api/program/show`              | `{}`                       | То же что и зелёная кнопка в UI. Показывает текущий выбранный entry на текущем output. |
-| LOAD         | POST  | `/api/program/update`            | `{}`                       | Подготавливает local title в live без вывода в эфир. Не работает для vMix-титров. |
-| TITLE OUT    | POST  | `/api/program/hide`              | `{}`                       | Снимает активный титр с Transition Out. |
-| LIVE         | POST  | `/api/program/live`              | `{}`                       | Пушит draft-значения в текущий on-air титр (быстрая подмена данных в эфире). |
+### На выход (output)
 
-В body можно опционально передать `{ "entryId": "<id>", "outputId": "<id>" }` —
-явно указать какой entry/output затронуть.
+`<id>` — id выхода (по умолчанию `output-main`; виден в Settings и в
+`GET /api/render/state → outputs[].id`).
 
-### Навигация по титрам
+| Кнопка              | actionId                       |
+|---------------------|--------------------------------|
+| TITLE IN            | `output:<id>:titleIn`          |
+| TITLE OUT           | `output:<id>:titleOut`         |
+| PREVIEW IN          | `output:<id>:previewIn`        |
+| PREVIEW OUT         | `output:<id>:previewOut`       |
+| ROW ▲ (строка выше) | `output:<id>:rowPrev`          |
+| ROW ▼ (строка ниже) | `output:<id>:rowNext`          |
+| Таймер строки Start | `output:<id>:timerStart`       |
+| Таймер строки Stop  | `output:<id>:timerStop`        |
+| Таймер строки Reset | `output:<id>:timerReset`       |
 
-| Кнопка         | Метод | URL                                     | Body |
-|----------------|-------|-----------------------------------------|------|
-| TITLE NEXT     | POST  | `/api/commands/next-title`              | `{}` |
-| TITLE PREV     | POST  | `/api/commands/previous-title`          | `{}` |
+`titleIn` показывает текущий выбранный титр выхода. `rowNext`/`rowPrev` листают
+строки источника данных на этом выходе (вниз — дальше, вверх — выше) и, если
+титр в эфире, сразу обновляют его.
 
-Опционально — `{ "outputId": "<id>" }` чтобы переключаться внутри
-конкретного output.
+### На конкретный таймер
 
-### Выбор Output
+`<id>` — id таймера (по умолчанию `main`; из `GET /api/render/state → timers[].id`).
 
-| Кнопка               | Метод | URL                                       | Body                       |
-|----------------------|-------|-------------------------------------------|----------------------------|
-| OUTPUT (по имени)    | POST  | `/api/outputs/<output-id>/select`         | `{}`                       |
-| OUTPUT (универсально)| POST  | `/api/commands/select-output`             | `{ "outputId": "<id>" }`   |
+| Кнопка | actionId             |
+|--------|----------------------|
+| Start  | `timer:<id>:start`   |
+| Stop   | `timer:<id>:stop`    |
+| Reset  | `timer:<id>:reset`   |
 
-`<output-id>` виден в адресной строке при выборе output в Settings, либо
-возвращается в `GET /api/render/state` под `outputs[].id`.
+### Глобально
 
-### Выбор Entry
+| Кнопка                    | actionId               |
+|---------------------------|------------------------|
+| ALL OUTPUTS OUT (паника)  | `global:allOutputsOut` |
 
-| Действие        | Метод | URL                                   |
-|-----------------|-------|---------------------------------------|
-| Select entry    | POST  | `/api/entries/<entry-id>/select`      |
+## Низкоуровневые REST-роуты (при необходимости)
 
-`<entry-id>` берётся из `GET /api/render/state → entries[].id`.
+Единый `/api/command` покрывает все кнопки пульта. Если нужен «сырой» доступ,
+стабильными остаются: `POST /api/program/show|update|hide`,
+`POST /api/preview/show|hide`, `POST /api/timers/<id>/start|stop|reset`,
+`POST /api/outputs/<id>/select`, `POST /api/entries/<id>/select`.
 
-### Таймеры
-
-| Действие   | Метод | URL                                    |
-|------------|-------|----------------------------------------|
-| Start      | POST  | `/api/timers/<timer-id>/start`         |
-| Stop       | POST  | `/api/timers/<timer-id>/stop`          |
-| Reset      | POST  | `/api/timers/<timer-id>/reset`         |
-
-Timer id берутся из snapshot'а `timers[].id`. По умолчанию первый — `"main"`.
+Устаревшие глаголы `/api/commands/:action`, `/api/program/live` и
+`/api/timers/:id/toggle` **удалены** — используй `/api/command`.
 
 ## Feedback / подсветка кнопок по состоянию
 
-Generic HTTP module в Companion умеет HTTP-poll feedbacks. Целься на
-`GET /api/render/state` и парси JSON чтобы окрашивать кнопки:
+Generic HTTP module умеет HTTP-poll feedbacks. Целься на
+`GET /api/render/state` и парси JSON:
 
-- `program.visible === true` → ON AIR (красная подложка на TITLE OUT).
-- `selectedOutput.id` → подсветка кнопки текущего output.
+- `outputs[i].program.visible === true` → ON AIR (красная подложка на TITLE OUT).
+- `selectedOutput.id` → подсветка кнопки текущего выхода.
 - `timers[i].running === true` → мигание кнопки Start/Stop таймера.
 
 Интервал опроса 500–1000 мс достаточно для одной станции в LAN.
@@ -87,57 +89,52 @@ Generic HTTP module в Companion умеет HTTP-poll feedbacks. Целься н
 
 ```bash
 # Замени 127.0.0.1 на IP машины с WTP если нужно.
-curl -X POST http://127.0.0.1:4000/api/program/show
-curl -X POST http://127.0.0.1:4000/api/program/update
-curl -X POST http://127.0.0.1:4000/api/program/hide
-curl -X POST http://127.0.0.1:4000/api/program/live
-
-curl -X POST http://127.0.0.1:4000/api/commands/next-title
-curl -X POST http://127.0.0.1:4000/api/commands/previous-title
-
-curl -X POST http://127.0.0.1:4000/api/timers/main/start
-curl -X POST http://127.0.0.1:4000/api/timers/main/reset
+CMD=http://127.0.0.1:4000/api/command
+curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"output:output-main:titleIn"}'
+curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"output:output-main:titleOut"}'
+curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"output:output-main:rowNext"}'
+curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"timer:main:start"}'
+curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"global:allOutputsOut"}'
 ```
 
 ## Companion preset (документация-пример)
 
-Сохрани сниппет ниже как `webtitlepro-buttons.json` и используй *Import* →
-*Import a page* в Companion 3. Preset предполагает что WTP по адресу
-`127.0.0.1:4000`. После импорта поправь host подключения Generic HTTP если
-нужно.
+Все кнопки — один URL, отличается только body. Быстрее всего:
+
+1. Сделай одну кнопку в Companion вручную (URL `/api/command`, header
+   `Content-Type: application/json`, body `{"actionId":"output:output-main:titleIn"}`).
+2. ПКМ → Copy. Вставь на остальные кнопки страницы.
+3. Поправь `actionId` в body у каждой.
 
 ```json
 {
   "version": "1.0",
   "type": "page",
   "name": "Web Title Pro",
+  "note": "Каждая кнопка: POST http://127.0.0.1:4000/api/command, header Content-Type: application/json, body ниже.",
   "controls": {
-    "0/0": { "type": "button", "label": "TITLE IN",  "url": "http://127.0.0.1:4000/api/program/show",   "method": "POST", "color": "#5ddb92" },
-    "0/1": { "type": "button", "label": "LOAD",      "url": "http://127.0.0.1:4000/api/program/update", "method": "POST", "color": "#ff9d42" },
-    "0/2": { "type": "button", "label": "TITLE OUT", "url": "http://127.0.0.1:4000/api/program/hide",   "method": "POST", "color": "#ff5d6d" },
-    "0/3": { "type": "button", "label": "PREV",      "url": "http://127.0.0.1:4000/api/commands/previous-title", "method": "POST" },
-    "0/4": { "type": "button", "label": "NEXT",      "url": "http://127.0.0.1:4000/api/commands/next-title", "method": "POST" },
-    "1/0": { "type": "button", "label": "TIMER ▶",   "url": "http://127.0.0.1:4000/api/timers/main/start", "method": "POST", "color": "#5ddb92" },
-    "1/1": { "type": "button", "label": "TIMER ■",   "url": "http://127.0.0.1:4000/api/timers/main/stop",  "method": "POST" },
-    "1/2": { "type": "button", "label": "TIMER ↻",   "url": "http://127.0.0.1:4000/api/timers/main/reset", "method": "POST" }
+    "0/0": { "label": "TITLE IN",  "body": { "actionId": "output:output-main:titleIn" },  "color": "#5ddb92" },
+    "0/1": { "label": "TITLE OUT", "body": { "actionId": "output:output-main:titleOut" }, "color": "#ff5d6d" },
+    "0/2": { "label": "PVW IN",    "body": { "actionId": "output:output-main:previewIn" } },
+    "0/3": { "label": "ROW ▲",     "body": { "actionId": "output:output-main:rowPrev" } },
+    "0/4": { "label": "ROW ▼",     "body": { "actionId": "output:output-main:rowNext" } },
+    "1/0": { "label": "TIMER ▶",   "body": { "actionId": "timer:main:start" }, "color": "#5ddb92" },
+    "1/1": { "label": "TIMER ■",   "body": { "actionId": "timer:main:stop" } },
+    "1/2": { "label": "TIMER ↻",   "body": { "actionId": "timer:main:reset" } },
+    "1/4": { "label": "PANIC",     "body": { "actionId": "global:allOutputsOut" }, "color": "#ff5d6d" }
   }
 }
 ```
 
-> Это документация-пример, не настоящий Companion export. У Companion 3
-> реальный page export содержит дополнительные служебные поля (instance ID,
-> trigger config). Быстрее всего:
-> 1. Сделай одну кнопку в Companion вручную по таблице выше.
-> 2. ПКМ → Copy. Вставь на остальные кнопки страницы.
-> 3. Поправь URL у каждой.
+> Это документация-пример, не настоящий Companion export: реальный page export
+> Companion 3 содержит служебные поля (instance ID, trigger config).
 
 ## Известные ограничения
 
 - **WTP не отслеживает реальное состояние vMix.** ON AIR / OFF badge
-  показывает **последнюю команду** отправленную из этого приложения, а не
-  фактическое состояние титра в vMix. Если оператор переключил титр прямо
-  в vMix вне нашего приложения — наш UI про это не узнает. См. tooltip на
-  badge.
-- WTP слушает на `0.0.0.0:4000` без аутентификации. В open Wi-Fi venue
-  любой в той же подсети может POST'ить на /api. Для конференц-залов с
-  чужой сетью — изолируй или используй отдельный VLAN.
+  показывает **последнюю команду** из этого приложения, а не фактическое
+  состояние титра в vMix. Если оператор переключил титр прямо в vMix — наш UI
+  про это не узнает.
+- WTP слушает на `0.0.0.0:4000` без аутентификации. В открытом Wi-Fi любой в
+  той же подсети может POST'ить на /api. Для чужих сетей — изолируй или
+  используй отдельный VLAN.

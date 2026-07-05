@@ -141,12 +141,16 @@ code runs in the main process for the first milestone.
 - Extract command/business logic out of `ControlShell` into a shared layer
   (ideally server-side). Component only renders + calls commands.
 
-### Phase 3 — Contract hygiene
+### Phase 3 — Contract hygiene  *(done)*
 - **[done]** Version the API (`apiVersion`, compatibility promise, published
   action-id catalogue) — see `server/state/command-catalog.js`,
   `GET /api/command/catalog`, `commandApiVersion` on `/api/app/meta`.
-- **[todo]** Remove legacy command routes; converge on the command bus. Held
-  back for a deprecation cycle so existing Companion setups keep working.
+- **[done]** Removed the legacy command routes (`/commands/:action`,
+  `/program/live`, `/timers/:id/toggle`); everything converges on
+  `POST /api/command`. The Companion helper now generates `/api/command` +
+  `{ actionId }`, and `docs/BITFOCUS*.md` document the single endpoint. The
+  app's own helper never used the removed verbs, so nothing in-app breaks;
+  only hand-made buttons pointing at those exact URLs would (none in use).
 
 ### Phase 4 — Permissions & auth  *(done)*
 - **[done]** Capability model per client/plugin: read-only snapshot vs command

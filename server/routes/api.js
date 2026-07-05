@@ -709,18 +709,6 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
     }
   });
 
-  // @deprecated Kept for existing Companion/script setups (live data swap).
-  // New integrations should use POST /api/command.
-  router.post('/program/live', async (request, response) => {
-    try {
-      store.updateProgram(request.body.entryId, request.body.outputId);
-      await syncVmixEntryIfNeeded(getEntryForAction(request.body.entryId, request.body.outputId), 'update');
-      response.json({ ok: true });
-    } catch (error) {
-      sendError(response, error);
-    }
-  });
-
   router.post('/preview/show', (request, response) => {
     try {
       store.showPreview(request.body.entryId, request.body.outputId);
@@ -752,42 +740,6 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
     }
   });
 
-  // @deprecated Legacy verb-based commands (show/hide/next-title/select-output,
-  // etc.). Kept for existing Companion/script setups; superseded by the
-  // canonical POST /api/command { actionId }.
-  router.post('/commands/:action', async (request, response) => {
-    try {
-      const { action } = request.params;
-      let syncEntry = null;
-
-      if (action === 'show') {
-        store.showSelected(request.body.entryId, request.body.outputId);
-        syncEntry = getEntryForAction(request.body.entryId, request.body.outputId);
-      } else if (action === 'update' || action === 'live') {
-        store.updateProgram(request.body.entryId, request.body.outputId);
-        syncEntry = getEntryForAction(request.body.entryId, request.body.outputId);
-      } else if (action === 'hide') {
-        syncEntry = store.getEntry(store.getProgram(request.body.outputId).entryId);
-        store.hideProgram(request.body.outputId);
-      } else if (action === 'next-title') {
-        store.selectAdjacentEntry('next', request.body.outputId);
-      } else if (action === 'previous-title') {
-        store.selectAdjacentEntry('previous', request.body.outputId);
-      } else if (action === 'select-output') {
-        if (!request.body.outputId) {
-          throw new Error('Output is required.');
-        }
-        store.selectOutput(request.body.outputId);
-      } else {
-        throw new Error('Unsupported command.');
-      }
-
-      await syncVmixEntryIfNeeded(syncEntry, action === 'live' ? 'update' : action);
-      response.json({ ok: true, action });
-    } catch (error) {
-      sendError(response, error);
-    }
-  });
 
   router.post('/import/txt', (request, response) => {
     try {
@@ -897,21 +849,6 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
   router.post('/timers/:timerId/reset', (request, response) => {
     try {
       response.json(store.resetTimer(request.params.timerId));
-    } catch (error) {
-      sendError(response, error);
-    }
-  });
-
-  // @deprecated Kept for existing Companion setups; explicit start/stop or
-  // POST /api/command are preferred.
-  router.post('/timers/:timerId/toggle', (request, response) => {
-    try {
-      const { timerId } = request.params;
-      const timer = store.getTimers().find((item) => item.id === timerId);
-      if (!timer) {
-        throw new Error('Timer not found.');
-      }
-      response.json(timer.running ? store.stopTimer(timerId) : store.startTimer(timerId));
     } catch (error) {
       sendError(response, error);
     }

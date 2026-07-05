@@ -397,25 +397,38 @@ function ControlShell() {
   // global panic) have no single URL and are intentionally omitted.
   const bitfocusActions = useMemo(() => {
     const allTimers = snapshot?.timers || [];
+    // Every Companion button hits the same endpoint; only the actionId in the
+    // JSON body changes. One URL, one canonical command surface.
+    const cmd = (section, actionId, label) => ({
+      section,
+      action: actionId,
+      label,
+      url: `${BACKEND_ORIGIN}/api/command`,
+      payload: { actionId },
+    });
     const result = [];
     for (const output of outputs) {
       const oid = output.id;
-      const entryId = output.selectedEntryId || undefined;
+      const name = output.name;
       result.push(
-        { section: output.name, action: `output:${oid}:titleIn`, label: `${output.name} — Title IN`, url: `${BACKEND_ORIGIN}/api/program/show`, payload: { entryId, outputId: oid } },
-        { section: output.name, action: `output:${oid}:titleOut`, label: `${output.name} — Title OUT`, url: `${BACKEND_ORIGIN}/api/program/hide`, payload: { outputId: oid } },
-        { section: output.name, action: `output:${oid}:previewIn`, label: `${output.name} — PVW IN`, url: `${BACKEND_ORIGIN}/api/preview/show`, payload: { entryId, outputId: oid } },
-        { section: output.name, action: `output:${oid}:previewOut`, label: `${output.name} — PVW OUT`, url: `${BACKEND_ORIGIN}/api/preview/hide`, payload: { outputId: oid } },
+        cmd(name, `output:${oid}:titleIn`, `${name} — Title IN`),
+        cmd(name, `output:${oid}:titleOut`, `${name} — Title OUT`),
+        cmd(name, `output:${oid}:previewIn`, `${name} — PVW IN`),
+        cmd(name, `output:${oid}:previewOut`, `${name} — PVW OUT`),
+        cmd(name, `output:${oid}:rowPrev`, `${name} — Row ▲ (prev)`),
+        cmd(name, `output:${oid}:rowNext`, `${name} — Row ▼ (next)`),
       );
     }
     for (const timer of allTimers) {
       const tid = timer.id;
+      const label = timer.name || tid;
       result.push(
-        { section: `Timer: ${timer.name || tid}`, action: `timer:${tid}:start`, label: `${timer.name || tid} — Start`, url: `${BACKEND_ORIGIN}/api/timers/${tid}/start`, payload: {} },
-        { section: `Timer: ${timer.name || tid}`, action: `timer:${tid}:stop`, label: `${timer.name || tid} — Stop`, url: `${BACKEND_ORIGIN}/api/timers/${tid}/stop`, payload: {} },
-        { section: `Timer: ${timer.name || tid}`, action: `timer:${tid}:reset`, label: `${timer.name || tid} — Reset`, url: `${BACKEND_ORIGIN}/api/timers/${tid}/reset`, payload: {} },
+        cmd(`Timer: ${label}`, `timer:${tid}:start`, `${label} — Start`),
+        cmd(`Timer: ${label}`, `timer:${tid}:stop`, `${label} — Stop`),
+        cmd(`Timer: ${label}`, `timer:${tid}:reset`, `${label} — Reset`),
       );
     }
+    result.push(cmd('Global', 'global:allOutputsOut', 'ALL OUTPUTS OUT (panic)'));
     return result;
   }, [outputs, snapshot?.timers]);
   const outputRenderTargets = useMemo(() => {
