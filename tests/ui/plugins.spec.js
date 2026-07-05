@@ -63,6 +63,23 @@ test('Plugins: enable reference plugin, it mounts on Live and the bridge round-t
   const req = await commandRequest;
   expect(JSON.parse(req.postData() || '{}').actionId).toMatch(/^output:.*:titleIn$/);
 
+  // The IN button starts on the default (green) accent.
+  await expect(frame.locator('#in')).not.toHaveClass(/accent-blue/);
+
+  // Per-plugin settings: change the accent in Settings › Plugins and confirm it
+  // reaches the running plugin live through the bridge.
+  await page.getByRole('button', { name: /SETTINGS/i }).click();
+  await page.getByRole('button', { name: /Plugins/i }).click();
+  await card.locator('.plugin-setting select').selectOption('blue');
+  await expect.poll(async () => {
+    const res = await request.get('http://127.0.0.1:4000/api/plugins');
+    const list = await res.json();
+    return list.plugins.find((p) => p.id === 'builtin:rundown-remote')?.settings?.accent;
+  }).toBe('blue');
+
+  await page.getByRole('button', { name: 'Live', exact: true }).click();
+  await expect(frame.locator('#in')).toHaveClass(/accent-blue/, { timeout: 10_000 });
+
   // Cleanup: hide any program and disable the plugin again.
   await request.post('http://127.0.0.1:4000/api/plugins/builtin:rundown-remote/disable');
 });

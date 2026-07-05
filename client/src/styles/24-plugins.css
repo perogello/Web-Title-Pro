@@ -33,6 +33,38 @@
   color: #34d399;
 }
 
+/* Per-plugin settings form (schema-driven). */
+.plugin-settings {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-1, #2b2f37);
+}
+.plugin-setting {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-2, #9aa0a6);
+}
+.plugin-setting.is-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.plugin-setting input[type='text'],
+.plugin-setting input[type='number'],
+.plugin-setting select {
+  background: var(--surface-3, #262b33);
+  border: 1px solid var(--border-1, #343a44);
+  border-radius: 6px;
+  color: var(--text-1, #e8eaed);
+  padding: 6px 8px;
+  font: inherit;
+  max-width: 320px;
+}
+
 /* Live-tab host: a stack of sandboxed plugin panels. */
 .plugin-host {
   display: flex;

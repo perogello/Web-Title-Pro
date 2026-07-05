@@ -10,6 +10,7 @@ import fs from 'fs-extra';
 const KNOWN_CAPABILITIES = ['state:read', 'command:send'];
 const MOUNT_TYPES = ['panel', 'tab'];
 const MOUNT_LOCATIONS = ['live', 'rundown', 'settings'];
+const SETTING_TYPES = ['text', 'number', 'checkbox', 'select'];
 
 const sortByName = (items) => [...items].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -32,6 +33,51 @@ const normalizeMount = (value) => {
   const location = MOUNT_LOCATIONS.includes(source.location) ? source.location : 'live';
   const label = typeof source.label === 'string' && source.label.trim() ? source.label.trim() : null;
   return { type, location, label };
+};
+
+// A plugin's declared settings — each field the operator can configure in
+// Settings › Plugins. Unknown types / malformed entries are dropped so a bad
+// manifest can't break the settings form.
+const normalizeSettingsSchema = (value) => {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const field of value) {
+    if (!field || typeof field !== 'object') continue;
+    const key = typeof field.key === 'string' && field.key.trim() ? field.key.trim() : '';
+    if (!key) continue;
+    const type = SETTING_TYPES.includes(field.type) ? field.type : 'text';
+    const item = {
+      key,
+      label: typeof field.label === 'string' && field.label.trim() ? field.label.trim() : key,
+      type,
+      default: field.default,
+    };
+    if (type === 'select') {
+      item.options = Array.isArray(field.options)
+        ? field.options
+            .map((opt) =>
+              opt && typeof opt === 'object'
+                ? { value: String(opt.value ?? ''), label: String(opt.label ?? opt.value ?? '') }
+                : { value: String(opt), label: String(opt) },
+            )
+            .filter((opt) => opt.value !== '')
+        : [];
+    }
+    out.push(item);
+  }
+  return out;
+};
+
+// Fill any settings the operator hasn't set with the schema defaults, so the
+// plugin always receives a complete config.
+export const applySettingsDefaults = (schema, settings = {}) => {
+  const merged = { ...settings };
+  for (const field of schema || []) {
+    if (merged[field.key] === undefined && field.default !== undefined) {
+      merged[field.key] = field.default;
+    }
+  }
+  return merged;
 };
 
 // Parse + validate one manifest into the shape the API/UI consume. Throws on a
@@ -65,6 +111,7 @@ export const parsePluginManifest = async ({ directory, slug, source, publicBase 
     author: typeof raw?.author === 'string' ? raw.author : '',
     capabilities: normalizeCapabilities(raw?.capabilities),
     mount: normalizeMount(raw?.mount),
+    settingsSchema: normalizeSettingsSchema(raw?.settings),
     entryUrl: `${publicBase}/${entry}`,
     directory,
   };

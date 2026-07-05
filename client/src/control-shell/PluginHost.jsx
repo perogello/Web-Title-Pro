@@ -15,10 +15,8 @@ const PLUGIN = 'wtp-plugin';
 
 export default function PluginHost({ location = 'live', snapshot, onCommand }) {
   const [plugins, setPlugins] = useState([]);
-  // pluginId -> { node (the <iframe>), plugin, subscribed }. We read
-  // node.contentWindow live at message time rather than caching it, because a
-  // frame's contentWindow can change across its initial navigation.
-  const framesRef = useRef(new Map());
+  const framesRef = useRef(new Map()); // pluginId -> { node, subscribed }
+  const pluginsRef = useRef([]); // latest plugin metadata (caps, settings) by index
   const snapshotRef = useRef(snapshot);
 
   const load = useCallback(() => {
@@ -37,12 +35,26 @@ export default function PluginHost({ location = 'live', snapshot, onCommand }) {
     load();
   }, [load]);
 
-  // Re-read when a plugin is toggled from Settings.
+  // Re-read when a plugin is toggled/configured from Settings.
   useEffect(() => {
     const handler = () => load();
     window.addEventListener('wtp-plugins-changed', handler);
     return () => window.removeEventListener('wtp-plugins-changed', handler);
   }, [load]);
+
+  const findPlugin = (id) => pluginsRef.current.find((p) => p.id === id) || null;
+
+  // Stable ref: React calls a stable callback only on real mount/unmount, so
+  // `subscribed` survives parent re-renders (an inline callback would be
+  // invoked with null on every update and reset it).
+  const registerFrame = useCallback((node) => {
+    if (!node) return;
+    const id = node.getAttribute('data-plugin-id');
+    if (!id) return;
+    const rec = framesRef.current.get(id) || { subscribed: false };
+    rec.node = node;
+    framesRef.current.set(id, rec);
+  }, []);
 
   // Bridge: receive requests from plugin iframes.
   useEffect(() => {
@@ -58,12 +70,15 @@ export default function PluginHost({ location = 'live', snapshot, onCommand }) {
         }
       }
       if (!rec) return;
+      const id = rec.node.getAttribute('data-plugin-id');
+      const plugin = findPlugin(id);
+      if (!plugin) return;
       const win = rec.node.contentWindow;
-      const caps = rec.plugin.capabilities || [];
+      const caps = plugin.capabilities || [];
       const reply = (msg) => win.postMessage({ source: HOST, ...msg }, '*');
 
       if (data.type === 'ready') {
-        reply({ type: 'init', pluginId: rec.plugin.id, capabilities: caps, settings: rec.plugin.settings || {} });
+        reply({ type: 'init', pluginId: plugin.id, capabilities: caps, settings: plugin.settings || {} });
       } else if (data.type === 'subscribe') {
         if (!caps.includes('state:read')) return;
         rec.subscribed = true;
@@ -82,12 +97,26 @@ export default function PluginHost({ location = 'live', snapshot, onCommand }) {
     return () => window.removeEventListener('message', handler);
   }, [onCommand]);
 
+  // Keep latest metadata; prune dropped frames; push updated settings live.
+  useEffect(() => {
+    pluginsRef.current = plugins;
+    const ids = new Set(plugins.map((p) => p.id));
+    for (const key of [...framesRef.current.keys()]) {
+      if (!ids.has(key)) framesRef.current.delete(key);
+    }
+    for (const plugin of plugins) {
+      const win = framesRef.current.get(plugin.id)?.node?.contentWindow;
+      if (win) win.postMessage({ source: HOST, type: 'settings', settings: plugin.settings || {} }, '*');
+    }
+  }, [plugins]);
+
   // Push each new snapshot to subscribed, read-granted frames.
   useEffect(() => {
     snapshotRef.current = snapshot;
-    for (const rec of framesRef.current.values()) {
+    for (const [id, rec] of framesRef.current.entries()) {
       const win = rec.node?.contentWindow;
-      if (rec.subscribed && win && (rec.plugin.capabilities || []).includes('state:read')) {
+      const plugin = findPlugin(id);
+      if (rec.subscribed && win && (plugin?.capabilities || []).includes('state:read')) {
         win.postMessage({ source: HOST, type: 'snapshot', snapshot }, '*');
       }
     }
@@ -104,15 +133,9 @@ export default function PluginHost({ location = 'live', snapshot, onCommand }) {
             title={plugin.name}
             className="plugin-frame-body"
             sandbox="allow-scripts"
+            data-plugin-id={plugin.id}
             src={`${BACKEND_ORIGIN}${plugin.entryUrl}`}
-            ref={(node) => {
-              if (node) {
-                const prev = framesRef.current.get(plugin.id);
-                framesRef.current.set(plugin.id, { node, plugin, subscribed: prev?.subscribed || false });
-              } else {
-                framesRef.current.delete(plugin.id);
-              }
-            }}
+            ref={registerFrame}
           />
         </div>
       ))}

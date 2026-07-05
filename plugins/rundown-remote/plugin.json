@@ -5,5 +5,20 @@
   "author": "Web Title Pro",
   "entry": "index.html",
   "capabilities": ["state:read", "command:send"],
-  "mount": { "type": "panel", "location": "live", "label": "Rundown Remote" }
+  "mount": { "type": "panel", "location": "live", "label": "Rundown Remote" },
+  "settings": [
+    { "key": "heading", "label": "Заголовок панели", "type": "text", "default": "Rundown Remote" },
+    { "key": "showRowButtons", "label": "Кнопки листания строк", "type": "checkbox", "default": true },
+    {
+      "key": "accent",
+      "label": "Акцент кнопки IN",
+      "type": "select",
+      "default": "green",
+      "options": [
+        { "value": "green", "label": "Зелёный" },
+        { "value": "blue", "label": "Синий" },
+        { "value": "amber", "label": "Янтарный" }
+      ]
+    }
+  ]
 }

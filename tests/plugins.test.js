@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 import { TitleStore } from '../server/state/store.js';
-import { PluginService, parsePluginManifest } from '../server/plugins/plugin-service.js';
+import { PluginService, parsePluginManifest, applySettingsDefaults } from '../server/plugins/plugin-service.js';
 
 const makeTemplateService = () => ({
   scanTemplates: async () => {},
@@ -65,6 +65,43 @@ test('parsePluginManifest rejects a missing entry file and traversal', async () 
   } finally {
     await fs.remove(root);
   }
+});
+
+test('parsePluginManifest normalizes a settings schema and drops bad fields', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-set-'));
+  try {
+    const directory = await writePlugin(root, 'cfg', {
+      name: 'Cfg',
+      entry: 'index.html',
+      settings: [
+        { key: 'heading', label: 'Head', type: 'text', default: 'Hi' },
+        { key: 'compact', type: 'checkbox', default: true },
+        { key: 'accent', type: 'select', default: 'a', options: ['a', { value: 'b', label: 'B' }] },
+        { type: 'text' }, // no key -> dropped
+        { key: 'weird', type: 'bogus' }, // unknown type -> falls back to text
+      ],
+    });
+    const plugin = await parsePluginManifest({ directory, slug: 'cfg', source: 'builtin', publicBase: '/p' });
+    const keys = plugin.settingsSchema.map((f) => f.key);
+    assert.deepEqual(keys, ['heading', 'compact', 'accent', 'weird']);
+    assert.equal(plugin.settingsSchema.find((f) => f.key === 'compact').label, 'compact'); // label defaults to key
+    assert.equal(plugin.settingsSchema.find((f) => f.key === 'weird').type, 'text');
+    assert.deepEqual(plugin.settingsSchema.find((f) => f.key === 'accent').options, [
+      { value: 'a', label: 'a' },
+      { value: 'b', label: 'B' },
+    ]);
+  } finally {
+    await fs.remove(root);
+  }
+});
+
+test('applySettingsDefaults backfills only missing keys', () => {
+  const schema = [
+    { key: 'a', default: 1 },
+    { key: 'b', default: 2 },
+    { key: 'c' },
+  ];
+  assert.deepEqual(applySettingsDefaults(schema, { b: 20 }), { a: 1, b: 20 });
 });
 
 test('PluginService scans builtin + custom dirs and skips non-plugin folders', async () => {

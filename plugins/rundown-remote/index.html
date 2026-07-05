@@ -44,17 +44,19 @@
       }
       button:hover { background: #2f3540; }
       button.in { border-color: #2f6f4f; }
+      button.in.accent-blue { border-color: #2f4f7f; }
+      button.in.accent-amber { border-color: #7f5f2f; }
       button.out { border-color: #6f2f2f; }
       .muted { color: #6b7280; font-size: 12px; }
     </style>
   </head>
   <body>
     <div class="card">
-      <h1>Rundown Remote</h1>
+      <h1 id="heading">Rundown Remote</h1>
       <div id="out" class="out muted">Waiting for host…</div>
       <div id="titleState" class="state"></div>
       <div id="fields" class="fields"></div>
-      <div class="row" style="margin-bottom:6px">
+      <div id="rowButtons" class="row" style="margin-bottom:6px">
         <button id="prev">▲ Prev row</button>
         <button id="next">▼ Next row</button>
       </div>
@@ -77,6 +79,18 @@
       const send = (actionId) => post({ type: 'command', actionId, requestId: Math.random().toString(36).slice(2) });
 
       const el = (id) => document.getElementById(id);
+
+      // Operator-configured settings from Settings › Plugins, delivered by the
+      // host at init and whenever they change.
+      const applySettings = (settings) => {
+        const s = settings || {};
+        if (typeof s.heading === 'string' && s.heading.trim()) el('heading').textContent = s.heading;
+        el('rowButtons').style.display = s.showRowButtons === false ? 'none' : 'flex';
+        const inBtn = el('in');
+        inBtn.classList.remove('accent-blue', 'accent-amber');
+        if (s.accent === 'blue') inBtn.classList.add('accent-blue');
+        else if (s.accent === 'amber') inBtn.classList.add('accent-amber');
+      };
 
       const render = (snapshot) => {
         const output = (snapshot.outputs || [])[0];
@@ -110,7 +124,10 @@
         const data = event.data;
         if (!data || data.source !== HOST) return;
         if (data.type === 'init') {
+          applySettings(data.settings);
           post({ type: 'subscribe' });
+        } else if (data.type === 'settings') {
+          applySettings(data.settings);
         } else if (data.type === 'snapshot') {
           render(data.snapshot || {});
         }

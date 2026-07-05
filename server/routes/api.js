@@ -7,6 +7,7 @@ import { fetchRemoteSourceData } from '../remote-sources/index.js';
 import { dispatchCommand } from '../state/command-bus.js';
 import { buildCommandCatalog, COMMAND_API_VERSION, COMMAND_API_VERSION_STRING } from '../state/command-catalog.js';
 import { ALL_CAPABILITIES, CAPABILITIES } from '../state/access.js';
+import { applySettingsDefaults } from '../plugins/plugin-service.js';
 import {
   createProjectBundleStream,
   getBundleFilename,
@@ -386,7 +387,10 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
       mount: plugin.mount,
       entryUrl: plugin.entryUrl,
       enabled: state.enabled,
-      settings: state.settings,
+      settingsSchema: plugin.settingsSchema,
+      // Stored values backfilled with schema defaults, so the UI and the plugin
+      // always see a complete config.
+      settings: applySettingsDefaults(plugin.settingsSchema, state.settings),
     };
   };
 

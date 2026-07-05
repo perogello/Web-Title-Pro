@@ -18,6 +18,101 @@ const MOUNT_LABELS = {
   settings: 'настройки',
 };
 
+const notifyChangedForm = () => window.dispatchEvent(new CustomEvent('wtp-plugins-changed'));
+
+// A form built from the plugin's declared settings schema. Discrete controls
+// (checkbox/select) save immediately; free-text/number commit on blur to avoid
+// a write per keystroke. Saving pushes the new settings live to the plugin.
+function PluginSettingsForm({ plugin }) {
+  const [values, setValues] = useState(plugin.settings || {});
+
+  useEffect(() => {
+    setValues(plugin.settings || {});
+    // Re-sync only when the plugin identity changes, not on every parent render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plugin.id]);
+
+  const commit = async (next) => {
+    try {
+      await api(`/api/plugins/${encodeURIComponent(plugin.id)}/settings`, {
+        method: 'PUT',
+        body: { settings: next },
+      });
+      notifyChangedForm();
+    } catch {
+      /* surfaced elsewhere; keep the form responsive */
+    }
+  };
+
+  if (!plugin.settingsSchema?.length) return null;
+
+  return (
+    <div className="plugin-settings">
+      {plugin.settingsSchema.map((field) => {
+        const value = values[field.key];
+        if (field.type === 'checkbox') {
+          return (
+            <label className="plugin-setting is-inline" key={field.key}>
+              <input
+                type="checkbox"
+                checked={Boolean(value)}
+                onChange={(event) => {
+                  const next = { ...values, [field.key]: event.target.checked };
+                  setValues(next);
+                  commit(next);
+                }}
+              />
+              <span className="plugin-setting-label">{field.label}</span>
+            </label>
+          );
+        }
+        if (field.type === 'select') {
+          return (
+            <label className="plugin-setting" key={field.key}>
+              <span className="plugin-setting-label">{field.label}</span>
+              <select
+                value={value ?? ''}
+                onChange={(event) => {
+                  const next = { ...values, [field.key]: event.target.value };
+                  setValues(next);
+                  commit(next);
+                }}
+              >
+                {(field.options || []).map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          );
+        }
+        const isNumber = field.type === 'number';
+        return (
+          <label className="plugin-setting" key={field.key}>
+            <span className="plugin-setting-label">{field.label}</span>
+            <input
+              type={isNumber ? 'number' : 'text'}
+              value={value ?? ''}
+              onChange={(event) =>
+                setValues((prev) => ({
+                  ...prev,
+                  [field.key]: isNumber
+                    ? event.target.value === ''
+                      ? ''
+                      : Number(event.target.value)
+                    : event.target.value,
+                }))
+              }
+              onBlur={() => commit(values)}
+            />
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function PluginsSettingsTab() {
   const [plugins, setPlugins] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -106,6 +201,7 @@ export default function PluginsSettingsTab() {
                 {plugin.enabled ? '● включён' : '○ отключён'}
               </span>
             </div>
+            <PluginSettingsForm plugin={plugin} />
           </div>
         ))
       )}
