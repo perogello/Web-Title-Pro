@@ -89,11 +89,26 @@ control panel. We are pivoting to that model. Decisions (operator):
   numbers into the plugin's data; the overlay renders the live call for air.
   Proven end-to-end (panel writes → server broadcasts → overlay renders live).
 
-**Next:** the template+entry render path (`data:write` into a bundled title
-template, taken to air via the program bus); trust relaxation for
-localStorage/device access (`device:microphone`, `device:camera`) for voice/
-camera plugins; making an overlay a program-bus layer (in/out) rather than only
-an external browser source.
+**Done (all three follow-ups):**
+- **Overlay as a program-bus layer.** `overlay:<pluginId>:in/out` (canonical,
+  bindable to Companion/MIDI, callable from the plugin) toggles an on-air
+  overlay; the store carries the on-air list in the snapshot and the renderer
+  (`renderer/render.js`) composites one iframe layer per overlay, live from the
+  plugin's data. Plugin graphics reach air through our output pipeline, not only
+  as a manual OBS browser source.
+- **Device capabilities.** `device:microphone` / `device:camera`. A device-
+  granted plugin gets a relaxed surface iframe (`allow-same-origin` for a real
+  origin + the matching `allow` list); the Electron main window grants `media`.
+  Unblocks voice/camera plugins.
+- **Template render path.** A plugin bundles title templates under
+  `<plugin>/templates/<name>/`; they fold into the template list (source
+  `plugin`) and work in the rundown like any template (data-source mapping,
+  sync outputs, vMix titles). The manifest/authoring decides overlay vs template.
+
+The content-plugin platform is now complete: a plugin owns its data (WS channel
++ SDK), is the on-air graphic by either path, sends commands, mounts as
+panel/tab/background, uses devices, and contributes buttons/commands/keybinds/
+settings.
 
 ## 1. Goal
 
