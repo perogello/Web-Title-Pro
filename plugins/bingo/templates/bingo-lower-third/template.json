@@ -1,0 +1,6 @@
+{
+  "name": "Bingo Lower Third",
+  "description": "A lower third bundled with the Bingo plugin — usable in the normal rundown (data-source mapping, sync outputs, vMix titles).",
+  "category": "bingo",
+  "fieldStyleEditor": true
+}

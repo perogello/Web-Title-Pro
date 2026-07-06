@@ -319,6 +319,14 @@ export class TemplateService {
     this.builtinTemplatesDir = builtinTemplatesDir;
     this.customTemplatesDir = customTemplatesDir;
     this.templates = [];
+    // Title templates bundled inside plugins. Each entry is a ready template
+    // directory: { directory, source:'plugin', slug, publicBase }. Set by the
+    // server from the plugin service; folded into the scan.
+    this.pluginTemplateSources = [];
+  }
+
+  setPluginTemplateSources(sources) {
+    this.pluginTemplateSources = Array.isArray(sources) ? sources : [];
   }
 
   async init() {
@@ -360,6 +368,23 @@ export class TemplateService {
         } catch (error) {
           console.warn(`Failed to parse template "${entry.name}":`, error.message);
         }
+      }
+    }
+
+    // Plugin-bundled templates: each source is already a template directory
+    // served under /plugin-assets, so parse it directly.
+    for (const pluginSource of this.pluginTemplateSources) {
+      try {
+        templates.push(
+          await parseTemplateManifest({
+            directory: pluginSource.directory,
+            slug: pluginSource.slug,
+            source: 'plugin',
+            publicBase: pluginSource.publicBase,
+          }),
+        );
+      } catch (error) {
+        console.warn(`Failed to parse plugin template "${pluginSource.slug}":`, error.message);
       }
     }
 

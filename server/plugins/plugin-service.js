@@ -454,4 +454,26 @@ export class PluginService {
     await this.scanPlugins();
     return { ok: true, pluginId };
   }
+
+  // Title templates bundled inside plugins: each `<plugin>/templates/<name>`
+  // folder becomes a template usable in the normal rundown (data-source
+  // mapping, sync outputs, vMix titles). Assets are already served under
+  // /plugin-assets, so no extra static route is needed.
+  async getBundledTemplateSources() {
+    const out = [];
+    for (const plugin of this.plugins) {
+      const templatesDir = path.join(plugin.directory, 'templates');
+      if (!(await fs.pathExists(templatesDir))) continue;
+      for (const entry of await fs.readdir(templatesDir, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        out.push({
+          directory: path.join(templatesDir, entry.name),
+          source: 'plugin',
+          slug: `${plugin.slug}--${entry.name}`,
+          publicBase: `/plugin-assets/${plugin.source}/${plugin.slug}/templates/${entry.name}`,
+        });
+      }
+    }
+    return out;
+  }
 }

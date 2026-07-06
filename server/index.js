@@ -64,6 +64,9 @@ export const startServer = async (options = {}) => {
     customPluginsDir: config.customPluginsDir,
   });
   await pluginService.init();
+  // Fold plugin-bundled title templates into the template scan before the store
+  // loads (which scans templates), so they're available in the rundown.
+  templateService.setPluginTemplateSources(await pluginService.getBundledTemplateSources());
 
   reportProgress('Loading project state...', 44);
   const store = new TitleStore({

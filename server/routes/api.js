@@ -404,6 +404,16 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
     response.json({ plugins: pluginService.getPlugins().map(describePlugin) });
   });
 
+  // Re-fold plugin-bundled title templates into the template list + rundown
+  // after the plugin set changes (install/remove).
+  const refreshPluginTemplates = async () => {
+    if (!pluginService || typeof templateService.setPluginTemplateSources !== 'function') return;
+    templateService.setPluginTemplateSources(await pluginService.getBundledTemplateSources());
+    await store.refreshTemplates();
+    store.reconcileEntries();
+    store.touch();
+  };
+
   router.post('/plugins/:pluginId/enable', (request, response) => {
     try {
       const plugin = pluginService?.getPlugin(request.params.pluginId);
@@ -451,6 +461,7 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
         throw new Error('Plugin service unavailable.');
       }
       const plugin = await pluginService.importPluginPackage(request.files, request.body?.name || '');
+      await refreshPluginTemplates();
       response.status(201).json({ plugin: describePlugin(plugin) });
     } catch (error) {
       sendError(response, error);
@@ -479,6 +490,7 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
       }
       store.removePluginState(plugin.id);
       const result = await pluginService.deletePlugin(plugin.id);
+      await refreshPluginTemplates();
       response.json(result);
     } catch (error) {
       sendError(response, error);

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { TitleStore } from '../server/state/store.js';
 import { ZipArchive } from 'archiver';
 import { PluginService, parsePluginManifest, applySettingsDefaults } from '../server/plugins/plugin-service.js';
+import { TemplateService } from '../server/templates/template-service.js';
 
 const file = (name, content) => ({ originalname: name, buffer: Buffer.from(content) });
 const manifest = (extra = {}) => JSON.stringify({ name: 'Imported', entry: 'index.html', ...extra });
@@ -327,6 +328,43 @@ test('importPluginDirectory copies an on-disk folder in', async () => {
     const plugin = await service.importPluginDirectory(src, 'FromDir');
     assert.equal(plugin.name, 'FromDir');
     assert.equal(plugin.source, 'custom');
+  } finally {
+    await fs.remove(root);
+  }
+});
+
+test('plugin-bundled templates are folded into the template scan', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wtp-ptpl-'));
+  try {
+    // A plugin that bundles a title template under templates/<name>/.
+    const plugin = await writePlugin(path.join(root, 'builtin'), 'graphics', { name: 'Graphics', entry: 'index.html' });
+    const tplDir = path.join(plugin, 'templates', 'lower-third');
+    await fs.ensureDir(tplDir);
+    await fs.writeJson(path.join(tplDir, 'template.json'), { name: 'Bundled LT', category: 'demo' });
+    await fs.writeFile(
+      path.join(tplDir, 'index.html'),
+      '<!doctype html><body><span data-field="name" data-label="Name">x</span></body>',
+    );
+
+    const plugins = new PluginService({
+      builtinPluginsDir: path.join(root, 'builtin'),
+      customPluginsDir: path.join(root, 'custom'),
+    });
+    await plugins.init();
+
+    const templates = new TemplateService({
+      builtinTemplatesDir: path.join(root, 'tpl-builtin'),
+      customTemplatesDir: path.join(root, 'tpl-custom'),
+    });
+    templates.setPluginTemplateSources(await plugins.getBundledTemplateSources());
+    await templates.init();
+
+    const bundled = templates.getTemplates().find((t) => t.source === 'plugin');
+    assert.ok(bundled, 'plugin-bundled template should be scanned');
+    assert.equal(bundled.name, 'Bundled LT');
+    assert.equal(bundled.id, 'plugin:graphics--lower-third');
+    assert.ok(bundled.assetUrls || bundled.fields, 'template parsed into a usable shape');
+    assert.deepEqual((bundled.fields || []).map((f) => f.name), ['name']);
   } finally {
     await fs.remove(root);
   }
