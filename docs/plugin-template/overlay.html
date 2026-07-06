@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>My Plugin — overlay</title>
+
+    <!-- The same SDK. The overlay is a normal page: it works both composited by
+         the app renderer and as a standalone OBS/vMix browser source. -->
+    <script src="/plugin-sdk.js"></script>
+
+    <style>
+      /* Transparent so it composites over video. Keep the background clear. */
+      html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; font-family: system-ui, Segoe UI, sans-serif; }
+      #box {
+        position: absolute;
+        left: 80px;
+        bottom: 90px;
+        padding: 18px 28px;
+        border-radius: 14px;
+        background: linear-gradient(180deg, #2b5cff, #1e3fb0);
+        color: #fff;
+        font-size: 44px;
+        font-weight: 800;
+        box-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+        opacity: 0;
+        transition: opacity 200ms ease;
+      }
+      #box.on { opacity: 1; }
+    </style>
+  </head>
+  <body>
+    <div id="box"></div>
+
+    <script>
+      // Render whenever the plugin's data changes. This overlay shows the text
+      // the panel saved; hide the box when there's nothing to show.
+      WTP.onData(function (data) {
+        var text = (data && data.text) || '';
+        var box = document.getElementById('box');
+        box.textContent = text;
+        box.classList.toggle('on', Boolean(text));
+      });
+    </script>
+  </body>
+</html>

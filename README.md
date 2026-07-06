@@ -69,6 +69,7 @@ npm.cmd run test:all
 ### Documentation
 
 - [Template Guide](docs/TEMPLATE_GUIDE.md)
+- [Plugins](docs/PLUGINS.md) · [Плагины (RU)](docs/PLUGINS_RU.md) · [starter template](docs/plugin-template/)
 - [MIDI Controls](docs/MIDI.md)
 - [Bitfocus Companion](docs/BITFOCUS.md)
 - [Bitfocus Companion RU](docs/BITFOCUS_RU.md)
@@ -145,6 +146,7 @@ npm.cmd run test:all
 ### Документация
 
 - [Template Guide](docs/TEMPLATE_GUIDE.md)
+- [Plugins](docs/PLUGINS.md) · [Плагины (RU)](docs/PLUGINS_RU.md) · [starter template](docs/plugin-template/)
 - [MIDI Controls](docs/MIDI.md)
 - [Bitfocus Companion](docs/BITFOCUS.md)
 - [Bitfocus Companion RU](docs/BITFOCUS_RU.md)

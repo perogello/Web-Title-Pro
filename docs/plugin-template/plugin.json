@@ -1,0 +1,13 @@
+{
+  "name": "My Plugin",
+  "version": "1.0.0",
+  "description": "A starter plugin. Copy this folder, rename it, and edit these files.",
+  "author": "Your name",
+  "entry": "panel.html",
+  "overlay": "overlay.html",
+  "capabilities": ["state:read", "command:send", "data:read", "data:write"],
+  "mount": { "type": "panel", "location": "live", "label": "My Plugin" },
+  "settings": [
+    { "key": "title", "label": "Overlay title", "type": "text", "default": "Hello" }
+  ]
+}

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My Plugin — control</title>
+
+    <!-- The SDK gives you `WTP` (live state, your data, commands). Always load it. -->
+    <script src="/plugin-sdk.js"></script>
+
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; padding: 12px; font: 13px/1.4 system-ui, Segoe UI, sans-serif; color: #e8eaed; background: #14161a; }
+      .card { background: #1d2026; border: 1px solid #2b2f37; border-radius: 10px; padding: 12px; }
+      h1 { font-size: 12px; margin: 0 0 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #9aa0a6; }
+      input { width: 100%; box-sizing: border-box; margin-bottom: 8px; padding: 8px; border-radius: 8px; border: 1px solid #343a44; background: #262b33; color: #e8eaed; font: inherit; }
+      button { appearance: none; border: 1px solid #343a44; background: #262b33; color: #e8eaed; border-radius: 8px; padding: 8px 12px; font: inherit; font-weight: 600; cursor: pointer; margin-right: 6px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>My Plugin — control</h1>
+
+      <!-- Edit the plugin's own data. It persists and is broadcast to every
+           surface (this panel + the on-air overlay) instantly. -->
+      <input id="text" placeholder="Text to show on air" />
+
+      <div>
+        <button id="save">Save</button>
+        <!-- Put the overlay on / off air through the program bus. -->
+        <button id="air-in">Overlay ON air</button>
+        <button id="air-out">Overlay OFF</button>
+        <!-- Example of a canonical app command (see /api/command/catalog). -->
+        <button id="panic">Panic (all out)</button>
+      </div>
+    </div>
+
+    <script>
+      // ---- Read + write the plugin's own data ----------------------------
+      // onData fires immediately with the current data and again on every change.
+      WTP.onData(function (data) {
+        document.getElementById('text').value = data.text || '';
+      });
+
+      document.getElementById('save').onclick = function () {
+        WTP.setData({ text: document.getElementById('text').value });
+      };
+
+      // ---- Drive the app --------------------------------------------------
+      // Show / hide THIS plugin's overlay (the renderer composites it on air).
+      document.getElementById('air-in').onclick = function () {
+        WTP.command('overlay:' + WTP.pluginId + ':in');
+      };
+      document.getElementById('air-out').onclick = function () {
+        WTP.command('overlay:' + WTP.pluginId + ':out');
+      };
+      // Any canonical command works — discover them at /api/command/catalog.
+      document.getElementById('panic').onclick = function () {
+        WTP.command('global:allOutputsOut');
+      };
+
+      // ---- (Optional) react to live app state ----------------------------
+      // WTP.onState(function (state) { /* state.outputs, state.timers, ... */ });
+
+      // ---- (Optional) plugin settings ------------------------------------
+      // Settings you declare in plugin.json arrive over the host bridge when the
+      // plugin is mounted inside the app. Uncomment to use them:
+      // window.addEventListener('message', function (e) {
+      //   if (e.data && e.data.source === 'wtp-host' &&
+      //       (e.data.type === 'init' || e.data.type === 'settings')) {
+      //     var settings = e.data.settings || {};
+      //     // ...apply settings.title etc.
+      //   }
+      // });
+    </script>
+  </body>
+</html>
