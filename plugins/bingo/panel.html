@@ -34,8 +34,12 @@
         <button id="draw" class="draw">Draw number</button>
         <button id="reset" class="reset">Reset</button>
       </div>
+      <div class="row">
+        <button id="air-in" class="draw">Overlay ON air</button>
+        <button id="air-out" class="reset">Overlay OFF</button>
+      </div>
       <div id="called" class="called"></div>
-      <div class="hint">Overlay (browser source) shows this live. See its URL in Settings › Plugins.</div>
+      <div class="hint">On-air overlay is composited by the renderer, or copy its browser-source URL in Settings › Plugins.</div>
     </div>
 
     <script>
@@ -69,6 +73,14 @@
       };
       document.getElementById('reset').onclick = function () {
         WTP.setData({ current: null, called: [] });
+      };
+      // Take the on-air overlay in/out through the program bus (also bindable to
+      // Companion/MIDI as overlay:<pluginId>:in / :out).
+      document.getElementById('air-in').onclick = function () {
+        WTP.command('overlay:' + WTP.pluginId + ':in');
+      };
+      document.getElementById('air-out').onclick = function () {
+        WTP.command('overlay:' + WTP.pluginId + ':out');
       };
     </script>
   </body>

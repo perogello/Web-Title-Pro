@@ -256,6 +256,43 @@ test('Plugins: content plugin (bingo) — panel writes data, overlay renders it 
   await request.post('http://127.0.0.1:4000/api/plugins/builtin:bingo/disable');
 });
 
+// A plugin overlay can be taken to air through the program bus: the renderer
+// composites it as a layer, driven live by the plugin's data.
+test('Plugins: overlay in/out composites the plugin overlay in the renderer', async ({ page, context, request }) => {
+  await waitForBackend(request);
+  await request.post('http://127.0.0.1:4000/api/plugins/builtin:bingo/enable');
+  await request.put('http://127.0.0.1:4000/api/plugins/builtin:bingo/data', {
+    data: { data: { current: 55, called: [55] } },
+  });
+  await request.post('http://127.0.0.1:4000/api/command', {
+    data: { actionId: 'overlay:builtin:bingo:out' },
+  });
+
+  const render = await context.newPage();
+  await render.goto('http://127.0.0.1:4000/render.html');
+  await expect(render.locator('#overlay-host .overlay-frame')).toHaveCount(0);
+
+  // Take the overlay to air; the renderer adds its iframe layer.
+  await request.post('http://127.0.0.1:4000/api/command', {
+    data: { actionId: 'overlay:builtin:bingo:in' },
+  });
+  const frameEl = render.locator('#overlay-host .overlay-frame');
+  await expect(frameEl).toHaveCount(1, { timeout: 10_000 });
+
+  // The composited overlay renders the live data (same-origin nested frame).
+  const overlayFrame = render.frameLocator('#overlay-host .overlay-frame');
+  await expect(overlayFrame.locator('#num')).toHaveText('55', { timeout: 10_000 });
+
+  // Out removes the layer.
+  await request.post('http://127.0.0.1:4000/api/command', {
+    data: { actionId: 'overlay:builtin:bingo:out' },
+  });
+  await expect(frameEl).toHaveCount(0, { timeout: 10_000 });
+
+  await render.close();
+  await request.post('http://127.0.0.1:4000/api/plugins/builtin:bingo/disable');
+});
+
 // A plugin-declared command can be bound to the keyboard and, when pressed,
 // is routed to the plugin's iframe (client-side) which runs its logic.
 test('Plugins: a declared command can be bound to a key and fired', async ({ page, request }) => {

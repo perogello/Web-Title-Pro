@@ -289,6 +289,31 @@ const applyVisibility = (visible) => {
   }, getOutroDuration());
 };
 
+// Plugin overlays currently on air. Each is a self-contained page (it connects
+// to the server and renders itself), so we just reconcile one <iframe> per
+// on-air overlay into the overlay host — add new ones, drop removed ones.
+const overlayHost = document.getElementById('overlay-host');
+const applyOverlays = (overlays = []) => {
+  if (!overlayHost) return;
+  const wanted = new Map((overlays || []).map((item) => [item.pluginId, item.url]));
+  for (const frame of [...overlayHost.children]) {
+    if (!wanted.has(frame.dataset.pluginId)) frame.remove();
+  }
+  for (const [pluginId, url] of wanted) {
+    const existing = [...overlayHost.children].find((frame) => frame.dataset.pluginId === pluginId);
+    if (!existing) {
+      const frame = document.createElement('iframe');
+      frame.className = 'overlay-frame';
+      frame.dataset.pluginId = pluginId;
+      frame.setAttribute('scrolling', 'no');
+      frame.src = url;
+      overlayHost.appendChild(frame);
+    } else if (existing.src !== new URL(url, window.location.origin).href) {
+      existing.src = url;
+    }
+  }
+};
+
 const applySnapshot = async (snapshot) => {
   currentSnapshot = snapshot;
   const output = resolveOutput(snapshot);
@@ -299,6 +324,7 @@ const applySnapshot = async (snapshot) => {
   applyFieldStyles(program?.fieldStyles);
   applyTimers(template, output, snapshot.timers);
   applyVisibility(program?.visible);
+  applyOverlays(snapshot.overlays);
   currentTemplateApi?.update?.(createContext());
 };
 

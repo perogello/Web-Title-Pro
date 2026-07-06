@@ -5,6 +5,6 @@
   "author": "Web Title Pro",
   "entry": "panel.html",
   "overlay": "overlay.html",
-  "capabilities": ["state:read", "data:read", "data:write"],
+  "capabilities": ["state:read", "data:read", "data:write", "command:send"],
   "mount": { "type": "panel", "location": "live", "label": "Bingo" }
 }

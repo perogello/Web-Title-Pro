@@ -81,7 +81,7 @@ export const startServer = async (options = {}) => {
     // MIDI runs the same unified command bus as the REST endpoint and plugins,
     // so row stepping and per-output timers behave identically. vMix
     // transitions are driven by the HTTP layer, so no vmixSync hook here.
-    void dispatchCommand(store, action).catch((error) => {
+    void dispatchCommand(store, action, { pluginService }).catch((error) => {
       console.warn(`MIDI action skipped: ${error.message}`);
     });
   });

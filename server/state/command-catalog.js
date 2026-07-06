@@ -43,6 +43,7 @@ export const COMMAND_ID_GRAMMAR = {
   timer: 'timer:<timerId>:<command>',
   global: 'global:<command>',
   plugin: 'plugin:<pluginId>:<command>',
+  overlay: 'overlay:<pluginId>:<in|out>',
 };
 
 const commandList = (kind) =>
@@ -110,6 +111,27 @@ export const buildCommandCatalog = (store, pluginService = null) => {
           command: command.id,
           description: command.label,
         });
+      }
+      // An enabled plugin with a render overlay can be taken to / from air.
+      if (plugin.overlayUrl) {
+        actions.push(
+          {
+            actionId: `overlay:${plugin.id}:in`,
+            kind: 'overlay',
+            targetId: plugin.id,
+            targetName: plugin.name,
+            command: 'in',
+            description: `Show ${plugin.name} overlay on air`,
+          },
+          {
+            actionId: `overlay:${plugin.id}:out`,
+            kind: 'overlay',
+            targetId: plugin.id,
+            targetName: plugin.name,
+            command: 'out',
+            description: `Hide ${plugin.name} overlay`,
+          },
+        );
       }
     }
   }

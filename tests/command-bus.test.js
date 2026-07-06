@@ -179,6 +179,29 @@ test('dispatchCommand: global panic hides every visible output', async () => {
   }
 });
 
+test('dispatchCommand: overlay in/out toggles a plugin overlay on air', async () => {
+  const { store, dir } = await makeStore();
+  try {
+    const pluginService = {
+      getPlugin: (id) =>
+        id === 'builtin:bingo' ? { id, name: 'Bingo', overlayUrl: '/plugin-assets/builtin/bingo/overlay.html' } : null,
+    };
+    await dispatchCommand(store, 'overlay:builtin:bingo:in', { pluginService });
+    assert.deepEqual(store.getSnapshot().overlays, [
+      { pluginId: 'builtin:bingo', url: '/plugin-assets/builtin/bingo/overlay.html' },
+    ]);
+    await dispatchCommand(store, 'overlay:builtin:bingo:out', { pluginService });
+    assert.deepEqual(store.getSnapshot().overlays, []);
+
+    await assert.rejects(
+      () => dispatchCommand(store, 'overlay:builtin:nope:in', { pluginService }),
+      /no overlay/i,
+    );
+  } finally {
+    await fs.remove(dir);
+  }
+});
+
 test('dispatchCommand: unknown action throws', async () => {
   const { store, dir } = await makeStore();
   try {

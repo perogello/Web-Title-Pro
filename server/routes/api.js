@@ -755,6 +755,7 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
     try {
       const result = await dispatchCommand(store, request.body?.actionId, {
         vmixSync: syncVmixEntryIfNeeded,
+        pluginService,
       });
       response.json(result);
     } catch (error) {

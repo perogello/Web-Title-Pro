@@ -28,6 +28,21 @@ body[data-air='off'] #renderer-state { background: rgba(255, 255, 255, 0.08); co
   overflow: hidden;
   contain: paint;
 }
+
+/* Plugin overlay layer — full-frame iframes composited over the title stage. */
+.overlay-host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.overlay-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
 body[data-preview-layout='1'] .render-stage {
   left: 18px;
   top: 18px;

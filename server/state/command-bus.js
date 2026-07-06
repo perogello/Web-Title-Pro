@@ -22,15 +22,35 @@ export const parseCommandActionId = (actionId = '') => {
   if (str.startsWith('global:')) {
     return { kind: 'global', id: null, command: str.slice('global:'.length) };
   }
+  // overlay:<pluginId>:<in|out> — toggles a plugin's on-air render overlay.
+  // pluginId contains a ':' (builtin:bingo); command never does.
+  if (str.startsWith('overlay:')) {
+    const rest = str.slice('overlay:'.length);
+    const i = rest.lastIndexOf(':');
+    return i === -1 ? null : { kind: 'overlay', id: rest.slice(0, i), command: rest.slice(i + 1) };
+  }
   return null;
 };
 
-export const dispatchCommand = async (store, actionId, { vmixSync } = {}) => {
+export const dispatchCommand = async (store, actionId, { vmixSync, pluginService } = {}) => {
   const parsed = parseCommandActionId(actionId);
   if (!parsed) {
     throw new Error(`Unknown command: ${actionId}`);
   }
   const sync = typeof vmixSync === 'function' ? vmixSync : async () => {};
+
+  if (parsed.kind === 'overlay') {
+    if (parsed.command === 'in') {
+      const url = pluginService?.getPlugin?.(parsed.id)?.overlayUrl || null;
+      if (!url) throw new Error(`Plugin "${parsed.id}" has no overlay.`);
+      store.setOverlayOnAir(parsed.id, url);
+    } else if (parsed.command === 'out') {
+      store.setOverlayOnAir(parsed.id, null);
+    } else {
+      throw new Error(`Unknown overlay command: ${parsed.command}`);
+    }
+    return { ok: true, action: actionId };
+  }
 
   if (parsed.kind === 'global') {
     if (parsed.command === 'allOutputsOut') {

@@ -419,6 +419,9 @@ const createDefaultState = () => ({
   // Per-plugin enabled state + settings (keyed by plugin id). App-level too:
   // references a grant by id, so it never leaves the machine in a project.
   plugins: { installed: {} },
+  // Plugin render overlays currently on air (each { pluginId, url }). Transient
+  // render state, shown in the snapshot so the renderer composites them.
+  overlays: [],
   timers: [
     {
       id: 'main',
@@ -483,6 +486,7 @@ const buildProjectState = (incoming = {}, { preserveAccess = false } = {}) => {
     // imported/shared project — a project file must not inject access tokens.
     access: preserveAccess ? normalizeAccess(incoming?.access) : { grants: [] },
     plugins: preserveAccess ? normalizePlugins(incoming?.plugins) : { installed: {} },
+    overlays: [],
   };
 };
 
@@ -620,7 +624,7 @@ export class TitleStore extends EventEmitter {
     // Access grants and plugin state are app-level (credentials / local
     // config), not project data — never let them leave the machine inside an
     // exported/shared project.
-    const { access, plugins, ...rest } = this.state;
+    const { access, plugins, overlays, ...rest } = this.state;
     return deepClone(rest);
   }
 
@@ -988,7 +992,22 @@ export class TitleStore extends EventEmitter {
       previewProgram: this.getPreviewProgram(),
       timers: this.getTimers(),
       sources: this.getSources(),
+      overlays: deepClone(this.state.overlays || []),
     };
+  }
+
+  // Plugin overlays on air. `setOverlayOnAir(id, url)` shows it; `(id, null)`
+  // hides it. The renderer composites whatever is in the snapshot's `overlays`.
+  getOverlays() {
+    return deepClone(this.state.overlays || []);
+  }
+
+  setOverlayOnAir(pluginId, url) {
+    if (!Array.isArray(this.state.overlays)) this.state.overlays = [];
+    const without = this.state.overlays.filter((item) => item.pluginId !== pluginId);
+    this.state.overlays = url ? [...without, { pluginId, url }] : without;
+    this.emit('change', this.getSnapshot());
+    return this.getOverlays();
   }
 
   getSources() {
