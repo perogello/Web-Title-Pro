@@ -14,6 +14,21 @@ import { usePlugins } from './use-plugins.js';
 const HOST = 'wtp-host';
 const PLUGIN = 'wtp-plugin';
 
+// Surface iframe attributes derived from the plugin's capabilities. Device
+// access (mic/camera) needs a real origin, so a device-granted plugin gets
+// `allow-same-origin` (trusted-plugin model) plus the matching Permissions-
+// Policy `allow` list; everything else stays script-only.
+const frameSandbox = (caps = []) =>
+  caps.includes('device:microphone') || caps.includes('device:camera')
+    ? 'allow-scripts allow-same-origin'
+    : 'allow-scripts';
+const frameAllow = (caps = []) => {
+  const parts = [];
+  if (caps.includes('device:microphone')) parts.push('microphone');
+  if (caps.includes('device:camera')) parts.push('camera');
+  return parts.join('; ');
+};
+
 // Two mounts: a docked `panel` inside a tab (filtered by location) or a full
 // content-area `tab` (the single plugin whose own tab is active). Both share the
 // same bridge, so a plugin behaves identically wherever its manifest puts it.
@@ -139,7 +154,8 @@ export default function PluginHost({ mount = 'panel', location = 'live', activeP
           <iframe
             title={plugin.name}
             className="plugin-frame-body"
-            sandbox="allow-scripts"
+            sandbox={frameSandbox(plugin.capabilities)}
+            allow={frameAllow(plugin.capabilities) || undefined}
             data-plugin-id={plugin.id}
             src={`${BACKEND_ORIGIN}${plugin.entryUrl}`}
             ref={registerFrame}

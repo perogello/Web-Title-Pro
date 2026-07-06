@@ -256,6 +256,48 @@ test('Plugins: content plugin (bingo) — panel writes data, overlay renders it 
   await request.post('http://127.0.0.1:4000/api/plugins/builtin:bingo/disable');
 });
 
+// A plugin that requests device access gets a relaxed surface iframe so
+// getUserMedia can work (voice/camera plugins).
+test('Plugins: a device-granted plugin gets a mic-allowed surface iframe', async ({ page, request }) => {
+  await waitForBackend(request);
+  await page.goto('/');
+  await page.getByRole('button', { name: /SETTINGS/i }).click();
+  await page.getByRole('button', { name: /Plugins/i }).click();
+
+  await page.locator('input[type="file"][accept*=".webm"]').setInputFiles([
+    {
+      name: 'plugin.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(
+        JSON.stringify({
+          name: 'Voice Demo',
+          version: '1.0.0',
+          entry: 'index.html',
+          capabilities: ['state:read', 'device:microphone'],
+          mount: { type: 'panel', location: 'live' },
+        }),
+      ),
+    },
+    { name: 'index.html', mimeType: 'text/html', buffer: Buffer.from('<title>v</title>') },
+  ]);
+
+  const card = page.locator('.plugin-card-v3').filter({ hasText: 'Voice Demo' });
+  await expect(card).toBeVisible({ timeout: 10_000 });
+  await card.getByRole('button', { name: 'Включить' }).click();
+
+  await page.getByRole('button', { name: 'Live', exact: true }).click();
+  const frame = page.locator('.plugin-host iframe[title="Voice Demo"]');
+  await expect(frame).toHaveCount(1, { timeout: 10_000 });
+  await expect(frame).toHaveAttribute('allow', /microphone/);
+  await expect(frame).toHaveAttribute('sandbox', /allow-same-origin/);
+
+  await page.getByRole('button', { name: /SETTINGS/i }).click();
+  await page.getByRole('button', { name: /Plugins/i }).click();
+  await card.getByRole('button', { name: 'Отключить' }).click();
+  page.on('dialog', (dialog) => dialog.accept());
+  await card.getByRole('button', { name: 'Удалить' }).click();
+});
+
 // A plugin overlay can be taken to air through the program bus: the renderer
 // composites it as a layer, driven live by the plugin's data.
 test('Plugins: overlay in/out composites the plugin overlay in the renderer', async ({ page, context, request }) => {

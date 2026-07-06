@@ -1051,6 +1051,13 @@ const createMainWindow = async () => {
     },
   });
 
+  // Trusted local surfaces (the control panel and its plugins). Allow the
+  // microphone/camera so device-granted plugins (voice control, camera) work;
+  // deny every other permission by default.
+  mainWindow.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(permission === 'media');
+  });
+
   mainWindow.on('closed', () => {
     log('window:closed');
     mainWindow = null;

@@ -21,6 +21,10 @@ export const CAPABILITIES = {
   DATA_READ: 'data:read',
   // Write the plugin's own content data (persisted + broadcast to its surfaces).
   DATA_WRITE: 'data:write',
+  // Access the microphone (voice-control plugins). Relaxes the surface iframe.
+  DEVICE_MICROPHONE: 'device:microphone',
+  // Access the camera. Relaxes the surface iframe.
+  DEVICE_CAMERA: 'device:camera',
 };
 
 export const ALL_CAPABILITIES = Object.values(CAPABILITIES);
