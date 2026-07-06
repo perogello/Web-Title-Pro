@@ -186,6 +186,7 @@ test('dispatchCommand: overlay in/out toggles a plugin overlay on air', async ()
       getPlugin: (id) =>
         id === 'builtin:bingo' ? { id, name: 'Bingo', overlayUrl: '/plugin-assets/builtin/bingo/overlay.html' } : null,
     };
+    store.setPluginEnabled('builtin:bingo', true, []); // overlay in requires the plugin enabled
     await dispatchCommand(store, 'overlay:builtin:bingo:in', { pluginService });
     assert.deepEqual(store.getSnapshot().overlays, [
       { pluginId: 'builtin:bingo', url: '/plugin-assets/builtin/bingo/overlay.html' },

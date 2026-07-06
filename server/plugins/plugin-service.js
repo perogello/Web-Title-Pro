@@ -9,14 +9,7 @@ import { nanoid } from 'nanoid';
 // declares the plugin's requested capabilities and where it wants to mount —
 // the host honours that; it does not hard-code placement.
 
-const KNOWN_CAPABILITIES = [
-  'state:read',
-  'command:send',
-  'data:read',
-  'data:write',
-  'device:microphone',
-  'device:camera',
-];
+const KNOWN_CAPABILITIES = ['state:read', 'command:send', 'data:read', 'data:write'];
 const MOUNT_TYPES = ['panel', 'tab', 'background'];
 const MOUNT_LOCATIONS = ['live', 'rundown', 'settings'];
 const SETTING_TYPES = ['text', 'number', 'checkbox', 'select'];

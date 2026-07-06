@@ -111,6 +111,15 @@ test('store: plugin content data persists, clones out, and broadcasts', async ()
     const got = store.getPluginData('builtin:bingo');
     got.called.push(99);
     assert.deepEqual(store.getPluginData('builtin:bingo').called, [7]);
+
+    // Input is cloned in, so mutating the caller's object afterwards is safe.
+    const input = { n: 1 };
+    store.setPluginData('builtin:bingo', input);
+    input.n = 999;
+    assert.equal(store.getPluginData('builtin:bingo').n, 1);
+
+    // Oversized blobs are rejected (persisted + broadcast, so bounded).
+    assert.throws(() => store.setPluginData('builtin:bingo', { big: 'x'.repeat(300 * 1024) }), /256 KB/);
   } finally {
     await fs.remove(dir);
   }

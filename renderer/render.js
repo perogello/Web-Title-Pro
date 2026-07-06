@@ -306,6 +306,9 @@ const applyOverlays = (overlays = []) => {
       frame.className = 'overlay-frame';
       frame.dataset.pluginId = pluginId;
       frame.setAttribute('scrolling', 'no');
+      // Sandboxed: the overlay renders itself via the SDK (WS + fetch, which
+      // work from an opaque origin) and must not touch the renderer document.
+      frame.setAttribute('sandbox', 'allow-scripts');
       frame.src = url;
       overlayHost.appendChild(frame);
     } else if (existing.src !== new URL(url, window.location.origin).href) {

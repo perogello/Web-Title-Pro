@@ -43,6 +43,7 @@ export const dispatchCommand = async (store, actionId, { vmixSync, pluginService
     if (parsed.command === 'in') {
       const url = pluginService?.getPlugin?.(parsed.id)?.overlayUrl || null;
       if (!url) throw new Error(`Plugin "${parsed.id}" has no overlay.`);
+      if (!store.getPluginState?.(parsed.id)?.enabled) throw new Error(`Plugin "${parsed.id}" is not enabled.`);
       store.setOverlayOnAir(parsed.id, url);
     } else if (parsed.command === 'out') {
       store.setOverlayOnAir(parsed.id, null);

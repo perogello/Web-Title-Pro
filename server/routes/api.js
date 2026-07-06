@@ -499,9 +499,18 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
 
   // A plugin's own content data (bingo board, scores, …). Any surface of the
   // plugin reads it here; writing it persists and broadcasts to all surfaces
-  // over WS. Trusted-plugin model: the plugin owns this blob.
+  // over WS. Gated on the plugin actually existing, so unknown ids can't
+  // pollute state; the payload must be the `{ data }` envelope.
+  const requirePlugin = (pluginId) => {
+    if (!pluginService?.getPlugin(pluginId)) {
+      const error = new Error('Plugin not found.');
+      throw error;
+    }
+  };
+
   router.get('/plugins/:pluginId/data', (request, response) => {
     try {
+      requirePlugin(request.params.pluginId);
       response.json({ data: store.getPluginData(request.params.pluginId) });
     } catch (error) {
       sendError(response, error);
@@ -510,7 +519,8 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
 
   router.put('/plugins/:pluginId/data', (request, response) => {
     try {
-      const data = store.setPluginData(request.params.pluginId, request.body?.data ?? request.body ?? {});
+      requirePlugin(request.params.pluginId);
+      const data = store.setPluginData(request.params.pluginId, request.body?.data ?? {});
       response.json({ data });
     } catch (error) {
       sendError(response, error);

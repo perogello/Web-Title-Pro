@@ -1139,6 +1139,8 @@ export class TitleStore extends EventEmitter {
       }
       entry.grantId = null;
       entry.enabled = false;
+      // A disabled plugin must not keep an overlay on air.
+      this.setOverlayOnAir(pluginId, null);
     }
 
     plugins.installed[pluginId] = entry;
@@ -1165,6 +1167,7 @@ export class TitleStore extends EventEmitter {
       this.revokeAccessGrant(entry.grantId);
     }
     delete plugins.installed[pluginId];
+    this.setOverlayOnAir(pluginId, null);
     this.touch();
     return { ok: true, removed: true };
   }
@@ -1189,9 +1192,15 @@ export class TitleStore extends EventEmitter {
   }
 
   setPluginData(pluginId, data) {
+    const next = data && typeof data === 'object' ? data : {};
+    // Bounded: this blob is persisted to state.json and broadcast, so cap it to
+    // keep a runaway plugin from bloating storage / the WS fan-out.
+    if (JSON.stringify(next).length > 256 * 1024) {
+      throw new Error('Plugin data exceeds the 256 KB limit.');
+    }
     const plugins = this.#ensurePlugins();
     const entry = plugins.installed[pluginId] || { enabled: false, settings: {}, grantId: null, data: {} };
-    entry.data = data && typeof data === 'object' ? data : {};
+    entry.data = deepClone(next);
     plugins.installed[pluginId] = entry;
     this.schedulePersist();
     // Targeted event: plugin data is not part of the app snapshot, so it gets

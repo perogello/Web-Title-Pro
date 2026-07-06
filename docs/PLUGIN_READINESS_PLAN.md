@@ -96,10 +96,6 @@ control panel. We are pivoting to that model. Decisions (operator):
   (`renderer/render.js`) composites one iframe layer per overlay, live from the
   plugin's data. Plugin graphics reach air through our output pipeline, not only
   as a manual OBS browser source.
-- **Device capabilities.** `device:microphone` / `device:camera`. A device-
-  granted plugin gets a relaxed surface iframe (`allow-same-origin` for a real
-  origin + the matching `allow` list); the Electron main window grants `media`.
-  Unblocks voice/camera plugins.
 - **Template render path.** A plugin bundles title templates under
   `<plugin>/templates/<name>/`; they fold into the template list (source
   `plugin`) and work in the rundown like any template (data-source mapping,
@@ -107,8 +103,18 @@ control panel. We are pivoting to that model. Decisions (operator):
 
 The content-plugin platform is now complete: a plugin owns its data (WS channel
 + SDK), is the on-air graphic by either path, sends commands, mounts as
-panel/tab/background, uses devices, and contributes buttons/commands/keybinds/
-settings.
+panel/tab/background, and contributes buttons/commands/keybinds/settings. A
+plugin is always optional — enable / disable / remove.
+
+**Security posture (post-review):** plugin surfaces run in a strict
+`sandbox="allow-scripts"` iframe (opaque origin, no access to the host
+document); they reach the server only over the CORS-open local API + WS, exactly
+like a browser source. The earlier `device:*` capability that relaxed the iframe
+to `allow-same-origin` was **removed** — it granted host-document access (worse
+than the OBS-source model) and served only voice, which isn't needed. Plugin
+data writes are gated on the plugin existing and capped at 256 KB; overlays only
+go on air for an enabled plugin and are cleared when it's disabled/removed;
+overlay iframes in the renderer are sandboxed too.
 
 ## 1. Goal
 
