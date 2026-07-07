@@ -1,4 +1,9 @@
 const { autoUpdater } = require('electron-updater');
+const {
+  isNewer,
+  describeNetworkError,
+  cleanupLegacyPortableScratch,
+} = require('./auto-updater-utils.cjs');
 
 /**
  * electron-updater based updater for the NSIS install target.
@@ -37,62 +42,6 @@ const createAutoUpdaterIntegration = ({
     warn: (message) => log(`autoupdater:warn ${message}`),
     error: (message) => log(`autoupdater:error ${message}`),
     debug: () => {},
-  };
-
-  const parseVersion = (value) =>
-    String(value || '0')
-      .replace(/^v/i, '')
-      .split('.')
-      .map((part) => Number.parseInt(part, 10) || 0);
-
-  const isNewer = (candidate, current) => {
-    const a = parseVersion(candidate);
-    const b = parseVersion(current);
-    for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
-      const left = a[i] || 0;
-      const right = b[i] || 0;
-      if (left > right) return true;
-      if (left < right) return false;
-    }
-    return false;
-  };
-
-  // Same classifier as the portable updater: turn undici/electron-updater
-  // network failures into an actionable sentence instead of "fetch failed".
-  const describeNetworkError = (error) => {
-    const raw = error?.message || String(error || '');
-    const code = error?.cause?.code || error?.code || '';
-    const haystack = `${raw} ${code} ${error?.name || ''}`.toLowerCase();
-    const has = (...needles) => needles.some((needle) => haystack.includes(needle));
-
-    if (error?.name === 'AbortError' || has('timed out', 'etimedout', 'timeout')) {
-      return 'The update timed out. The network is slow or is blocking GitHub. You can download the release manually instead.';
-    }
-    if (has('403', 'rate limit', 'api rate')) {
-      return 'GitHub temporarily limited requests from this network (hourly limit). Try again later, or download the release manually.';
-    }
-    if (has('certificate', 'self-signed', 'self signed', 'unable to verify', 'cert_')) {
-      return 'A network proxy is intercepting the secure connection to GitHub. Download the release manually, or check with your IT team.';
-    }
-    if (
-      has(
-        'fetch failed',
-        'enotfound',
-        'eai_again',
-        'econnrefused',
-        'econnreset',
-        'enetunreach',
-        'ehostunreach',
-        'network',
-        'getaddrinfo',
-        'socket',
-        'net::',
-        'download',
-      )
-    ) {
-      return 'GitHub could not be reached from this network. A proxy or firewall may be blocking github.com, or the machine is offline. You can download the release manually instead.';
-    }
-    return raw || 'The update could not be completed.';
   };
 
   const showUpdateFailureDialog = async ({ title, message, error, detail, onRetry }) => {
@@ -292,6 +241,13 @@ const createAutoUpdaterIntegration = ({
       return;
     }
     startupCheckStarted = true;
+
+    // Sweep any leftovers from the old portable updater once per cold start,
+    // the same way the portable build used to.
+    cleanupLegacyPortableScratch({
+      userDataDir: app.getPath('userData'),
+      tempDir: app.getPath('temp'),
+    });
 
     const state = await checkForUpdates();
     if (state.status !== 'available' || !state.available) {
