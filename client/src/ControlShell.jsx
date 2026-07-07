@@ -189,7 +189,12 @@ function ControlShell() {
     setProjectBaselineSignature,
     setDirty: setProjectDirty,
   } = useProjectState({ snapshot, sourceLibrary, selectedSourceId });
-  const updateState = snapshot?.integrations?.updates || appMeta?.updates || null;
+  // On desktop, electron-updater is the single source of truth for updates
+  // (check + install go through it). Its normalized state arrives here via the
+  // bridge and takes precedence over the server UpdateService state, which is
+  // only used as a fallback for the browser/dev build (no installer there).
+  const [updateOverride, setUpdateOverride] = useState(null);
+  const updateState = updateOverride || snapshot?.integrations?.updates || appMeta?.updates || null;
   const effectiveSelectedOutputId = localSelectedOutputId || snapshot?.selectedOutputId || outputs[0]?.id || null;
   const selectedOutput =
     outputs.find((output) => output.id === effectiveSelectedOutputId) || snapshot?.selectedOutput || null;
@@ -2730,9 +2735,12 @@ function ControlShell() {
 
   const checkForUpdates = async () => {
     try {
-      const nextState = await api('/api/updates/check', {
-        method: 'POST',
-      });
+      // Desktop: go through electron-updater (same source the install uses).
+      // Browser/dev: fall back to the server UpdateService.
+      const nextState = desktopBridge?.checkForUpdates
+        ? await desktopBridge.checkForUpdates()
+        : await api('/api/updates/check', { method: 'POST' });
+      setUpdateOverride(nextState);
       setAppMeta((current) => ({
         ...(current || { name: 'Web Title Pro', version: nextState.currentVersion }),
         version: nextState.currentVersion,
@@ -2743,6 +2751,13 @@ function ControlShell() {
       pushFeedback(requestError.message);
     }
   };
+
+  // The desktop startup check (electron-updater) pushes its result here so the
+  // Updates hero reflects it without a second check.
+  useEffect(() => {
+    if (!desktopBridge?.onUpdatesState) return undefined;
+    return desktopBridge.onUpdatesState((state) => setUpdateOverride(state));
+  }, []);
 
   const openReleasePage = async (url) => {
     const target =

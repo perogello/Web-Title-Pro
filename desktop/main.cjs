@@ -911,6 +911,11 @@ const initializeUpdaterIntegration = () => {
       }
     },
     authorizeClose: authorizeCloseForUpdate,
+    broadcastState: (state) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('updates:state', state);
+      }
+    },
     repoUrl: BUILTIN_REPO_URL,
   });
 };
@@ -1147,6 +1152,15 @@ const backupUserDataBeforeUpdate = async (targetVersion = 'unknown') => {
     log(`updates:pre-update-backup-failed ${error.message}`);
   }
 };
+
+ipcMain.handle('updates:check', async () => {
+  try {
+    return await updaterIntegration.checkForUpdates();
+  } catch (error) {
+    log(`updates:ipc-check-throw ${error.stack || error.message}`);
+    throw error;
+  }
+});
 
 ipcMain.handle('updates:install-available', async (_event, payload = {}) => {
   log(`updates:ipc-install-available payload=${JSON.stringify({ available: payload?.available, latest: payload?.latestVersion, hasAssetUrl: Boolean(payload?.assetUrl) })}`);

@@ -24,6 +24,7 @@ const createAutoUpdaterIntegration = ({
   setWindowProgress,
   confirmInstall,
   authorizeClose,
+  broadcastState,
   repoUrl,
 }) => {
   const releasesPageUrl = repoUrl ? `${String(repoUrl).replace(/\/+$/, '')}/releases` : '';
@@ -94,7 +95,7 @@ const createAutoUpdaterIntegration = ({
     return raw || 'The update could not be completed.';
   };
 
-  const showUpdateFailureDialog = async ({ title, message, error, onRetry }) => {
+  const showUpdateFailureDialog = async ({ title, message, error, detail, onRetry }) => {
     const buttons = [];
     const actions = [];
     if (typeof onRetry === 'function') {
@@ -112,7 +113,7 @@ const createAutoUpdaterIntegration = ({
       type: 'error',
       title,
       message,
-      detail: describeNetworkError(error),
+      detail: detail || describeNetworkError(error),
       buttons,
       defaultId: 0,
       cancelId: buttons.length - 1,
@@ -172,76 +173,135 @@ const createAutoUpdaterIntegration = ({
     }
   };
 
-  // Called from the in-app "Install update" button (IPC).
-  const installAvailableUpdate = async () => {
+  // Normalized update state for the in-app Settings -> Updates hero, shaped
+  // like the server UpdateService state it replaces. This is the SINGLE source
+  // of truth on desktop: the in-app check, the startup check and the install
+  // all go through electron-updater, so the hero can never disagree with what
+  // Install will actually do.
+  const buildState = (extra = {}) => ({
+    currentVersion: app.getVersion(),
+    repoUrl,
+    fixedRepo: true,
+    channel: 'stable',
+    lastCheckAt: new Date().toISOString(),
+    releaseUrl: releasesPageUrl,
+    latestVersion: null,
+    available: false,
+    status: 'idle',
+    errorKind: null,
+    assetName: null,
+    ...extra,
+  });
+
+  const emitState = (state) => {
+    if (typeof broadcastState === 'function') {
+      try {
+        broadcastState(state);
+      } catch {}
+    }
+    return state;
+  };
+
+  // Ask electron-updater whether an update exists (does NOT download), and
+  // publish the normalized state to the renderer. Returns that state.
+  const checkForUpdates = async () => {
     if (!app.isPackaged) {
+      return emitState(
+        buildState({
+          status: 'unsupported',
+          notes: 'Automatic updates are only available in the installed app.',
+        }),
+      );
+    }
+
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      const latestVersion = (result && result.updateInfo && result.updateInfo.version) || null;
+      const available = isUpdateAvailable(result);
+      return emitState(
+        buildState({
+          latestVersion,
+          available,
+          status: available ? 'available' : 'up-to-date',
+          notes: available
+            ? `Version ${latestVersion} is available.`
+            : `You are on the latest version (${app.getVersion()}).`,
+        }),
+      );
+    } catch (error) {
+      log(`autoupdater:check-error ${error?.stack || error?.message}`);
+      return emitState(
+        buildState({
+          status: 'error',
+          errorKind: 'network',
+          notes: describeNetworkError(error),
+        }),
+      );
+    }
+  };
+
+  // Called from the in-app "Install update" button (IPC). Reuses checkForUpdates
+  // (which also refreshes the hero) so check and install share one code path.
+  const installAvailableUpdate = async () => {
+    const state = await checkForUpdates();
+
+    if (state.status === 'unsupported') {
       await dialog.showMessageBox(getMainWindow(), {
         type: 'info',
         title: 'Updates',
         message: 'Automatic updates are only available in the installed app.',
         buttons: ['OK'],
       });
-      return { ok: false, reason: 'unsupported' };
+      return { ok: false, reason: 'unsupported', updateState: state };
     }
 
-    let result;
-    try {
-      result = await autoUpdater.checkForUpdates();
-    } catch (error) {
-      log(`autoupdater:check-error ${error?.stack || error?.message}`);
+    if (state.status === 'error') {
       await showUpdateFailureDialog({
         title: 'Update Check',
         message: 'The update check failed.',
-        error,
+        detail: state.notes,
         onRetry: installAvailableUpdate,
       });
-      return { ok: false, reason: 'error' };
+      return { ok: false, reason: 'error', updateState: state };
     }
 
-    if (!isUpdateAvailable(result)) {
+    if (!state.available) {
       await dialog.showMessageBox(getMainWindow(), {
         type: 'info',
         title: 'Updates',
         message: `You are on the latest version: ${app.getVersion()}`,
         buttons: ['OK'],
       });
-      return { ok: false, reason: 'no-update' };
+      return { ok: false, reason: 'no-update', updateState: state };
     }
 
     const proceed = await confirmInstall();
     if (!proceed) {
-      return { ok: false, reason: 'cancelled' };
+      return { ok: false, reason: 'cancelled', updateState: state };
     }
 
     await downloadAndInstall();
-    return { ok: true };
+    return { ok: true, updateState: state };
   };
 
   // Runs once shortly after launch. Silent on failure — the operator can
   // re-check from Settings -> Updates; we don't nag on every flaky-network boot.
+  // The check still publishes state to the hero even when it's up to date.
   const runStartupUpdateCheck = async () => {
     if (startupCheckStarted || !app.isPackaged) {
       return;
     }
     startupCheckStarted = true;
 
-    let result;
-    try {
-      result = await autoUpdater.checkForUpdates();
-    } catch (error) {
-      log(`autoupdater:startup-check-error ${error?.stack || error?.message}`);
+    const state = await checkForUpdates();
+    if (state.status !== 'available' || !state.available) {
       return;
     }
 
-    if (!isUpdateAvailable(result)) {
-      return;
-    }
-
-    const version = result.updateInfo && result.updateInfo.version;
     const choice = await dialog.showMessageBox(getMainWindow(), {
       type: 'info',
       title: 'Update Available',
-      message: `A newer version is available: ${version}`,
+      message: `A newer version is available: ${state.latestVersion}`,
       detail: `Current version: ${app.getVersion()}\nSource: ${repoUrl}\n\nDownload and install it now?`,
       buttons: ['Update Now', 'Later'],
       defaultId: 0,
@@ -258,6 +318,7 @@ const createAutoUpdaterIntegration = ({
   };
 
   return {
+    checkForUpdates,
     installAvailableUpdate,
     runStartupUpdateCheck,
   };

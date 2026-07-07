@@ -22,6 +22,12 @@ contextBridge.exposeInMainWorld('webTitleDesktop', {
     return () => ipcRenderer.removeListener('window:state-changed', listener);
   },
   installAvailableUpdate: (payload) => ipcRenderer.invoke('updates:install-available', payload),
+  checkForUpdates: () => ipcRenderer.invoke('updates:check'),
+  onUpdatesState: (callback) => {
+    const listener = (_event, state) => callback?.(state);
+    ipcRenderer.on('updates:state', listener);
+    return () => ipcRenderer.removeListener('updates:state', listener);
+  },
   openExternal: (url) => ipcRenderer.invoke('system:open-external', url),
   getYandexAuthSettings: () => ipcRenderer.invoke('settings:get-yandex-auth'),
   saveYandexAuthSettings: (payload) => ipcRenderer.invoke('settings:save-yandex-auth', payload),
