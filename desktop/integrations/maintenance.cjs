@@ -1,8 +1,8 @@
 // App maintenance: reset (wipe userData and restart clean) and full
-// uninstall (wipe userData + portable exe). A running exe cannot delete its
-// own files, so both actions write a detached PowerShell cleanup script to
-// %TEMP% that waits for the app process to exit and then removes everything.
-// Same detached-helper pattern the updater uses.
+// uninstall (wipe userData + run the NSIS uninstaller, or delete the portable
+// exe on the legacy build). A running exe cannot delete its own files, so both
+// actions write a detached PowerShell cleanup script to %TEMP% that waits for
+// the app process to exit and then removes everything.
 
 const path = require('node:path');
 
@@ -37,6 +37,7 @@ const buildCleanupScript = ({
   exePaths = [],
   relaunchExePath = '',
   tempDir = '',
+  installDir = '',
 }) => {
   const lines = [
     "$ErrorActionPreference = 'SilentlyContinue'",
@@ -78,9 +79,28 @@ const buildCleanupScript = ({
   }
 
   if (mode === 'uninstall') {
-    lines.push('', '# Remove the portable launcher(s).');
-    for (const exePath of exePaths.filter(Boolean)) {
-      lines.push(`Remove-WithRetry '${escapePs(exePath)}'`);
+    if (installDir) {
+      // NSIS install: run the generated uninstaller (removes app files,
+      // Start Menu / Desktop shortcuts and the registry entry). The exe(s)
+      // are only deleted directly as a portable/dev fallback when no
+      // uninstaller is present. userData is already wiped above (targets), so
+      // "Remove completely" clears both the app and its data.
+      lines.push(
+        '',
+        '# Remove the installed app via its NSIS uninstaller (fallback: delete exe).',
+        `$installDir = '${escapePs(installDir)}'`,
+        "$uninstaller = Get-ChildItem -LiteralPath $installDir -Filter 'Uninstall *.exe' -ErrorAction SilentlyContinue | Select-Object -First 1",
+        'if ($uninstaller) {',
+        "  Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -Wait -ErrorAction SilentlyContinue",
+        '} else {',
+        ...exePaths.filter(Boolean).map((exePath) => `  Remove-WithRetry '${escapePs(exePath)}'`),
+        '}',
+      );
+    } else {
+      lines.push('', '# Remove the portable launcher(s).');
+      for (const exePath of exePaths.filter(Boolean)) {
+        lines.push(`Remove-WithRetry '${escapePs(exePath)}'`);
+      }
     }
     lines.push(
       '',

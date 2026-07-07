@@ -51,6 +51,25 @@ test('buildCleanupScript: uninstall deletes exes, shows farewell, no relaunch', 
   assert.ok(!script.includes('Start-Process'));
 });
 
+test('buildCleanupScript: uninstall with installDir runs the NSIS uninstaller', () => {
+  const installDir = 'C:\\Users\\op\\AppData\\Local\\Programs\\Web Title Pro';
+  const script = buildCleanupScript({
+    mode: 'uninstall',
+    pid: 9,
+    targets: ['C:\\Users\\op\\AppData\\Roaming\\web-title-pro'],
+    exePaths: [`${installDir}\\Web Title Pro.exe`],
+    installDir,
+    tempDir: 'C:\\Temp',
+  });
+  // Prefer the generated NSIS uninstaller over deleting the exe directly.
+  assert.ok(script.includes(`$installDir = '${installDir}'`));
+  assert.ok(script.includes("Get-ChildItem -LiteralPath $installDir -Filter 'Uninstall *.exe'"));
+  assert.ok(script.includes("Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -Wait"));
+  // userData is still wiped, and the farewell box still shows.
+  assert.ok(script.includes("Remove-WithRetry 'C:\\Users\\op\\AppData\\Roaming\\web-title-pro'"));
+  assert.ok(script.includes('MessageBox'));
+});
+
 test('buildCleanupScript: single quotes in paths are escaped for PowerShell', () => {
   const script = buildCleanupScript({
     mode: 'reset',

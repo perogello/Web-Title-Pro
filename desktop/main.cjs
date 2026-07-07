@@ -1193,6 +1193,9 @@ const launchCleanupAndQuit = async (mode) => {
     targets: collectCleanupTargets({ userDataDir, tempDir }),
     exePaths: mode === 'uninstall' ? [...new Set([portableFile, stableExePath].filter(Boolean))] : [],
     relaunchExePath: mode === 'reset' ? (stableExePath || portableFile) : '',
+    // Install dir of the running exe: under NSIS it holds "Uninstall *.exe",
+    // which the cleanup script runs to remove the app cleanly.
+    installDir: path.dirname(process.execPath),
     tempDir,
   });
 
