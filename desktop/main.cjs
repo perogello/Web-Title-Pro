@@ -1178,7 +1178,7 @@ ipcMain.handle('updates:install-available', async (_event, payload = {}) => {
 // --- Maintenance: reset app data / full uninstall -------------------------
 // Both quit the app and hand the actual file removal to a detached
 // PowerShell helper (a running exe cannot delete its own files).
-const launchCleanupAndQuit = async (mode) => {
+const launchCleanupAndQuit = async (mode, { wipeUserData = true } = {}) => {
   const tempDir = app.getPath('temp');
   const userDataDir = app.getPath('userData');
   // PORTABLE_EXECUTABLE_* only exist in the old portable build. Under the NSIS
@@ -1204,7 +1204,9 @@ const launchCleanupAndQuit = async (mode) => {
   const script = buildCleanupScript({
     mode,
     pid: process.pid,
-    targets: collectCleanupTargets({ userDataDir, tempDir }),
+    // Reset always wipes data; uninstall wipes it only if the operator chose
+    // "app and data". "App only" keeps userData for a future reinstall.
+    targets: wipeUserData ? collectCleanupTargets({ userDataDir, tempDir }) : [],
     exePaths: mode === 'uninstall' ? [...new Set([portableFile, stableExePath].filter(Boolean))] : [],
     relaunchExePath: mode === 'reset' ? (stableExePath || portableFile) : '',
     // Install dir of the running exe: under NSIS it holds "Uninstall *.exe",
@@ -1252,20 +1254,23 @@ ipcMain.handle('maintenance:uninstall', async () => {
   const choice = await dialog.showMessageBox(mainWindow, {
     type: 'warning',
     title: 'Remove Web Title Pro',
-    message: 'Полностью удалить Web Title Pro с этого компьютера?',
+    message: 'Удалить Web Title Pro с этого компьютера?',
     detail:
-      'Будут удалены: приложение (WebTitlePro.exe), все его данные, настройки и токены.\n'
-      + 'Сохранённые файлы проектов (.json) останутся на месте.',
-    buttons: ['Удалить всё', 'Отмена'],
-    defaultId: 1,
-    cancelId: 1,
+      'Выберите, что удалить:\n\n'
+      + '• Только приложение — данные, настройки и токены сохранятся для будущей установки.\n'
+      + '• Приложение и данные — удалит всё без остатка.\n\n'
+      + 'Сохранённые файлы проектов (.json) в любом случае останутся на месте.',
+    buttons: ['Только приложение', 'Приложение и данные', 'Отмена'],
+    defaultId: 0,
+    cancelId: 2,
     noLink: true,
   });
-  if (choice.response !== 0) {
+  if (choice.response === 2) {
     return { ok: false, cancelled: true };
   }
-  await launchCleanupAndQuit('uninstall');
-  return { ok: true };
+  const wipeUserData = choice.response === 1;
+  await launchCleanupAndQuit('uninstall', { wipeUserData });
+  return { ok: true, wipeUserData };
 });
 
 const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));
