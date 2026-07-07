@@ -23,7 +23,7 @@ const createAutoUpdaterIntegration = ({
   closeUpdateWindow,
   setWindowProgress,
   confirmInstall,
-  requestQuitForUpdate,
+  authorizeClose,
   repoUrl,
 }) => {
   const releasesPageUrl = repoUrl ? `${String(repoUrl).replace(/\/+$/, '')}/releases` : '';
@@ -148,9 +148,10 @@ const createAutoUpdaterIntegration = ({
       autoUpdater.removeListener('download-progress', onProgress);
       await setWindowProgress(progressWindow, 'Installing and restarting...', 100);
 
-      // Let the renderer authorize the close (bypasses the unsaved-changes
-      // guard) exactly like the old flow, then hand off to the NSIS installer.
-      await requestQuitForUpdate();
+      // Authorize the close (drops the unsaved-changes guard) but do NOT quit
+      // the app ourselves — quitAndInstall quits it and runs the NSIS
+      // installer. Quitting/exiting here would race and defeat the install.
+      await authorizeClose();
       setImmediate(() => {
         try {
           autoUpdater.quitAndInstall(true, true);

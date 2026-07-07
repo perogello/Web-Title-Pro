@@ -851,7 +851,13 @@ const closeUpdateWindow = () => {
   updateWindow = null;
 };
 
-const requestQuitForUpdate = async () => {
+// Authorize the app to close for an update: run the renderer's pre-close hook
+// and drop the unsaved-changes close guard so electron-updater's quitAndInstall
+// can quit without being blocked. It must NOT quit or exit the app itself — the
+// old portable flow did (an external helper applied the swap), but under
+// electron-updater quitAndInstall() is what quits the app and runs the NSIS
+// installer. Tearing the app down here would race and defeat that.
+const authorizeCloseForUpdate = async () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     try {
       await mainWindow.webContents.executeJavaScript(
@@ -867,22 +873,6 @@ const requestQuitForUpdate = async () => {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.removeAllListeners('close');
   }
-  if (updateWindow && !updateWindow.isDestroyed()) {
-    await setWindowProgress(updateWindow, 'Update helper is ready. Closing Web Title Pro...', 100);
-    showUpdateWindow();
-    await wait(1200);
-  }
-  for (const windowRef of BrowserWindow.getAllWindows()) {
-    try {
-      windowRef.removeAllListeners('close');
-      windowRef.destroy();
-    } catch {}
-  }
-  await wait(400);
-  app.quit();
-  setTimeout(() => {
-    try { app.exit(0); } catch {}
-  }, 1500).unref?.();
 };
 
 const initializeUpdaterIntegration = () => {
@@ -920,7 +910,7 @@ const initializeUpdaterIntegration = () => {
         return true;
       }
     },
-    requestQuitForUpdate,
+    authorizeClose: authorizeCloseForUpdate,
     repoUrl: BUILTIN_REPO_URL,
   });
 };
@@ -1177,6 +1167,12 @@ ipcMain.handle('updates:install-available', async (_event, payload = {}) => {
 const launchCleanupAndQuit = async (mode) => {
   const tempDir = app.getPath('temp');
   const userDataDir = app.getPath('userData');
+  // PORTABLE_EXECUTABLE_* only exist in the old portable build. Under the NSIS
+  // install they are unset, so fall back to the running executable
+  // (%LOCALAPPDATA%\Programs\Web Title Pro\Web Title Pro.exe) — otherwise Reset
+  // has nothing to relaunch and the app just closes. (Remove completely still
+  // only removes this exe best-effort; running the NSIS uninstaller to also
+  // clear shortcuts/registry is a follow-up.)
   const portableFile =
     typeof process.env.PORTABLE_EXECUTABLE_FILE === 'string'
       ? process.env.PORTABLE_EXECUTABLE_FILE.trim()
@@ -1189,7 +1185,7 @@ const launchCleanupAndQuit = async (mode) => {
     ? path.join(portableDir, STABLE_PORTABLE_EXE_NAME)
     : portableFile
       ? path.join(path.dirname(portableFile), STABLE_PORTABLE_EXE_NAME)
-      : '';
+      : process.execPath;
 
   const script = buildCleanupScript({
     mode,
