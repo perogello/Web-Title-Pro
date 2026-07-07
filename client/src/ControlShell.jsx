@@ -2744,6 +2744,25 @@ function ControlShell() {
     }
   };
 
+  const openReleasePage = async (url) => {
+    const target =
+      url ||
+      updateState?.releaseUrl ||
+      'https://github.com/perogello/Web-Title-Pro/releases';
+
+    // Prefer the desktop bridge (routes to the OS browser via shell.openExternal);
+    // fall back to window.open for the dev/browser build.
+    if (desktopBridge?.openExternal) {
+      const result = await desktopBridge.openExternal(target);
+      if (result?.ok === false) {
+        pushFeedback(result.error || 'Could not open the release page');
+      }
+      return;
+    }
+
+    window.open(target, '_blank', 'noopener');
+  };
+
   const installAvailableUpdate = async () => {
     if (!desktopBridge?.installAvailableUpdate) {
       pushFeedback('Desktop updater is not available in this mode');
@@ -3379,6 +3398,7 @@ function ControlShell() {
           onUpdateMidiBinding={updateMidiBinding}
           onCheckForUpdates={checkForUpdates}
           onInstallUpdate={installAvailableUpdate}
+          onOpenReleasePage={openReleasePage}
           onRefreshAppMeta={refreshAppMeta}
           onSaveYandexAuthSettings={saveYandexAuthSettings}
           onReloadYandexAuthSettings={reloadYandexAuthSettings}

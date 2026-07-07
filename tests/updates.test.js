@@ -5,6 +5,7 @@ import {
   parseGithubRepo,
   normalizeRepoUrl,
   selectGithubRelease,
+  describeUpdateError,
   UpdateService,
 } from '../server/updates/update-service.js';
 
@@ -195,4 +196,69 @@ test('UpdateService.getState: stale available flag is normalized after app updat
   assert.equal(result.latestVersion, 'v0.4.6');
   assert.equal(result.available, false);
   assert.equal(result.status, 'up-to-date');
+});
+
+test('describeUpdateError: classifies undici "fetch failed" as network', () => {
+  const network = describeUpdateError(new TypeError('fetch failed'));
+  assert.equal(network.kind, 'network');
+  assert.match(network.message, /could not be reached/i);
+});
+
+test('describeUpdateError: classifies rate limit, timeout and TLS', () => {
+  assert.equal(describeUpdateError(new Error('GitHub returned 403')).kind, 'rate-limit');
+
+  const abort = new Error('aborted');
+  abort.name = 'AbortError';
+  assert.equal(describeUpdateError(abort).kind, 'timeout');
+
+  assert.equal(
+    describeUpdateError(new Error('unable to verify the first certificate')).kind,
+    'tls',
+  );
+});
+
+test('describeUpdateError: reads DNS failure from error.cause.code', () => {
+  const err = new TypeError('fetch failed');
+  err.cause = { code: 'ENOTFOUND' };
+  assert.equal(describeUpdateError(err).kind, 'network');
+});
+
+test('describeUpdateError: unknown falls back to raw message', () => {
+  const result = describeUpdateError(new Error('something odd happened'));
+  assert.equal(result.kind, 'unknown');
+  assert.equal(result.message, 'something odd happened');
+});
+
+test('UpdateService.checkForUpdates: network failure yields friendly error + release fallback', async () => {
+  const originalFetch = globalThis.fetch;
+  const store = {
+    config: { channel: 'stable' },
+    getUpdateConfig() {
+      return { ...this.config };
+    },
+    updateUpdateConfig(patch) {
+      this.config = { ...this.config, ...patch };
+      return { ...this.config };
+    },
+  };
+
+  globalThis.fetch = async () => {
+    throw new TypeError('fetch failed');
+  };
+
+  try {
+    const service = new UpdateService({ store, rootDir: process.cwd() });
+    await service.init();
+    service.packageVersion = '0.4.11';
+    const result = await service.checkForUpdates();
+
+    assert.equal(result.status, 'error');
+    assert.equal(result.errorKind, 'network');
+    assert.equal(result.available, false);
+    assert.match(result.notes, /could not be reached/i);
+    // The UI needs a working "download manually" target even on failure.
+    assert.equal(result.releaseUrl, 'https://github.com/perogello/Web-Title-Pro/releases');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

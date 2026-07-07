@@ -401,6 +401,24 @@ ipcMain.handle('system:open-path', async (_event, targetPath = '') => {
   }
 });
 
+ipcMain.handle('system:open-external', async (_event, url = '') => {
+  const normalized = typeof url === 'string' ? url.trim() : '';
+
+  // Only ever hand https(s) URLs to the OS browser. This is used for the
+  // "open the release page manually" update fallback, so a stray file:// or
+  // shell: URL from an unexpected caller must not be launched.
+  if (!/^https?:\/\//i.test(normalized)) {
+    return { ok: false, error: 'Only http(s) links can be opened.' };
+  }
+
+  try {
+    await shell.openExternal(normalized);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error?.message || 'The link could not be opened.' };
+  }
+});
+
 ipcMain.handle('templates:open-folders', async () => {
   const appRoot = app.getAppPath();
   const templateFolders = [

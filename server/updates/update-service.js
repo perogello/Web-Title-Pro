@@ -18,6 +18,82 @@ export const parseGithubRepo = (url) => {
   };
 };
 
+/**
+ * Turn a raw update-check failure into an operator-facing explanation.
+ *
+ * The GitHub API is called without a token from an in-process fetch, so the
+ * failure the operator actually hits is almost never "the release is broken" —
+ * it is the network in front of them: a studio proxy, a firewall whitelist,
+ * TLS interception, an offline machine, or GitHub's 60 req/h unauthenticated
+ * rate limit. Node/undici surfaces all of the connection-level ones as the
+ * unhelpful `TypeError: fetch failed`, which is exactly the "update fetch…"
+ * string operators reported. Classify it so the UI can say something true and
+ * offer the manual-download fallback instead of echoing `fetch failed`.
+ *
+ * Returns { kind, message } — kind is a stable machine tag, message is the
+ * human sentence shown in Settings → Updates and the desktop dialog.
+ */
+export const describeUpdateError = (error) => {
+  const rawMessage = error?.message || String(error || '');
+  const causeCode = error?.cause?.code || error?.code || '';
+  const haystack = `${rawMessage} ${causeCode} ${error?.name || ''}`.toLowerCase();
+
+  const has = (...needles) => needles.some((needle) => haystack.includes(needle));
+
+  if (error?.name === 'AbortError' || has('timed out', 'etimedout', 'timeout')) {
+    return {
+      kind: 'timeout',
+      message: 'The update check timed out. The network is slow or is blocking GitHub.',
+    };
+  }
+
+  if (has('403', 'rate limit', 'api rate')) {
+    return {
+      kind: 'rate-limit',
+      message:
+        'GitHub temporarily limited update checks from this network (hourly limit). ' +
+        'Try again later, or download the release manually.',
+    };
+  }
+
+  if (has('certificate', 'self-signed', 'self signed', 'unable to verify', 'altnames', 'cert_')) {
+    return {
+      kind: 'tls',
+      message:
+        'A network proxy is intercepting the secure connection to GitHub, so the update ' +
+        'check could not be trusted. Download the release manually, or check with IT.',
+    };
+  }
+
+  if (
+    has(
+      'fetch failed',
+      'enotfound',
+      'eai_again',
+      'econnrefused',
+      'econnreset',
+      'enetunreach',
+      'ehostunreach',
+      'network',
+      'getaddrinfo',
+      'socket',
+    )
+  ) {
+    return {
+      kind: 'network',
+      message:
+        'GitHub could not be reached from this network. A proxy or firewall may be ' +
+        'blocking github.com, or the machine is offline. Download the release manually, ' +
+        'or try again on a network that allows GitHub.',
+    };
+  }
+
+  return {
+    kind: 'unknown',
+    message: rawMessage || 'The update check failed for an unknown reason.',
+  };
+};
+
 export const compareVersions = (left = '', right = '') => {
   const normalize = (value) =>
     String(value)
@@ -169,6 +245,7 @@ export class UpdateService {
         latestVersion,
         available,
         status: available ? 'available' : 'up-to-date',
+        errorKind: null,
         notes: selectedRelease.html_url || 'Latest release checked successfully.',
         releaseName: selectedRelease.name || latestVersion,
         releaseUrl: selectedRelease.html_url || null,
@@ -179,14 +256,17 @@ export class UpdateService {
         assetSize: portableAsset?.size || null,
       });
     } catch (error) {
-      const isAbort = error?.name === 'AbortError';
+      const described = describeUpdateError(error);
       return this.updateConfig({
         lastCheckAt: checkedAt,
         latestVersion: null,
         available: false,
         status: 'error',
-        notes: isAbort ? 'Update check timed out.' : (error.message || 'Update check failed.'),
-        releaseUrl: null,
+        errorKind: described.kind,
+        notes: described.message,
+        // Even when the API call failed, point the UI at the releases page so
+        // the operator has a working "download manually" fallback target.
+        releaseUrl: `${BUILTIN_REPO_URL}/releases`,
         assetName: null,
         assetUrl: null,
       });

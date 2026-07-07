@@ -64,6 +64,90 @@ const createUpdaterIntegration = ({
   const getAppMeta = async () => fetchJson(appMetaUrl);
   const checkForUpdates = async () => fetchJson(updateCheckUrl, { method: 'POST' });
 
+  const releasesPageUrl = repoUrl ? `${String(repoUrl).replace(/\/+$/, '')}/releases` : '';
+
+  /**
+   * Translate a raw download/check failure into a sentence the operator can
+   * act on. The failures that actually happen in the field are network-level
+   * (studio proxy, firewall whitelist, TLS interception, offline, or GitHub's
+   * hourly rate limit), and Node/undici hides them all behind the useless
+   * `fetch failed`. Say what is really wrong and point at the manual download.
+   */
+  const describeNetworkError = (error) => {
+    const raw = error?.message || String(error || '');
+    const code = error?.cause?.code || error?.code || '';
+    const haystack = `${raw} ${code} ${error?.name || ''}`.toLowerCase();
+    const has = (...needles) => needles.some((needle) => haystack.includes(needle));
+
+    if (error?.name === 'AbortError' || has('timed out', 'etimedout', 'stall', 'timeout')) {
+      return 'The update timed out. The network is slow or is blocking GitHub. You can download the release manually instead.';
+    }
+    if (has('403', 'rate limit', 'api rate')) {
+      return 'GitHub temporarily limited requests from this network (hourly limit). Try again later, or download the release manually.';
+    }
+    if (has('certificate', 'self-signed', 'self signed', 'unable to verify', 'cert_')) {
+      return 'A network proxy is intercepting the secure connection to GitHub. Download the release manually, or check with your IT team.';
+    }
+    if (
+      has(
+        'fetch failed',
+        'enotfound',
+        'eai_again',
+        'econnrefused',
+        'econnreset',
+        'enetunreach',
+        'ehostunreach',
+        'network',
+        'getaddrinfo',
+        'socket',
+        'download failed',
+      )
+    ) {
+      return 'GitHub could not be reached from this network. A proxy or firewall may be blocking github.com, or the machine is offline. You can download the release manually instead.';
+    }
+    return raw || 'The update could not be completed.';
+  };
+
+  /**
+   * Show a failure dialog that always offers a way forward: retry the
+   * operation and/or open the release page so the operator can grab the
+   * portable .exe by hand (which bypasses the API and the auto-updater
+   * entirely). Returns nothing; side effects are the browser open / retry.
+   */
+  const showUpdateFailureDialog = async ({ title, message, error, releaseUrl, onRetry }) => {
+    const targetUrl = releaseUrl || releasesPageUrl;
+    const buttons = [];
+    const actions = [];
+
+    if (typeof onRetry === 'function') {
+      buttons.push('Try Again');
+      actions.push('retry');
+    }
+    if (targetUrl) {
+      buttons.push('Open Release Page');
+      actions.push('open');
+    }
+    buttons.push('Close');
+    actions.push('close');
+
+    const result = await dialog.showMessageBox(getMainWindow(), {
+      type: 'error',
+      title,
+      message,
+      detail: describeNetworkError(error),
+      buttons,
+      defaultId: 0,
+      cancelId: buttons.length - 1,
+    });
+
+    const action = actions[result.response] || 'close';
+    if (action === 'open' && targetUrl) {
+      await shell.openExternal(targetUrl).catch(() => {});
+    } else if (action === 'retry' && typeof onRetry === 'function') {
+      await onRetry();
+    }
+  };
+
   const downloadFileWithProgress = async (url, destinationPath, onProgress) => {
     // Two-tier timeouts:
     //  - connectController (30 s) only covers establishing the TCP/TLS
@@ -725,13 +809,17 @@ const createUpdaterIntegration = ({
       await fsp.unlink(tempDownloadPath).catch(() => {});
       await cleanupUpdaterScratch().catch(() => {});
       closeUpdateWindow();
-      await dialog.showMessageBox(getMainWindow(), {
-        type: 'error',
+      // The dialog is now the operator's feedback: it explains the real
+      // (usually network) cause and offers Retry / Open Release Page. We no
+      // longer rethrow — a raw "fetch failed" toast on top of this dialog was
+      // just noise, and the fallback actions live here.
+      await showUpdateFailureDialog({
         title: 'Update Failed',
         message: 'The update could not be downloaded or prepared.',
-        detail: error.message || String(error),
+        error,
+        releaseUrl: updateState?.releaseUrl,
+        onRetry: () => installUpdateFromRelease(updateState),
       });
-      throw error;
     }
   };
 
@@ -902,13 +990,10 @@ const createUpdaterIntegration = ({
       });
     } catch (error) {
       log(`updates:startup-check-error ${error.stack || error.message}`);
-      await dialog.showMessageBox(getMainWindow(), {
-        type: 'warning',
+      await showUpdateFailureDialog({
         title: 'Update Check',
-        message: 'Automatic update check failed.',
-        detail: error.message || String(error),
-        buttons: ['OK'],
-        defaultId: 0,
+        message: 'The automatic update check failed.',
+        error,
       });
     }
   };

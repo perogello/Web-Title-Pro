@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('webTitleDesktop', {
     return () => ipcRenderer.removeListener('window:state-changed', listener);
   },
   installAvailableUpdate: (payload) => ipcRenderer.invoke('updates:install-available', payload),
+  openExternal: (url) => ipcRenderer.invoke('system:open-external', url),
   getYandexAuthSettings: () => ipcRenderer.invoke('settings:get-yandex-auth'),
   saveYandexAuthSettings: (payload) => ipcRenderer.invoke('settings:save-yandex-auth', payload),
   disconnectYandexAuth: () => ipcRenderer.invoke('settings:disconnect-yandex-auth'),

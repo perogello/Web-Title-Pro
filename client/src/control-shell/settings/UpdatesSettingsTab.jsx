@@ -12,10 +12,17 @@ export default function UpdatesSettingsTab({
   onCheckForUpdates,
   onRefreshAppMeta,
   onInstallUpdate,
+  onOpenReleasePage,
 }) {
   const currentVersion = appMeta?.version || updateState?.currentVersion || '0.0.0';
   const status = updateState?.status || 'idle';
   const available = Boolean(updateState?.available);
+  // A failed / empty check still carries a releases-page URL so the operator
+  // can grab the portable .exe by hand — that path bypasses the API and the
+  // auto-updater entirely, which is exactly what unblocks a proxied network.
+  const canOpenReleasePage =
+    Boolean(updateState?.releaseUrl) &&
+    (status === 'error' || status === 'no-releases' || status === 'unsupported');
 
   // tone drives the hero's accent border / icon color
   const tone =
@@ -47,11 +54,19 @@ export default function UpdatesSettingsTab({
         <p className="update-hero-v3-hint">{heroHint}</p>
         <div className="update-hero-v3-actions">
           <button className="btn-v3-ghost btn-v3-sm" onClick={onCheckForUpdates}>
-            Check for updates
+            {status === 'error' ? 'Try again' : 'Check for updates'}
           </button>
           {available && (
             <button className="btn-v3-primary btn-v3-sm" onClick={onInstallUpdate}>
               Install update
+            </button>
+          )}
+          {canOpenReleasePage && (
+            <button
+              className="btn-v3-ghost btn-v3-sm"
+              onClick={() => onOpenReleasePage?.(updateState.releaseUrl)}
+            >
+              Open release page
             </button>
           )}
           <button className="btn-v3-ghost btn-v3-sm" onClick={onRefreshAppMeta}>
