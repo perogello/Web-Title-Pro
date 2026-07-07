@@ -10,6 +10,7 @@ const {
   parseVersion,
   isNewer,
   describeNetworkError,
+  isNoReleaseError,
   isLegacyScratchFile,
   cleanupLegacyPortableScratch,
 } = require('../desktop/integrations/auto-updater-utils.cjs');
@@ -44,6 +45,27 @@ test('describeNetworkError: reads DNS code from error.cause and falls back to ra
   dns.cause = { code: 'ENOTFOUND' };
   assert.match(describeNetworkError(dns), /could not be reached/i);
   assert.equal(describeNetworkError(new Error('something odd')), 'something odd');
+});
+
+test('describeNetworkError: a release-download URL in a 404 is NOT read as a network failure', () => {
+  // Regression: the bare "download" needle matched "/releases/download/" in the
+  // URL and mislabeled a missing-manifest 404 as "GitHub could not be reached".
+  const err = new Error(
+    'Cannot find latest.yml in the latest release artifacts (https://github.com/o/r/releases/download/v1/latest.yml): HttpError: 404',
+  );
+  assert.doesNotMatch(describeNetworkError(err), /could not be reached/i);
+  // A genuine download failure is still classified as a reachability problem.
+  assert.match(describeNetworkError(new Error('Download failed with 500')), /could not be reached/i);
+});
+
+test('isNoReleaseError: recognizes a missing/unpublished update manifest', () => {
+  assert.equal(
+    isNoReleaseError(new Error('Cannot find latest.yml in the latest release artifacts (...): HttpError: 404')),
+    true,
+  );
+  assert.equal(isNoReleaseError(new Error('No published versions on GitHub')), true);
+  assert.equal(isNoReleaseError(new TypeError('fetch failed')), false);
+  assert.equal(isNoReleaseError(new Error('ECONNREFUSED')), false);
 });
 
 test('isLegacyScratchFile: matches only old portable helper files', () => {

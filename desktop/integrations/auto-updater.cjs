@@ -2,6 +2,7 @@ const { autoUpdater } = require('electron-updater');
 const {
   isNewer,
   describeNetworkError,
+  isNoReleaseError,
   cleanupLegacyPortableScratch,
 } = require('./auto-updater-utils.cjs');
 
@@ -179,6 +180,16 @@ const createAutoUpdaterIntegration = ({
       );
     } catch (error) {
       log(`autoupdater:check-error ${error?.stack || error?.message}`);
+      // A missing update manifest (no NSIS release published yet) is "nothing to
+      // update to", not a connectivity failure — report it calmly as up to date.
+      if (isNoReleaseError(error)) {
+        return emitState(
+          buildState({
+            status: 'up-to-date',
+            notes: `You are on the latest version (${app.getVersion()}). No newer release has been published.`,
+          }),
+        );
+      }
       return emitState(
         buildState({
           status: 'error',

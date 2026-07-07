@@ -53,12 +53,27 @@ const describeNetworkError = (error) => {
       'getaddrinfo',
       'socket',
       'net::',
-      'download',
+      'download failed', // NOT bare "download" — release URLs contain "/download/"
     )
   ) {
     return 'GitHub could not be reached from this network. A proxy or firewall may be blocking github.com, or the machine is offline. You can download the release manually instead.';
   }
   return raw || 'The update could not be completed.';
+};
+
+// electron-updater throws this when the latest GitHub release has no update
+// manifest (latest.yml) or no matching asset — e.g. before the first NSIS
+// release is published, or when looking at a portable-only release. That is
+// "nothing to update to", NOT a connectivity failure, so it must not be
+// reported as "can't reach GitHub".
+const isNoReleaseError = (error) => {
+  const haystack = `${error?.message || ''}`.toLowerCase();
+  return (
+    haystack.includes('latest.yml') ||
+    haystack.includes('no published versions') ||
+    haystack.includes('cannot find') ||
+    haystack.includes('unable to find latest version')
+  );
 };
 
 // Leftover helper files the OLD portable updater wrote to %TEMP% (its detached
@@ -91,6 +106,7 @@ module.exports = {
   parseVersion,
   isNewer,
   describeNetworkError,
+  isNoReleaseError,
   isLegacyScratchFile,
   cleanupLegacyPortableScratch,
 };
