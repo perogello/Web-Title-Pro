@@ -21,7 +21,7 @@ It is designed for directors, title operators, stream technicians, and small pro
 - MIDI Learn for notes, pads, buttons, knobs, and faders.
 - MIDI CC value rules for faders: any movement, exact value, at/above threshold, or at/below threshold.
 - Project files and `.wtpkg` project bundles for moving full productions between machines.
-- Portable Windows `.exe` build.
+- Per-user Windows installer with automatic updates (electron-updater).
 
 ### Quick Start
 
@@ -50,11 +50,12 @@ npm.cmd run desktop
 npm.cmd run package:win
 ```
 
-Build output:
+Build output (per-user NSIS installer + electron-updater feed):
 
 ```text
-release/WebTitlePro-<version>.exe
-release/WebTitlePro.exe
+release/WebTitlePro-Setup-<version>.exe
+release/WebTitlePro-Setup-<version>.exe.blockmap
+release/latest.yml
 ```
 
 ### Validation
@@ -98,7 +99,7 @@ Web Title Pro - локальное Windows desktop-приложение для �
 - MIDI Learn для keys, pads, buttons, knobs и faders.
 - MIDI CC value rules для фейдеров: любое движение, точное значение, выше/равно порогу или ниже/равно порогу.
 - Project files и `.wtpkg` project bundles для переноса полной постановки между машинами.
-- Portable Windows `.exe` билд.
+- Per-user Windows-инсталлятор с автообновлением (electron-updater).
 
 ### Быстрый старт из исходников
 
@@ -127,11 +128,12 @@ npm.cmd run desktop
 npm.cmd run package:win
 ```
 
-Результат сборки:
+Результат сборки (per-user NSIS-инсталлятор + фид electron-updater):
 
 ```text
-release/WebTitlePro-<version>.exe
-release/WebTitlePro.exe
+release/WebTitlePro-Setup-<version>.exe
+release/WebTitlePro-Setup-<version>.exe.blockmap
+release/latest.yml
 ```
 
 ### Проверка
