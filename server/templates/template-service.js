@@ -59,23 +59,26 @@ const toRelativePath = (baseDir, targetPath) => path.relative(baseDir, targetPat
 const collectFiles = async (directory) => {
   const files = [];
   const visit = async (currentDirectory) => {
-    const entries = await fs.readdir(currentDirectory, { withFileTypes: true });
+    // asar note: stat the resolved path instead of trusting readdir's
+    // Dirent.isDirectory()/isFile(), which are unreliable for packaged
+    // (app.asar) paths.
+    const names = await fs.readdir(currentDirectory);
 
-    for (const entry of entries) {
-      const fullPath = path.join(currentDirectory, entry.name);
+    for (const name of names) {
+      const fullPath = path.join(currentDirectory, name);
+      const stats = await fs.stat(fullPath);
 
-      if (entry.isDirectory()) {
+      if (stats.isDirectory()) {
         await visit(fullPath);
         continue;
       }
 
-      if (entry.isFile()) {
-        const stats = await fs.stat(fullPath);
+      if (stats.isFile()) {
         files.push({
           fullPath,
           relativePath: toRelativePath(directory, fullPath),
           size: stats.size,
-          extension: path.extname(entry.name).toLowerCase(),
+          extension: path.extname(name).toLowerCase(),
         });
       }
     }
@@ -330,7 +333,9 @@ export class TemplateService {
   }
 
   async init() {
-    await fs.ensureDir(this.builtinTemplatesDir);
+    // Built-in templates ship inside the package (read-only under asar) — never
+    // create or write them; scanTemplates() skips the dir when absent. Only the
+    // custom dir (userData/storage) is ours to create.
     await fs.ensureDir(this.customTemplatesDir);
     await this.scanTemplates();
   }
@@ -349,24 +354,29 @@ export class TemplateService {
         continue;
       }
 
-      const entries = await fs.readdir(sourceItem.directory, { withFileTypes: true });
+      // asar note: read names and stat each, since Dirent.isDirectory() from
+      // withFileTypes is unreliable for packaged (app.asar) paths and would
+      // drop every builtin template.
+      const names = await fs.readdir(sourceItem.directory);
 
-      for (const entry of entries) {
-        if (!entry.isDirectory()) {
+      for (const name of names) {
+        const directory = path.join(sourceItem.directory, name);
+        const stats = await fs.stat(directory);
+        if (!stats.isDirectory()) {
           continue;
         }
 
         try {
           const template = await parseTemplateManifest({
-            directory: path.join(sourceItem.directory, entry.name),
-            slug: entry.name,
+            directory,
+            slug: name,
             source: sourceItem.source,
-            publicBase: `/template-assets/${sourceItem.source}/${entry.name}`,
+            publicBase: `/template-assets/${sourceItem.source}/${name}`,
           });
 
           templates.push(template);
         } catch (error) {
-          console.warn(`Failed to parse template "${entry.name}":`, error.message);
+          console.warn(`Failed to parse template "${name}":`, error.message);
         }
       }
     }

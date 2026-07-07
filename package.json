@@ -64,7 +64,11 @@
   "build": {
     "appId": "com.webtitlepro.desktop",
     "productName": "Web Title Pro",
-    "asar": false,
+    "asar": true,
+    "asarUnpack": [
+      "templates/**",
+      "plugins/**"
+    ],
     "directories": {
       "output": "release"
     },
@@ -74,6 +78,7 @@
       "renderer/**/*",
       "server/**/*",
       "templates/**/*",
+      "plugins/**/*",
       "package.json"
     ],
     "extraMetadata": {

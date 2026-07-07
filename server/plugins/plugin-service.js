@@ -317,7 +317,9 @@ export class PluginService {
   }
 
   async init() {
-    await fs.ensureDir(this.builtinPluginsDir);
+    // The builtin plugins dir ships inside the package (read-only under asar) —
+    // never create or write it; scanPlugins() already skips it when absent.
+    // Only the custom dir (in userData/storage) is ours to create.
     await fs.ensureDir(this.customPluginsDir);
     await this.scanPlugins();
   }
@@ -334,12 +336,14 @@ export class PluginService {
         continue;
       }
 
-      const entries = await fs.readdir(sourceItem.directory, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isDirectory()) {
-          continue;
-        }
-        const directory = path.join(sourceItem.directory, entry.name);
+      // asar note: read names only. Dirent.isDirectory() from
+      // readdir(..., { withFileTypes: true }) is unreliable for packaged
+      // (app.asar) paths and reports every builtin entry as a non-directory,
+      // which silently drops all bundled plugins. A plugin is simply any
+      // subfolder that contains a plugin.json, so key on that instead.
+      const names = await fs.readdir(sourceItem.directory);
+      for (const name of names) {
+        const directory = path.join(sourceItem.directory, name);
         if (!(await fs.pathExists(path.join(directory, 'plugin.json')))) {
           continue;
         }
@@ -347,13 +351,13 @@ export class PluginService {
           plugins.push(
             await parsePluginManifest({
               directory,
-              slug: entry.name,
+              slug: name,
               source: sourceItem.source,
-              publicBase: `/plugin-assets/${sourceItem.source}/${entry.name}`,
+              publicBase: `/plugin-assets/${sourceItem.source}/${name}`,
             }),
           );
         } catch (error) {
-          console.warn(`Failed to parse plugin "${entry.name}":`, error.message);
+          console.warn(`Failed to parse plugin "${name}":`, error.message);
         }
       }
     }
