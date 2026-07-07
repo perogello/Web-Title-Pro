@@ -5,7 +5,7 @@ const fsp = require('node:fs/promises');
 const { pathToFileURL } = require('node:url');
 const electron = require('electron');
 const { spawn } = require('node:child_process');
-const { createUpdaterIntegration } = require('./integrations/updater.cjs');
+const { createAutoUpdaterIntegration } = require('./integrations/auto-updater.cjs');
 const { createGlobalShortcutManager } = require('./integrations/global-shortcuts.cjs');
 const { collectCleanupTargets, buildCleanupScript } = require('./integrations/maintenance.cjs');
 const { createYandexAuthIntegration } = require('./integrations/yandex-auth.cjs');
@@ -886,7 +886,7 @@ const requestQuitForUpdate = async () => {
 };
 
 const initializeUpdaterIntegration = () => {
-  updaterIntegration = createUpdaterIntegration({
+  updaterIntegration = createAutoUpdaterIntegration({
     app,
     dialog,
     shell,
@@ -921,9 +921,7 @@ const initializeUpdaterIntegration = () => {
       }
     },
     requestQuitForUpdate,
-    serverUrl: SERVER_URL,
     repoUrl: BUILTIN_REPO_URL,
-    stablePortableExeName: STABLE_PORTABLE_EXE_NAME,
   });
 };
 
