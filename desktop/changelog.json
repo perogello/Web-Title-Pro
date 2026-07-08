@@ -4,13 +4,15 @@
     "date": "2026-07-08",
     "title": "Web Title Pro 0.5.0",
     "ru": [
-      "Приложение перешло на инсталлятор (устанавливается per-user, без прав администратора) — обновления теперь ставятся штатным механизмом и надёжнее применяются.",
+      "⚠️ С версии 0.5.0 приложение перешло на УСТАНОВОЧНУЮ версию (инсталлятор), portable больше не используется. Старые portable-файлы (WebTitlePro.exe и т.п.) лучше удалить вручную — они корректно не обновятся. Ваши данные и настройки сохраняются автоматически.",
+      "Установка per-user, без прав администратора; обновления идут штатным механизмом, надёжнее и без дублей exe.",
       "При удалении можно выбрать: удалить только приложение или вместе со всеми данными.",
       "Ошибки обновления стали понятными, а если сеть блокирует GitHub — есть кнопка открыть страницу релиза и скачать вручную.",
       "Система плагинов: включение, выключение и настройка в Settings › Plugins."
     ],
     "en": [
-      "The app now ships as an installer (per-user, no admin rights) — updates use a standard mechanism and apply more reliably.",
+      "⚠️ From 0.5.0 the app moved to an INSTALLER build; portable is gone. Delete old portable files (WebTitlePro.exe etc.) by hand — they will not update correctly. Your data and settings carry over automatically.",
+      "Per-user install, no admin rights; updates use a standard mechanism, apply more reliably and with no duplicate exes.",
       "Uninstall now asks whether to remove the app only or the app together with all its data.",
       "Update errors are now explained clearly, with a button to open the release page and download manually when a network blocks GitHub.",
       "Plugin system: enable, disable and configure plugins in Settings › Plugins."
