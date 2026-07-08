@@ -1,16 +1,17 @@
 {
   "$comment": "Per-version changelog shown in the post-update dialog and on the Updates page. Keep entries short (see release-notes style). Add a new top-level key for each release; the desktop shell picks the entry matching the running app version. ru/en are arrays of bullet strings.",
-  "$draft": "0.5.0 date/notes are a draft — finalize on release (installer cutover).",
   "0.5.0": {
-    "date": "2026-07-07",
+    "date": "2026-07-08",
     "title": "Web Title Pro 0.5.0",
     "ru": [
       "Приложение перешло на инсталлятор (устанавливается per-user, без прав администратора) — обновления теперь ставятся штатным механизмом и надёжнее применяются.",
+      "При удалении можно выбрать: удалить только приложение или вместе со всеми данными.",
       "Ошибки обновления стали понятными, а если сеть блокирует GitHub — есть кнопка открыть страницу релиза и скачать вручную.",
       "Система плагинов: включение, выключение и настройка в Settings › Plugins."
     ],
     "en": [
       "The app now ships as an installer (per-user, no admin rights) — updates use a standard mechanism and apply more reliably.",
+      "Uninstall now asks whether to remove the app only or the app together with all its data.",
       "Update errors are now explained clearly, with a button to open the release page and download manually when a network blocks GitHub.",
       "Plugin system: enable, disable and configure plugins in Settings › Plugins."
     ]
