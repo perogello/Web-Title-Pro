@@ -475,8 +475,11 @@ export default function SourcesTab({
                             )}
                           </td>
                         ))}
-                        <td>
-                          <div className="source-row-actions" onClick={(event) => event.stopPropagation()}>
+                        {/* The whole actions cell swallows clicks, not just the button strip:
+                            a click that misses a small button by a few px used to bubble to
+                            the row and apply it (to air, with Live-edit on). */}
+                        <td className="source-row-actions-cell" onClick={(event) => event.stopPropagation()}>
+                          <div className="source-row-actions">
                             <button
                               className="btn-v3-ghost btn-v3-sm btn-v3-icon"
                               onClick={() => (isEditing ? onSaveSourceRowEdit(selectedSource.id, row.id) : onStartSourceRowEdit(selectedSource.id, row))}

@@ -1,5 +1,31 @@
 {
   "$comment": "Per-version changelog shown in the post-update dialog and on the Updates page. Keep entries short (see release-notes style). Add a new top-level key for each release; the desktop shell picks the entry matching the running app version. ru/en are arrays of bullet strings.",
+  "0.5.1": {
+    "date": "2026-10-10",
+    "title": "Web Title Pro 0.5.1",
+    "ru": [
+      "Диалоги (несохранённый проект при закрытии и обновлении, подтверждения удаления, сброс) теперь в стиле приложения, а не системные окна Windows.",
+      "Ctrl+S / Ctrl+Shift+S / Ctrl+O / Ctrl+N работают, в том числе на русской раскладке. «Сохранить» в диалоге при закрытии теперь действительно сохраняет и закрывает приложение.",
+      "Уведомления внизу экрана вернулись; в Settings › System можно выбрать: все, только ошибки или никакие.",
+      "Recent: удалённый или перемещённый проект убирается из списка с понятным сообщением.",
+      "Config: output переименовывается прямо в строке; привязка титров к output показана номерами #1, #2…",
+      "Live: колонки таблицы можно сжать уже текста — текст переносится или обрезается, высота строк не меняется. Клик рядом с кнопкой ✎ в Data больше не выводит строку в эфир.",
+      "Заметки: исправлены цвет, заливка и размер текста; доступны и без источника данных.",
+      "Таймеры: в выборе vMix-источника только GT-титры (.gtzip).",
+      "Верхняя панель сжимается по ширине окна, кнопки окна всегда видны."
+    ],
+    "en": [
+      "Dialogs (unsaved project on close and update, delete confirmations, reset) are now app-styled instead of native Windows boxes.",
+      "Ctrl+S / Ctrl+Shift+S / Ctrl+O / Ctrl+N work, including on the Russian layout. \"Save\" in the close dialog now really saves and closes the app.",
+      "Bottom-of-screen notifications are back; choose all, errors only or none in Settings › System.",
+      "Recent: a deleted or moved project is removed from the list with a clear message.",
+      "Config: rename an output inline; title-to-output bindings are shown as #1, #2… markers.",
+      "Live: table columns can be squeezed below their text — it wraps or is clipped, rows keep their height. Clicking next to the ✎ button in Data no longer puts the row on air.",
+      "Notes: text colour, fill and size fixed; available without a data source too.",
+      "Timers: the vMix source list shows GT titles (.gtzip) only.",
+      "The top bar compacts to the window width; window controls always stay visible."
+    ]
+  },
   "0.5.0": {
     "date": "2026-07-08",
     "title": "Web Title Pro 0.5.0",

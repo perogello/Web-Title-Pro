@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, BACKEND_ORIGIN, copyText } from '../api.js';
 import { notifyPluginsChanged, usePlugins } from '../plugins/use-plugins.js';
+import { confirmAppDialog } from '../app-dialog.jsx';
 
 // Settings › Plugins: list installed plugins, enable/disable them. Enabling a
 // plugin mints a scoped capability grant on the server; the plugin then renders
@@ -157,7 +158,15 @@ export default function PluginsSettingsTab() {
   };
 
   const remove = async (plugin) => {
-    if (!window.confirm(`Удалить плагин «${plugin.name}»? Действие необратимо.`)) return;
+    const confirmed = await confirmAppDialog({
+      title: 'Удаление плагина',
+      message: `Удалить плагин «${plugin.name}»?`,
+      detail: 'Действие необратимо.',
+      confirmLabel: 'Удалить',
+      cancelLabel: 'Отмена',
+      destructive: true,
+    });
+    if (!confirmed) return;
     setBusyId(plugin.id);
     setError(null);
     try {

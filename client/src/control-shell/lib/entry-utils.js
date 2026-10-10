@@ -328,6 +328,19 @@ export const isVmixTitleInput = (input) => {
   );
 };
 
+// Strict GT-title check (vMix reports GT titles as type="GT"; the input title
+// usually keeps the .gtzip file name). Used where only GT titles make sense,
+// e.g. a timer's vMix text target — not cameras, videos, colours or browsers.
+export const isVmixGtInput = (input) => {
+  if (!input) {
+    return false;
+  }
+
+  const type = String(input.type || '').trim().toLowerCase();
+  const title = `${input.title || ''} ${input.shortTitle || ''}`.toLowerCase();
+  return type === 'gt' || title.includes('.gtzip');
+};
+
 const LIVE_SOURCE_COLUMN_WIDTHS_KEY = 'web-title-pro.liveSourceColumnWidths';
 
 export const loadLiveSourceColumnWidths = () => {

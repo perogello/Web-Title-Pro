@@ -80,12 +80,14 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
   await page.getByRole('button', { name: /Notes/i }).click();
   const notes = page.getByRole('textbox', { name: 'Notes editor' });
   await expect(notes).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Text color' })).toBeVisible();
-  await expect(page.getByLabel('Background color')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Apply text colour' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Apply fill colour' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Clear background' })).toBeHidden();
-  await page.getByLabel('Background color').click();
+  await page.getByRole('button', { name: 'Choose fill colour' }).click();
   await expect(page.getByRole('menu', { name: 'Fill menu' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Clear background' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('menu', { name: 'Fill menu' })).toBeHidden();
   await expect(page.getByRole('separator', { name: 'Resize notes' })).toBeVisible();
   await notes.fill('Director note');
   await expect(notes).toContainText('Director note');
@@ -151,8 +153,12 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
   await expect(italicButton).toHaveClass(/is-active/);
   await page.getByRole('combobox', { name: 'Font size' }).selectOption('22');
 
+  // Custom colour: dragging inside the system picker (input events) must not
+  // touch the text; the colour is applied once, on change (picker closed).
   const htmlBeforeTextColorDrag = await notes.evaluate((editor) => editor.innerHTML);
-  await page.locator('.note-hidden-color').first().evaluate((input) => {
+  await page.getByRole('button', { name: 'Choose text colour' }).click();
+  const customTextColor = page.getByLabel('Text colour menu: custom colour');
+  await customTextColor.evaluate((input) => {
     const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
     for (const color of ['#ff0000', '#00ff00', '#0000ff', '#cc00ff', '#ffaa00']) {
       setter.call(input, color);
@@ -160,7 +166,7 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
     }
   });
   expect(await notes.evaluate((editor) => editor.innerHTML)).toBe(htmlBeforeTextColorDrag);
-  await page.locator('.note-hidden-color').first().evaluate((input) => {
+  await customTextColor.evaluate((input) => {
     const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
     setter.call(input, '#ffd166');
     input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -199,9 +205,10 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
     editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
   });
   const htmlBeforeFillColorDrag = await notes.evaluate((editor) => editor.innerHTML);
-  await page.getByLabel('Background color').click();
+  await page.getByRole('button', { name: 'Choose fill colour' }).click();
   await expect(page.getByRole('menu', { name: 'Fill menu' })).toBeVisible();
-  await page.locator('.note-fill-native-color').evaluate((input) => {
+  const customFillColor = page.getByLabel('Fill menu: custom colour');
+  await customFillColor.evaluate((input) => {
     const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
     for (const color of ['#111111', '#223344', '#334455', '#445566', '#556677']) {
       setter.call(input, color);
@@ -209,19 +216,49 @@ test('control UI loads and Live Notes editor toggles open', async ({ page, reque
     }
   });
   expect(await notes.evaluate((editor) => editor.innerHTML)).toBe(htmlBeforeFillColorDrag);
+  await customFillColor.evaluate((input) => input.dispatchEvent(new Event('change', { bubbles: true })));
   await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('Director');
   await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('note');
   await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('rgb(85, 102, 119)');
+  await page.getByRole('button', { name: 'Choose fill colour' }).click();
   await page.getByRole('button', { name: 'Clear background' }).click();
   await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).not.toContain('rgb(85, 102, 119)');
   await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('Director');
   await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('rgb(255, 209, 102)');
-  await page.locator('.note-hidden-color').first().evaluate((input) => {
-    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-    setter.call(input, '#6aa3ff');
-    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+  // A swatch applies immediately and keeps the selection for the next command.
+  await page.getByRole('button', { name: 'Choose text colour' }).click();
+  await page.getByRole('button', { name: '#4dabf7' }).click();
+  await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('rgb(77, 171, 247)');
+  expect(await page.evaluate(() => window.getSelection().toString())).toBe('Director note');
+
+  // A partial "None" fill clears only the selected word.
+  await page.getByRole('button', { name: 'Apply fill colour' }).click();
+  await selectText('note');
+  await page.getByRole('button', { name: 'Choose fill colour' }).click();
+  await page.getByRole('button', { name: 'Clear background' }).click();
+  const fills = await notes.evaluate((editor) => {
+    const result = {};
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const text = walker.currentNode.nodeValue.trim();
+      // background-color isn't inherited: take the nearest painted ancestor.
+      let element = walker.currentNode.parentElement;
+      let color = 'rgba(0, 0, 0, 0)';
+      while (element && element !== editor) {
+        const value = window.getComputedStyle(element).backgroundColor;
+        if (value !== 'rgba(0, 0, 0, 0)' && value !== 'transparent') {
+          color = value;
+          break;
+        }
+        element = element.parentElement;
+      }
+      if (text) result[text] = color;
+    }
+    return result;
   });
-  await expect.poll(async () => notes.evaluate((editor) => editor.innerHTML)).toContain('rgb(106, 163, 255)');
+  expect(fills.Director).toBe('rgb(85, 102, 119)');
+  expect(fills.note).not.toBe('rgb(85, 102, 119)');
 
   const widthBefore = await page.locator('.live-notes-v2').evaluate((panel) => panel.getBoundingClientRect().width);
   const splitterBox = await page.getByRole('separator', { name: 'Resize notes' }).boundingBox();
@@ -532,4 +569,252 @@ test('Data sources migrate from localStorage to the server on load', async ({ pa
 
   // Clean up shared dev state.
   await request.put('http://127.0.0.1:4000/api/sources', { data: { items: [] } });
+});
+
+const seedCustomSources = async (page, sources) => {
+  await page.addInitScript((items) => {
+    window.localStorage.setItem('web-title-pro-source-library', JSON.stringify(items));
+  }, sources);
+};
+
+const makeSource = (rows) => ({
+  id: 'ui-regress-source',
+  name: 'UI Regress Source',
+  delimiter: ',',
+  linkedTimerId: null,
+  linkedTimerByOutput: {},
+  remote: null,
+  columns: [
+    { id: 'col-0', label: 'Name' },
+    { id: 'col-1', label: 'Role' },
+  ],
+  rows: rows.map((values, index) => ({
+    id: `rr-${index + 1}`,
+    index: index + 1,
+    values,
+    label: values.join(' | '),
+    timer: { baseMs: 0, format: 'mm:ss' },
+  })),
+});
+
+test('Data: a click that misses a row action button does not apply that row', async ({ page, request }) => {
+  await waitForBackend(request);
+  const apiState = async () => (await request.get('http://127.0.0.1:4000/api/state')).json();
+  const before = await apiState();
+  const output = before.outputs?.[0];
+  const previousSelectedEntryId = output?.selectedEntryId || null;
+  const previousSources = await (await request.get('http://127.0.0.1:4000/api/sources')).json();
+  const entry = before.entries.find((item) => (item.templateFields || []).length >= 2);
+  expect(entry).toBeTruthy();
+
+  try {
+    await request.post(`http://127.0.0.1:4000/api/entries/${entry.id}/select`, { data: { outputId: output.id } });
+    await seedCustomSources(page, [makeSource([['Alice', 'Host'], ['Bob', 'Guest']])]);
+    await page.goto('/');
+    await page.getByRole('button', { name: /DATA/i }).click();
+
+    const row1 = page.locator('.source-table tr[data-source-row-id="rr-1"]');
+    const row2 = page.locator('.source-table tr[data-source-row-id="rr-2"]');
+    await row1.locator('td').nth(1).click();
+    await expect(row1).toHaveClass(/is-active-source-row/);
+
+    // Click the padding of row 2's actions cell — next to, not on, the Edit
+    // button. This used to bubble to the row and send it to air.
+    await row2.locator('td.source-row-actions-cell').click({ position: { x: 2, y: 2 } });
+    await page.waitForTimeout(300);
+    await expect(row1).toHaveClass(/is-active-source-row/);
+    await expect(row2).not.toHaveClass(/is-active-source-row/);
+
+    // Edit itself still works and doesn't apply the row either.
+    await row2.getByRole('button', { name: 'Edit row' }).click();
+    await expect(row2.locator('input.source-table-input').first()).toBeVisible();
+    await expect(row2).not.toHaveClass(/is-active-source-row/);
+    const fields = (await apiState()).entries.find((item) => item.id === entry.id)?.fields || {};
+    expect(Object.values(fields)).not.toContain('Bob');
+  } finally {
+    await request.put('http://127.0.0.1:4000/api/sources', { data: { items: previousSources } });
+    if (previousSelectedEntryId) {
+      await request.post(`http://127.0.0.1:4000/api/entries/${previousSelectedEntryId}/select`, { data: { outputId: output.id } });
+    }
+  }
+});
+
+test('Live: a column can be dragged narrower than its text without growing the row', async ({ page, request }) => {
+  await waitForBackend(request);
+  const previousSources = await (await request.get('http://127.0.0.1:4000/api/sources')).json();
+
+  try {
+    await seedCustomSources(page, [makeSource([
+      ['Alice', 'Senior correspondent covering the regional elections tonight'],
+      ['Bob', 'Guest'],
+    ])]);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Live', exact: true }).click();
+    const table = page.locator('table.source-v2');
+    await expect(table).toBeVisible();
+    const rowHeight = await table.locator('tbody tr').first().evaluate((row) => row.offsetHeight);
+
+    // Drag the Role column's right edge to just past its left edge — far
+    // narrower than "Senior correspondent…" — staying inside the viewport.
+    const header = table.locator('th').nth(2);
+    const headerBox = await header.boundingBox();
+    const box = await header.locator('.col-resizer').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(headerBox.x + 20, box.y + box.height / 2, { steps: 5 });
+    await page.mouse.up();
+
+    const metrics = await table.evaluate((element) => {
+      const col = element.querySelector('col[data-col-id="col-1"]');
+      const cell = element.querySelector('tbody tr td:nth-child(3)');
+      const text = cell.querySelector('.cell-text');
+      return {
+        colWidth: col.offsetWidth,
+        cellWidth: cell.offsetWidth,
+        rowHeight: cell.parentElement.offsetHeight,
+        textFits: text.offsetHeight <= cell.clientHeight,
+      };
+    });
+    expect(metrics.colWidth).toBeLessThan(60);
+    expect(metrics.cellWidth).toBe(metrics.colWidth);
+    expect(metrics.rowHeight).toBe(rowHeight);
+    expect(metrics.textFits).toBe(true);
+  } finally {
+    await request.put('http://127.0.0.1:4000/api/sources', { data: { items: previousSources } });
+  }
+});
+
+test('Live: notes are available even with no data source', async ({ page, request }) => {
+  await waitForBackend(request);
+  const previousSources = await (await request.get('http://127.0.0.1:4000/api/sources')).json();
+
+  try {
+    await request.put('http://127.0.0.1:4000/api/sources', { data: { items: [] } });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Live', exact: true }).click();
+    await expect(page.getByText('No source', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: /Notes/i }).click();
+    const notes = page.getByRole('textbox', { name: 'Notes editor' });
+    await expect(notes).toBeVisible();
+    await notes.fill('Works without data');
+    await expect(notes).toContainText('Works without data');
+  } finally {
+    await request.put('http://127.0.0.1:4000/api/sources', { data: { items: previousSources } });
+  }
+});
+
+test('Top bar: window controls stay on screen at every window width', async ({ page, request }) => {
+  await waitForBackend(request);
+  await page.addInitScript(() => {
+    window.webTitleDesktop = {
+      minimizeWindow() {},
+      toggleMaximizeWindow() {},
+      closeWindow() {},
+      getWindowState: async () => ({ ok: true, isMaximized: false }),
+      onWindowStateChanged: () => () => {},
+    };
+  });
+  await page.goto('/');
+  const controls = page.locator('.window-controls-v2');
+  await expect(controls).toBeVisible();
+
+  for (const width of [1400, 1200, 1050, 950, 860, 760, 680, 560]) {
+    await page.setViewportSize({ width, height: 700 });
+    await expect.poll(async () => controls.evaluate((element) => {
+      const header = element.closest('.topbar-v2').getBoundingClientRect();
+      return element.getBoundingClientRect().right <= Math.min(header.right, window.innerWidth) + 0.5;
+    }), { message: `controls clipped at ${width}px` }).toBe(true);
+  }
+});
+
+test('Config: outputs rename inline and titles show which outputs use them', async ({ page, request }) => {
+  await waitForBackend(request);
+  const apiState = async () => (await request.get('http://127.0.0.1:4000/api/state')).json();
+  const before = await apiState();
+  const created = await (await request.post('http://127.0.0.1:4000/api/outputs', { data: {} })).json();
+  const entry = before.entries.find((item) => (item.templateFields || []).length >= 1) || before.entries[0];
+  const original = before.outputs[0];
+
+  try {
+    for (const output of [original, created]) {
+      await request.post(`http://127.0.0.1:4000/api/entries/${entry.id}/select`, { data: { outputId: output.id } });
+    }
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Config', exact: true }).click();
+
+    // Rename via the pencil: inline input, Enter commits.
+    const outputRow = page.locator('.config-item-v2').filter({ hasText: created.name }).first();
+    await outputRow.getByRole('button', { name: 'Rename output' }).click();
+    const input = page.getByRole('textbox', { name: 'Output name' });
+    await expect(input).toBeFocused();
+    await input.fill('Studio Renamed');
+    await input.press('Enter');
+    await expect.poll(async () => (await apiState()).outputs.find((o) => o.id === created.id)?.name).toBe('Studio Renamed');
+
+    // Escape cancels.
+    const renamedRow = page.locator('.config-item-v2').filter({ hasText: 'Studio Renamed' }).first();
+    await renamedRow.getByRole('button', { name: 'Rename output' }).click();
+    await page.getByRole('textbox', { name: 'Output name' }).fill('Should not stick');
+    await page.getByRole('textbox', { name: 'Output name' }).press('Escape');
+    await page.waitForTimeout(300);
+    expect((await apiState()).outputs.find((o) => o.id === created.id)?.name).toBe('Studio Renamed');
+
+    // The title used by both outputs shows compact numbered markers, and the
+    // Titles card names the output a click assigns to.
+    const titleRow = page.locator('.config-item-v2:has(.config-assign-radio-v2)').filter({ hasText: entry.name }).first();
+    await expect(titleRow.locator('.config-entry-outputs-v2 .config-output-num-v2')).toHaveCount(2);
+    await renamedRow.locator('.main').click();
+    await expect(page.locator('.config-assign-hint-v2')).toContainText('Studio Renamed');
+    await expect(titleRow).toHaveClass(/is-assigned/);
+  } finally {
+    await request.delete(`http://127.0.0.1:4000/api/outputs/${created.id}`);
+    if (original.selectedEntryId) {
+      await request.post(`http://127.0.0.1:4000/api/entries/${original.selectedEntryId}/select`, { data: { outputId: original.id } });
+    }
+  }
+});
+
+test('File shortcuts: Ctrl+S is wired and its result is shown to the operator', async ({ page, request }) => {
+  await waitForBackend(request);
+  await page.goto('/');
+  await expect(page.locator('.topbar-v2')).toBeVisible();
+  // Outside the desktop app saving isn't available — but the shortcut must
+  // reach saveProject and the message must actually be displayed.
+  await page.keyboard.press('Control+s');
+  await expect(page.getByRole('alert')).toContainText('desktop app only');
+});
+
+test('Settings: notifications can be set to all / errors only / none', async ({ page, request }) => {
+  await waitForBackend(request);
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: /System/ }).click();
+  const group = page.getByRole('radiogroup', { name: 'Notifications' });
+  await expect(group).toBeVisible();
+
+  // Errors only: an error still shows (red), an info message doesn't.
+  await group.getByRole('radio', { name: 'Только ошибки' }).click();
+  await expect(group.getByRole('radio', { name: 'Только ошибки' })).toHaveAttribute('aria-checked', 'true');
+  await page.keyboard.press('Control+s');
+  await expect(page.getByRole('alert')).toContainText('desktop app only');
+  await page.getByRole('button', { name: 'Config', exact: true }).click();
+  await page.getByRole('button', { name: '+ Add Output' }).click();
+  await page.waitForTimeout(500);
+  await expect(page.getByRole('status')).toHaveCount(0);
+
+  // None: nothing at all, and the choice survives a reload.
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.getByRole('button', { name: /System/ }).click();
+  await group.getByRole('radio', { name: 'Никакие' }).click();
+  await page.reload();
+  await expect(page.locator('.topbar-v2')).toBeVisible();
+  await page.keyboard.press('Control+s');
+  await page.waitForTimeout(400);
+  await expect(page.locator('.feedback-toast-v2')).toHaveCount(0);
+  expect(await page.evaluate(() => window.localStorage.getItem('wtp.notifications'))).toBe('none');
+
+  // Clean up the output this test added.
+  const state = await (await request.get('http://127.0.0.1:4000/api/state')).json();
+  const added = state.outputs[state.outputs.length - 1];
+  if (state.outputs.length > 1) await request.delete(`http://127.0.0.1:4000/api/outputs/${added.id}`);
 });

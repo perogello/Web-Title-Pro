@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { formatShortcutFromEvent, isTypingTarget } from './shortcut-utils.js';
 import { findActionForShortcut } from './shortcut-model.js';
+import { isAppDialogOpen } from './app-dialog.jsx';
 
 /**
  * Global keyboard/mouse-shortcut listener (model v2).
@@ -38,7 +39,7 @@ export const useGlobalShortcuts = ({
   useEffect(() => {
     const onShortcutInput = (event) => {
       const s = stateRef.current;
-      if (isTypingTarget(event.target)) {
+      if (isTypingTarget(event.target) || isAppDialogOpen()) {
         return;
       }
 

@@ -10,6 +10,7 @@ const { createGlobalShortcutManager } = require('./integrations/global-shortcuts
 const { collectCleanupTargets, buildCleanupScript } = require('./integrations/maintenance.cjs');
 const { createYandexAuthIntegration } = require('./integrations/yandex-auth.cjs');
 const { createSystemFontsIntegration } = require('./integrations/system-fonts.cjs');
+const { createAppDialog } = require('./integrations/app-dialog.cjs');
 
 const app = electron.app;
 const BrowserWindow = electron.BrowserWindow;
@@ -80,6 +81,9 @@ const log = (message) => {
   } catch {}
 };
 log('desktop:module-loaded');
+
+// Message boxes rendered inside the control window (native dialog as fallback).
+const appDialog = createAppDialog({ dialog, log: (message) => log(message) });
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 
@@ -488,7 +492,7 @@ ipcMain.handle('project:get-startup-project', async () => {
 });
 
 ipcMain.handle('project:confirm-unsaved', async (_event, payload = {}) => {
-  const result = await dialog.showMessageBox(mainWindow, {
+  const result = await appDialog.showMessageBox(mainWindow, {
     type: 'warning',
     title: 'Unsaved Changes',
     message: 'The current project has unsaved changes.',
@@ -534,7 +538,24 @@ ipcMain.handle('project:open-recent', async (_event, projectPath) => {
     throw new Error('Project path is required.');
   }
 
-  const project = await readProjectFile(projectPath);
+  let project;
+  try {
+    project = await readProjectFile(projectPath);
+  } catch (error) {
+    // A moved/deleted (or broken) file used to stay in Recent forever and
+    // surface a raw "Error invoking remote method … ENOENT". Drop the entry
+    // and hand back a readable message instead.
+    log(`project:open-recent failed for ${projectPath}: ${error.message}`);
+    await removeRecentProject(projectPath);
+    const fileName = path.basename(projectPath);
+    return {
+      canceled: true,
+      error: error.code === 'ENOENT'
+        ? `Project file no longer exists: ${fileName} — removed from Recent`
+        : `Could not open ${fileName}: ${error.message}`,
+      status: getProjectStatusPayload(),
+    };
+  }
   await touchRecentProject(projectPath);
 
   return {
@@ -878,7 +899,8 @@ const authorizeCloseForUpdate = async () => {
 const initializeUpdaterIntegration = () => {
   updaterIntegration = createAutoUpdaterIntegration({
     app,
-    dialog,
+    // Only showMessageBox is used there — route it through the in-app dialog.
+    dialog: appDialog,
     shell,
     log,
     getMainWindow: () => mainWindow,
@@ -1231,7 +1253,7 @@ const launchCleanupAndQuit = async (mode, { wipeUserData = true } = {}) => {
 };
 
 ipcMain.handle('maintenance:reset', async () => {
-  const choice = await dialog.showMessageBox(mainWindow, {
+  const choice = await appDialog.showMessageBox(mainWindow, {
     type: 'warning',
     title: 'Reset Web Title Pro',
     message: 'Сбросить приложение и перезапустить начисто?',
@@ -1241,6 +1263,7 @@ ipcMain.handle('maintenance:reset', async () => {
     buttons: ['Сбросить и перезапустить', 'Отмена'],
     defaultId: 1,
     cancelId: 1,
+    destructiveId: 0,
     noLink: true,
   });
   if (choice.response !== 0) {
@@ -1251,7 +1274,7 @@ ipcMain.handle('maintenance:reset', async () => {
 });
 
 ipcMain.handle('maintenance:uninstall', async () => {
-  const choice = await dialog.showMessageBox(mainWindow, {
+  const choice = await appDialog.showMessageBox(mainWindow, {
     type: 'warning',
     title: 'Remove Web Title Pro',
     message: 'Удалить Web Title Pro с этого компьютера?',
@@ -1263,6 +1286,7 @@ ipcMain.handle('maintenance:uninstall', async () => {
     buttons: ['Только приложение', 'Приложение и данные', 'Отмена'],
     defaultId: 0,
     cancelId: 2,
+    destructiveId: 1,
     noLink: true,
   });
   if (choice.response === 2) {

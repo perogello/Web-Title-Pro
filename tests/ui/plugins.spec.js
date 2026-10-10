@@ -111,9 +111,10 @@ test('Plugins: install a custom plugin from files, then delete it', async ({ pag
     return list.plugins.some((p) => p.name === 'E2E Import');
   }).toBe(true);
 
-  // Delete it (auto-accept the confirm dialog).
-  page.on('dialog', (dialog) => dialog.accept());
+  // Delete it.
   await card.getByRole('button', { name: 'Удалить' }).click();
+  // Confirm in the app-styled dialog (it replaced window.confirm).
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Удалить' }).click();
   await expect(card).toBeHidden({ timeout: 10_000 });
   await expect.poll(async () => {
     const list = await (await request.get('http://127.0.0.1:4000/api/plugins')).json();
@@ -213,8 +214,9 @@ test('Plugins: a background plugin runs headless and can drive commands', async 
   await expect(page.locator('.tab-v2.is-plugin')).toHaveCount(0);
   await expect(page.locator('.plugin-host.is-background')).toHaveCount(1);
 
-  page.on('dialog', (dialog) => dialog.accept());
   await card.getByRole('button', { name: 'Удалить' }).click();
+  // Confirm in the app-styled dialog (it replaced window.confirm).
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Удалить' }).click();
 });
 
 // A content plugin: its control panel writes its own data, the server persists
@@ -358,8 +360,9 @@ test('Plugins: a declared command can be bound to a key and fired', async ({ pag
 
   // Cleanup.
   await page.getByRole('button', { name: /Plugins/i }).click();
-  page.on('dialog', (dialog) => dialog.accept());
   await card.getByRole('button', { name: 'Удалить' }).click();
+  // Confirm in the app-styled dialog (it replaced window.confirm).
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Удалить' }).click();
 });
 
 // A plugin whose manifest mounts as a tab gets its own top-level nav tab.
@@ -400,6 +403,7 @@ test('Plugins: a tab-mount plugin adds a top-level tab that shows it full-size',
   await card.getByRole('button', { name: 'Отключить' }).click();
   await expect(page.locator('.tab-v2.is-plugin')).toHaveCount(0);
 
-  page.on('dialog', (dialog) => dialog.accept());
   await card.getByRole('button', { name: 'Удалить' }).click();
+  // Confirm in the app-styled dialog (it replaced window.confirm).
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Удалить' }).click();
 });

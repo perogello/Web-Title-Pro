@@ -4,6 +4,7 @@ import TimerColorEditorModal from '../TimerColorEditorModal.jsx';
 import SegmentedTimerInput from '../v2/SegmentedTimerInput.jsx';
 import DebouncedTextInput from '../v2/DebouncedTextInput.jsx';
 import { getLinkedTimerStatus } from '../lib/timer-utils.js';
+import { isVmixGtInput } from '../lib/entry-utils.js';
 
 export default function TimersTab({
   timers,
@@ -26,6 +27,15 @@ export default function TimersTab({
 }) {
   const [colorEditorTimerId, setColorEditorTimerId] = useState(null);
   const colorEditorTimer = timers.find((timer) => timer.id === colorEditorTimerId) || null;
+  const vmixInputs = vmixState?.inputs || [];
+  const vmixGtInputs = vmixInputs.filter(isVmixGtInput);
+  const inputId = (input) => input.key || input.number;
+  // Only GT titles (.gtzip) are offered as a timer's text target. An already
+  // chosen non-GT input stays listed (marked) so an existing setup isn't lost.
+  const getTimerVmixInputOptions = (timer) => {
+    const current = vmixInputs.find((input) => inputId(input) === timer.vmixInputKey);
+    return current && !isVmixGtInput(current) ? [...vmixGtInputs, current] : vmixGtInputs;
+  };
 
   return (
     <>
@@ -155,7 +165,7 @@ export default function TimersTab({
               ) : (
                 <>
                   <label className="field-v3 field-v3-compact">
-                    <span>vMix text input target</span>
+                    <span>vMix GT title</span>
                     <select
                       value={timer.vmixInputKey || ''}
                       onChange={(event) => {
@@ -167,10 +177,13 @@ export default function TimersTab({
                         });
                       }}
                     >
-                      <option value="">Select vMix input</option>
-                      {(vmixState?.inputs || []).map((input) => (
-                        <option key={input.key || input.number} value={input.key || input.number}>
+                      <option value="">
+                        {vmixState?.connected && !vmixGtInputs.length ? 'No GT titles (.gtzip) in vMix' : 'Select vMix GT title'}
+                      </option>
+                      {getTimerVmixInputOptions(timer).map((input) => (
+                        <option key={inputId(input)} value={inputId(input)}>
                           {input.number}. {input.title || input.shortTitle || input.key}
+                          {isVmixGtInput(input) ? '' : ' (not a GT title)'}
                         </option>
                       ))}
                     </select>

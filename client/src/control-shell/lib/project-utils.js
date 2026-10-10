@@ -27,7 +27,12 @@ const buildProjectDirtyShape = (snapshot) => ({
   selectedOutputId: snapshot?.selectedOutputId || null,
   outputs: (snapshot?.outputs || []).map(buildOutputDirtyShape),
   integrations: snapshot?.integrations || {},
-  entries: (snapshot?.entries || []).map((entry) => buildPersistedEntry(entry)),
+  // updatedAt is bookkeeping, not a change: a no-op save of the same fields
+  // (e.g. right before Export bundle) used to bump it and mark the project dirty.
+  entries: (snapshot?.entries || []).map((entry) => {
+    const { updatedAt, ...shape } = buildPersistedEntry(entry);
+    return shape;
+  }),
   timers: (snapshot?.timers || []).map(buildTimerDirtyShape),
 });
 

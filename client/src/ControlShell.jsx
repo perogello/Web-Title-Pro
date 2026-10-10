@@ -17,6 +17,7 @@ import {
 } from './control-shell/source-service.js';
 import KhuralStyleEditorModal from './control-shell/KhuralStyleEditorModal.jsx';
 import ChangelogModal from './control-shell/ChangelogModal.jsx';
+import AppDialogHost, { confirmAppDialog } from './control-shell/app-dialog.jsx';
 import { useMidiState, useRealtimeState, useSystemInfo, useVmixState } from './control-shell/hooks.js';
 import SettingsPanel from './control-shell/SettingsPanel.jsx';
 import SourcesTab from './control-shell/tabs/SourcesTab.jsx';
@@ -76,6 +77,7 @@ import {
 } from './control-shell/lib/entry-utils.js';
 import { useFeedback } from './control-shell/lib/use-feedback.js';
 import { useProjectActions } from './control-shell/lib/use-project-actions.js';
+import { useProjectShortcuts } from './control-shell/lib/use-project-shortcuts.js';
 import { useProjectState } from './control-shell/lib/use-project-state.js';
 
 function ControlShell() {
@@ -180,14 +182,14 @@ function ControlShell() {
   const remoteRefreshStateRef = useRef({});
   const latestDraftRef = useRef({ name: '', fields: {} });
   const outputs = snapshot?.outputs || [];
-  const [feedback, pushFeedback] = useFeedback();
+  const { feedback, pushFeedback, pushError, feedbackMode, setFeedbackMode } = useFeedback();
   const {
     projectStatus,
     setProjectStatus,
     currentProjectDisplayName,
     projectDirty,
     setProjectBaselineSignature,
-    setDirty: setProjectDirty,
+    setProjectDirty,
   } = useProjectState({ snapshot, sourceLibrary, selectedSourceId });
   // On desktop, electron-updater is the single source of truth for updates
   // (check + install go through it). Its normalized state arrives here via the
@@ -1115,6 +1117,14 @@ function ControlShell() {
   const persistDraft = async (override = null) => {
     if (!selectedEntry) return;
     const payload = override || latestDraftRef.current;
+    // Nothing edited: skip the write (it only bumped updatedAt).
+    if (
+      !override &&
+      (payload.name ?? '') === (selectedEntry.name ?? '') &&
+      JSON.stringify(payload.fields || {}) === JSON.stringify(selectedEntry.fields || {})
+    ) {
+      return;
+    }
 
     await api(`/api/entries/${selectedEntry.id}`, {
       method: 'PUT',
@@ -1168,6 +1178,7 @@ function ControlShell() {
     setSourceRowTimers,
     persistDraft,
     pushFeedback,
+    pushError,
   });
 
   const updateSelectedFieldMap = async (nextFieldMap, feedbackMessage) => {
@@ -1214,7 +1225,7 @@ function ControlShell() {
       pushFeedback(feedbackMessage);
     } catch (requestError) {
       setEntryFieldMapDraft(null);
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -1282,7 +1293,7 @@ function ControlShell() {
       });
       pushFeedback('Output added');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -1294,7 +1305,7 @@ function ControlShell() {
       });
       pushFeedback('Output updated');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -1313,7 +1324,7 @@ function ControlShell() {
       });
       pushFeedback('Output deleted');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -1329,7 +1340,7 @@ function ControlShell() {
       });
       pushFeedback(`${action.toUpperCase()} sent`);
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     } finally {
       setBusyAction('');
     }
@@ -1347,7 +1358,7 @@ function ControlShell() {
       });
       pushFeedback('Title assigned');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     } finally {
       setBusyAction('');
     }
@@ -1387,7 +1398,7 @@ function ControlShell() {
       setNewEntryMode('local');
       pushFeedback('Title added to rundown');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     } finally {
       setBusyAction('');
     }
@@ -1397,7 +1408,7 @@ function ControlShell() {
     const rawText = sourcePayload.trim();
 
     if (!rawText) {
-      pushFeedback('Загрузите TXT/CSV файл или вставьте строки источника');
+      pushError('Загрузите TXT/CSV файл или вставьте строки источника');
       return;
     }
 
@@ -1415,7 +1426,7 @@ function ControlShell() {
       setSourceFileName('');
       pushFeedback('Источник добавлен в таблицу');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -1454,13 +1465,13 @@ function ControlShell() {
       setSourceFileName(file.name);
       pushFeedback(`${selectedSource.name} replaced from file`);
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
   const uploadTemplateFromSelection = async () => {
     if (!uploadFiles.length) {
-      pushFeedback('Choose a ZIP file or template files first');
+      pushError('Choose a ZIP file or template files first');
       return;
     }
 
@@ -1491,7 +1502,7 @@ function ControlShell() {
       setTemplateValidationReport(null);
       pushFeedback(importedTemplate?.id ? 'Template uploaded and added to rundown' : 'Template uploaded');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     } finally {
       setBusyAction('');
     }
@@ -1504,9 +1515,13 @@ function ControlShell() {
 
     const usedEntries = (snapshot?.entries || []).filter((entry) => entry.templateId === templateId);
     if (usedEntries.length > 0) {
-      const confirmed = window.confirm(
-        `Delete this custom template and ${usedEntries.length} title(s) that use it? This cannot be undone.`,
-      );
+      const confirmed = await confirmAppDialog({
+        title: 'Delete template',
+        message: `Delete this custom template and ${usedEntries.length} title(s) that use it?`,
+        detail: 'This cannot be undone.',
+        confirmLabel: 'Delete',
+        destructive: true,
+      });
       if (!confirmed) {
         return;
       }
@@ -1523,7 +1538,7 @@ function ControlShell() {
       }
       pushFeedback('Custom template removed');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -1536,7 +1551,7 @@ function ControlShell() {
     });
 
     if (!remoteConfig?.url) {
-      pushFeedback('Add a remote CSV or Google Sheets URL first');
+      pushError('Add a remote CSV or Google Sheets URL first');
       return;
     }
 
@@ -1558,7 +1573,7 @@ function ControlShell() {
         setRemoteSourceRefreshIntervalSec(30);
         pushFeedback(`${getRemoteSourceTypeLabel(remoteConfig.type)} source added`);
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     } finally {
       setBusyAction('');
     }
@@ -1614,7 +1629,7 @@ function ControlShell() {
           ),
         );
         if (!silent) {
-          pushFeedback(requestError.message);
+          pushError(requestError.message);
         }
       } finally {
         delete remoteRefreshStateRef.current[sourceId];
@@ -1665,7 +1680,7 @@ function ControlShell() {
 
   const reloadYandexAuthSettings = async () => {
     if (!desktopBridge?.getYandexAuthSettings) {
-      pushFeedback('Yandex credentials are available in the desktop app only');
+      pushError('Yandex credentials are available in the desktop app only');
       return;
     }
 
@@ -1676,13 +1691,13 @@ function ControlShell() {
         pushFeedback('Yandex settings reloaded');
       }
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
   const saveYandexAuthSettings = async (nextSettings = null) => {
     if (!desktopBridge?.saveYandexAuthSettings) {
-      pushFeedback('Yandex credentials are available in the desktop app only');
+      pushError('Yandex credentials are available in the desktop app only');
       return null;
     }
 
@@ -1700,14 +1715,14 @@ function ControlShell() {
       pushFeedback('Yandex settings saved locally');
       return payload;
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
       return null;
     }
   };
 
   const startYandexConnect = async () => {
     if (!desktopBridge?.startYandexAuth) {
-      pushFeedback('Yandex connect is available in the desktop app only');
+      pushError('Yandex connect is available in the desktop app only');
       return;
     }
 
@@ -1730,13 +1745,13 @@ function ControlShell() {
         status: 'error',
         error: requestError.message,
       });
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
   const disconnectYandex = async () => {
     if (!desktopBridge?.disconnectYandexAuth) {
-      pushFeedback('Yandex disconnect is available in the desktop app only');
+      pushError('Yandex disconnect is available in the desktop app only');
       return;
     }
 
@@ -1751,7 +1766,7 @@ function ControlShell() {
       });
       pushFeedback('Yandex disconnected locally');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -1759,7 +1774,7 @@ function ControlShell() {
     try {
       await api('/api/entries/reorder', { method: 'POST', body: { ids: nextIds } });
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -1767,7 +1782,7 @@ function ControlShell() {
     try {
       await api('/api/outputs/reorder', { method: 'POST', body: { ids: nextIds } });
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -1797,7 +1812,7 @@ function ControlShell() {
           : 'Local title removed from rundown',
       );
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     } finally {
       setBusyAction('');
     }
@@ -1814,7 +1829,7 @@ function ControlShell() {
       await api(`/api/entries/${entry.id}/duplicate`, { method: 'POST' });
       pushFeedback(`Duplicated «${entry.name}»`);
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     } finally {
       setBusyAction('');
     }
@@ -1898,13 +1913,13 @@ function ControlShell() {
       pushFeedback('Khural text styles updated');
       closeStyleEditor();
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
   const openTemplateFolders = async () => {
     if (!desktopBridge?.openTemplateFolders) {
-      pushFeedback('Folder access is available in the desktop app only');
+      pushError('Folder access is available in the desktop app only');
       return;
     }
 
@@ -1915,7 +1930,7 @@ function ControlShell() {
       }
       pushFeedback('Template folders opened');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -1959,7 +1974,7 @@ function ControlShell() {
 
   const applySourceRow = async (row) => {
     if (!selectedOutput?.id) {
-      pushFeedback('Сначала выберите output');
+      pushError('Сначала выберите output');
       return;
     }
 
@@ -2057,7 +2072,7 @@ function ControlShell() {
       scheduleTimerReminder(selectedSource?.id || '', row);
       pushFeedback(`Строка ${row.index} применена к ${targetOutputIds.length} output(s)`);
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2069,7 +2084,7 @@ function ControlShell() {
     api(`/api/outputs/${selectedOutput.id}/sync-toggle`, {
       method: 'POST',
       body: { targetOutputId: outputId },
-    }).catch((requestError) => pushFeedback(requestError.message));
+    }).catch((requestError) => pushError(requestError.message));
   };
 
   const scheduleTimerReminder = (sourceId, row) => {
@@ -2381,7 +2396,7 @@ function ControlShell() {
       delete next[rowKey];
       return next;
     });
-    void syncSourceRowToOutputs(sourceId, rowId, nextValues).catch((requestError) => pushFeedback(requestError.message));
+    void syncSourceRowToOutputs(sourceId, rowId, nextValues).catch((requestError) => pushError(requestError.message));
     pushFeedback('Source row saved');
   };
 
@@ -2563,7 +2578,7 @@ function ControlShell() {
 
       await api(`/api/timers/${timerId}`, { method: 'PUT', body: nextPatch });
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2572,7 +2587,7 @@ function ControlShell() {
       await api(`/api/timers/${timerId}`, { method: 'DELETE' });
       pushFeedback('Timer deleted');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2580,7 +2595,7 @@ function ControlShell() {
     try {
       await api(`/api/timers/${timerId}/${action}`, { method: 'POST' });
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2649,7 +2664,7 @@ function ControlShell() {
         },
       });
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2669,7 +2684,7 @@ function ControlShell() {
       setVmixState(nextState);
       pushFeedback('vMix connection settings updated');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2681,7 +2696,7 @@ function ControlShell() {
       setVmixState(nextState);
       pushFeedback('vMix synchronized');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2693,7 +2708,7 @@ function ControlShell() {
       setMidiState(nextState);
       pushFeedback('MIDI devices refreshed');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2706,7 +2721,7 @@ function ControlShell() {
       setMidiState(nextState);
       pushFeedback(`MIDI learn started for ${action.toUpperCase()}`);
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2718,7 +2733,7 @@ function ControlShell() {
       setMidiState(nextState);
       pushFeedback('MIDI learn stopped');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2728,7 +2743,7 @@ function ControlShell() {
       setAppMeta(nextMeta);
       return nextMeta;
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
       return null;
     }
   };
@@ -2748,7 +2763,7 @@ function ControlShell() {
       }));
       pushFeedback('Update check completed');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2770,7 +2785,7 @@ function ControlShell() {
     if (desktopBridge?.openExternal) {
       const result = await desktopBridge.openExternal(target);
       if (result?.ok === false) {
-        pushFeedback(result.error || 'Could not open the release page');
+        pushError(result.error || 'Could not open the release page');
       }
       return;
     }
@@ -2780,7 +2795,7 @@ function ControlShell() {
 
   const installAvailableUpdate = async () => {
     if (!desktopBridge?.installAvailableUpdate) {
-      pushFeedback('Desktop updater is not available in this mode');
+      pushError('Desktop updater is not available in this mode');
       return;
     }
 
@@ -2804,7 +2819,7 @@ function ControlShell() {
         return;
       }
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2816,7 +2831,7 @@ function ControlShell() {
       setMidiState(nextState);
       pushFeedback(`MIDI binding cleared for ${action.toUpperCase()}`);
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2829,7 +2844,7 @@ function ControlShell() {
       setMidiState(nextState);
       pushFeedback('MIDI binding updated');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2852,7 +2867,7 @@ function ControlShell() {
         pushFeedback(value ? 'Клавиша назначена' : 'Клавиша очищена');
       }
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2908,7 +2923,7 @@ function ControlShell() {
       null;
     const rows = source?.rows || [];
     if (!rows.length) {
-      pushFeedback('Нет строк данных для этого output');
+      pushError('Нет строк данных для этого output');
       return;
     }
     const currentIndex = rowBinding?.rowId ? rows.findIndex((r) => r.id === rowBinding.rowId) : -1;
@@ -2974,7 +2989,7 @@ function ControlShell() {
         case 'timerReset': {
           const timerId = resolveOutputCurrentTimerId(outputId);
           if (!timerId) {
-            pushFeedback('У этого output нет текущего таймера');
+            pushError('У этого output нет текущего таймера');
             return;
           }
           const timerAction =
@@ -2986,7 +3001,7 @@ function ControlShell() {
           break;
       }
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -2997,7 +3012,7 @@ function ControlShell() {
     try {
       if (action === 'show') {
         if (!selectedEntry?.id) {
-          pushFeedback('Select a title to preview first');
+          pushError('Select a title to preview first');
           return;
         }
         await api('/api/preview/show', {
@@ -3013,7 +3028,7 @@ function ControlShell() {
         pushFeedback('Preview OUT');
       }
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
   };
 
@@ -3043,7 +3058,9 @@ function ControlShell() {
 
     setLiveSourceColumnWidths((current) => ({
       ...current,
-      [`${sourceId}:${columnId}`]: Math.max(72, Math.min(640, Math.round(Number(width) || 0))),
+      // Lower bound matches LiveTabV2's MIN_COL_WIDTH: columns may be squeezed
+      // below their text width (the text wraps/clips inside the cell).
+      [`${sourceId}:${columnId}`]: Math.max(40, Math.min(640, Math.round(Number(width) || 0))),
     }));
   };
 
@@ -3051,12 +3068,12 @@ function ControlShell() {
     const values = manualRowColumns.map((_column, index) => (manualRowValues[index] || '').trim());
 
     if (!values.some(Boolean)) {
-      pushFeedback('Заполните хотя бы одно поле строки');
+      pushError('Заполните хотя бы одно поле строки');
       return;
     }
 
     if (!manualRowColumns.length) {
-      pushFeedback('Сначала выберите титр или источник данных');
+      pushError('Сначала выберите титр или источник данных');
       return;
     }
 
@@ -3110,6 +3127,15 @@ function ControlShell() {
     dispatchAction,
   });
 
+  useProjectShortcuts({
+    shortcutBindings,
+    learningShortcut,
+    onNewProject: createNewProject,
+    onOpenProject: openProject,
+    onSaveProject: () => saveProject(),
+    onSaveAsProject: () => saveProject({ saveAs: true }),
+  });
+
   // Sync registered OS-level global shortcuts with the desktop main process
   // whenever the bindings (or which of them are flagged global) change.
   useEffect(() => {
@@ -3125,7 +3151,7 @@ function ControlShell() {
         const conflicts = Array.isArray(result?.conflicts) ? result.conflicts : [];
         const signature = conflicts.map((item) => `${item.action}:${item.accelerator}`).join('|');
         if (signature && signature !== globalConflictSignatureRef.current) {
-          pushFeedback(
+          pushError(
             `Клавиша занята другой программой: ${conflicts.map((item) => item.raw || item.accelerator).join(', ')}`,
           );
         }
@@ -3402,7 +3428,7 @@ function ControlShell() {
             void api('/api/shortcuts/navigation', {
               method: 'PUT',
               body: { globalActions: { [action]: !!isOn } },
-            }).catch((requestError) => pushFeedback(requestError.message));
+            }).catch((requestError) => pushError(requestError.message));
           }}
           onCopyBitfocusUrl={(action) => copyText(action.url).then(() => pushFeedback(`URL ${action.label} copied`))}
           onCopyBitfocusPayload={(action) => copyText(JSON.stringify(action.payload)).then(() => pushFeedback(`Payload ${action.label} copied`))}
@@ -3425,6 +3451,8 @@ function ControlShell() {
           isDesktop={Boolean(window.webTitleDesktop?.resetApp)}
           onResetApp={() => window.webTitleDesktop?.resetApp?.().catch(() => {})}
           onUninstallApp={() => window.webTitleDesktop?.uninstallApp?.().catch(() => {})}
+          feedbackMode={feedbackMode}
+          onSetFeedbackMode={setFeedbackMode}
         />
       )}
 
@@ -3454,7 +3482,7 @@ function ControlShell() {
           manualRowColumns={manualRowColumns}
           manualRowValues={manualRowValues}
           onSourceNameChange={setSourceName}
-          onSourceFilePicked={(file) => onSourceFilePicked(file).catch((requestError) => pushFeedback(requestError.message))}
+          onSourceFilePicked={(file) => onSourceFilePicked(file).catch((requestError) => pushError(requestError.message))}
           onSourcePayloadChange={setSourcePayload}
           onImportSourceDataset={importSourceDataset}
           onRemoteSourceNameChange={setRemoteSourceName}
@@ -3718,6 +3746,20 @@ function ControlShell() {
         </div>
       )}
 
+      {/* Transient status line for pushFeedback (save/open/import results and
+          errors). It was dropped in the v3 redesign, so every message —
+          including failed saves — went nowhere. */}
+      <AppDialogHost />
+
+      {feedback && (
+        <div
+          className={`feedback-toast-v2 ${feedback.level === 'error' ? 'is-error' : ''}`}
+          role={feedback.level === 'error' ? 'alert' : 'status'}
+          aria-live={feedback.level === 'error' ? 'assertive' : 'polite'}
+        >
+          {feedback.message}
+        </div>
+      )}
     </div>
   );
 }

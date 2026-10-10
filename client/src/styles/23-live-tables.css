@@ -66,6 +66,10 @@
   width: 76px;
   min-width: 76px;
 }
+/* Actions cell never applies the row (clicks are swallowed in SourcesTab). */
+.shell-v2 .source-table td.source-row-actions-cell {
+  cursor: default;
+}
 .shell-v2 .source-table .source-row-actions {
   display: inline-flex !important;
   flex-direction: row !important;
@@ -101,6 +105,36 @@
   font-size: 14px;
   font-weight: 500;
   color: var(--text-v2);
+}
+/* Text cells: when a column is dragged narrower than its text, the text wraps
+   onto a second line inside the SAME row height (44px = 2 × 17.5px line +
+   4px padding top/bottom) and anything that still doesn't fit is clipped with
+   an ellipsis. Rows never grow because of long values. */
+.shell-v2 table.source-v2 tbody td:not(.idx):not(.row-timer-td) {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.shell-v2 table.source-v2 td .cell-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: var(--cell-lines, 2);
+  line-clamp: var(--cell-lines, 2);
+  overflow: hidden;
+  white-space: normal;
+  /* Wrap at spaces only; a single word wider than the column is cut with an
+     ellipsis instead of being split mid-word. */
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+/* Rows with a linked timer are ~71px tall (the segmented timer input), so a
+   third line fits without growing the row. */
+.shell-v2 table.source-v2.has-timer { --cell-lines: 3; }
+.shell-v2 table.source-v2 th .col-head .col-label,
+.shell-v2 table.source-v2 th .col-head .col-binding {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .shell-v2 table.source-v2 tbody tr {
   height: 44px;

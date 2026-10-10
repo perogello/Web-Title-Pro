@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   WindowCloseIcon,
   WindowMaximizeIcon,
@@ -31,6 +31,41 @@ const TABS = [
   { id: 'timers', label: 'Timers', icon: '⏱' },
   { id: 'settings', label: 'Settings', icon: '⚒' },
 ];
+
+// Progressive compaction of the top bar, chosen by what actually fits rather
+// than by viewport breakpoints (the project name and plugin tabs change the
+// needed width). Levels, applied via data-density on the header:
+//   0 full · 1 compact chips · 2 dot-only chips · 3 icon tabs, no project name
+//   4 integration chips hidden (Live-edit dot stays)
+// The window controls are never squeezed: before, the chips only shrank at
+// fixed widths, so in between the grid overflowed and pushed Minimize /
+// Maximize / Close off the right edge.
+const MAX_DENSITY = 4;
+
+function useFitDensity(headerRef, deps) {
+  const fit = useCallback(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const items = header.querySelectorAll(':scope > .app-menu, :scope > .tabs-v2, :scope > .status-v2, :scope > .window-controls-v2');
+    for (let level = 0; level <= MAX_DENSITY; level += 1) {
+      header.dataset.density = String(level);
+      const limit = header.getBoundingClientRect().right + 0.5;
+      const overflows = [...items].some((item) => item.getBoundingClientRect().right > limit);
+      if (!overflows) return;
+    }
+  }, [headerRef]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(fit, deps);
+
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(fit);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, [fit, headerRef]);
+}
 
 function StatusBadge({ tone, label, title, onClick }) {
   // Clickable chips navigate to their settings page; non-clickable stays as a span.
@@ -145,6 +180,11 @@ export default function TopBar({
   const [recentOpen, setRecentOpen] = useState(false);
   const menuRef = useRef(null);
   const bundleInputRef = useRef(null);
+  const hasWindowControls = Boolean(
+    typeof window !== 'undefined' && window.webTitleDesktop?.minimizeWindow,
+  );
+
+  useFitDensity(menuRef, [currentProjectName, projectDirty, pluginTabs.length, autoUpdate, connection, hasWindowControls]);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -212,7 +252,7 @@ export default function TopBar({
             the live title until the operator explicitly takes them with Update/Live. */}
         <button
           type="button"
-          className={`badge-status-v2 is-${autoUpdate ? 'warn' : 'off'} is-clickable`}
+          className={`badge-status-v2 is-live-edit is-${autoUpdate ? 'warn' : 'off'} is-clickable`}
           onClick={() => onToggleAutoUpdate?.()}
           aria-pressed={autoUpdate ? 'true' : 'false'}
           title={
@@ -293,7 +333,7 @@ export default function TopBar({
                     title={item.path}
                     onClick={() => { setMenuOpen(false); setRecentOpen(false); onOpenRecentProject?.(item.path); }}
                   >
-                    {item.name}
+                    {String(item.name || '').replace(/\.wtp-project\.json$|\.json$/i, '')}
                   </button>
                 ))}
               </div>

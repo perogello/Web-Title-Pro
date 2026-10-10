@@ -83,6 +83,10 @@ select {
   position: fixed; inset: 0;
   display: grid;
   grid-template-rows: 40px 1fr;
+  /* Without an explicit column the implicit `auto` track grew to the top
+     bar's min-content width, and overflow:hidden then silently clipped the
+     right edge (window controls) instead of letting the bar compact itself. */
+  grid-template-columns: minmax(0, 1fr);
   background: var(--bg-v2);
   color: var(--text-v2);
   font-family: "Segoe UI", "YS Text", system-ui, sans-serif;

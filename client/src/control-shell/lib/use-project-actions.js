@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { normalizeSourceLibrary } from '../../source-library.js';
 import { api, BACKEND_ORIGIN } from '../api.js';
+import { showAppDialog } from '../app-dialog.jsx';
 import {
   buildProjectDocumentPayload,
   buildProjectSignature,
   buildWindowTitle,
   getSuggestedProjectName,
 } from './project-utils.js';
+
+// Electron wraps errors thrown in ipcMain handlers as
+// "Error invoking remote method 'project:…': Error: <message>" — keep the message.
+const cleanIpcError = (message = '') =>
+  String(message).replace(/^Error invoking remote method '[^']*':\s*(?:Error:\s*)?/, '');
 
 const formatBundleCount = (count, singular, plural = `${singular}s`) =>
   `${count} ${count === 1 ? singular : plural}`;
@@ -30,6 +36,7 @@ export function useProjectActions({
   setSourceRowTimers,
   persistDraft,
   pushFeedback,
+  pushError,
 }) {
   const appCloseAuthorizedRef = useRef(false);
   const vmixStateRef = useRef(vmixState || null);
@@ -60,7 +67,7 @@ export function useProjectActions({
   const saveProject = useCallback(
     async ({ saveAs = false } = {}) => {
       if (!desktopBridge?.saveProject || !desktopBridge?.saveProjectAs) {
-        pushFeedback('Project files are available in the desktop app only');
+        pushError('Project files are available in the desktop app only');
         return { canceled: true };
       }
 
@@ -95,7 +102,7 @@ export function useProjectActions({
         pushFeedback(`Project saved: ${result.path?.split(/[\\/]/).pop() || 'project'}`);
         return result;
       } catch (requestError) {
-        pushFeedback(requestError.message);
+        pushError(cleanIpcError(requestError.message));
         return { canceled: true, error: requestError.message };
       }
     },
@@ -105,6 +112,7 @@ export function useProjectActions({
       persistDraft,
       projectStatus?.currentProjectPath,
       pushFeedback,
+      pushError,
       setProjectBaselineSignature,
       setProjectDirty,
       setProjectStatus,
@@ -117,22 +125,33 @@ export function useProjectActions({
         return true;
       }
 
-      if (desktopBridge?.confirmUnsavedChanges) {
-        const result = await desktopBridge.confirmUnsavedChanges({ detail });
+      // App-styled dialog (was a native Windows message box on close/update).
+      const canSaveFiles = Boolean(desktopBridge?.saveProject);
+      const response = await showAppDialog({
+        type: 'warning',
+        title: 'Unsaved changes',
+        message: 'The current project has unsaved changes.',
+        detail: detail || 'Do you want to save the project before continuing?',
+        buttons: canSaveFiles ? ['Save', "Don't Save", 'Cancel'] : ["Don't Save", 'Cancel'],
+        // Enter = Save on desktop; without file saving, Enter must not discard.
+        defaultId: canSaveFiles ? 0 : 1,
+        cancelId: canSaveFiles ? 2 : 1,
+        destructiveId: canSaveFiles ? 1 : 0,
+      });
+      const action = canSaveFiles
+        ? ['save', 'discard', 'cancel'][response] || 'cancel'
+        : ['discard', 'cancel'][response] || 'cancel';
 
-        if (result?.action === 'cancel') {
-          return false;
-        }
-
-        if (result?.action === 'save') {
-          const saveResult = await saveProject();
-          return Boolean(saveResult && !saveResult.canceled);
-        }
-
-        return true;
+      if (action === 'cancel') {
+        return false;
       }
 
-      return window.confirm('The current project has unsaved changes. Continue without saving?');
+      if (action === 'save') {
+        const saveResult = await saveProject();
+        return Boolean(saveResult && !saveResult.canceled);
+      }
+
+      return true;
     },
     [desktopBridge, projectDirty, saveProject],
   );
@@ -223,12 +242,13 @@ export function useProjectActions({
 
       pushFeedback('New project created');
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(cleanIpcError(requestError.message));
     }
   }, [
     confirmProceedWithUnsavedProject,
     desktopBridge,
     pushFeedback,
+    pushError,
     resetSourceRuntimeState,
     setProjectBaselineSignature,
     setProjectDirty,
@@ -239,7 +259,7 @@ export function useProjectActions({
 
   const openProject = useCallback(async () => {
     if (!desktopBridge?.openProjectDialog) {
-      pushFeedback('Project files are available in the desktop app only');
+      pushError('Project files are available in the desktop app only');
       return;
     }
 
@@ -261,9 +281,9 @@ export function useProjectActions({
       await applyProjectDocument(result.project, result.status || null);
       pushFeedback(`Project opened: ${result.path?.split(/[\\/]/).pop() || 'project'}`);
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(cleanIpcError(requestError.message));
     }
-  }, [applyProjectDocument, confirmProceedWithUnsavedProject, desktopBridge, pushFeedback]);
+  }, [applyProjectDocument, confirmProceedWithUnsavedProject, desktopBridge, pushFeedback, pushError]);
 
   const openRecentProject = useCallback(
     async (projectPath) => {
@@ -283,16 +303,19 @@ export function useProjectActions({
         const result = await desktopBridge.openRecentProject(projectPath);
 
         if (result?.canceled) {
+          // Missing/broken file: main dropped it from Recent — refresh the menu.
+          if (result.status) setProjectStatus(result.status);
+          if (result.error) pushError(result.error);
           return;
         }
 
         await applyProjectDocument(result.project, result.status || null);
         pushFeedback(`Project opened: ${result.path?.split(/[\\/]/).pop() || 'project'}`);
       } catch (requestError) {
-        pushFeedback(requestError.message);
+        pushError(cleanIpcError(requestError.message));
       }
     },
-    [applyProjectDocument, confirmProceedWithUnsavedProject, desktopBridge, pushFeedback],
+    [applyProjectDocument, confirmProceedWithUnsavedProject, desktopBridge, pushFeedback, pushError, setProjectStatus],
   );
 
   useEffect(() => {
@@ -338,7 +361,7 @@ export function useProjectActions({
           await applyProjectDocument(result.project, result.status || null);
           pushFeedback(`Project opened: ${result.path?.split(/[\\/]/).pop() || 'project'}`);
         } else if (result.error) {
-          pushFeedback(result.error);
+          pushError(result.error);
         }
       })
       .catch(() => {});
@@ -346,7 +369,7 @@ export function useProjectActions({
     return () => {
       mounted = false;
     };
-  }, [applyProjectDocument, desktopBridge, pushFeedback, setProjectStatus]);
+  }, [applyProjectDocument, desktopBridge, pushFeedback, pushError, setProjectStatus]);
 
   useEffect(() => {
     const nextTitle = buildWindowTitle(currentProjectDisplayName, projectDirty);
@@ -369,10 +392,18 @@ export function useProjectActions({
   }, [projectDirty]);
 
   useEffect(() => {
+    // Clicking × again while the "unsaved changes" dialog is up reuses the
+    // pending question instead of stacking a second dialog.
+    let pendingClose = null;
     window.__webTitleHandleCloseRequest = async () => {
-      const shouldProceed = await confirmProceedWithUnsavedProject(
-        'Do you want to save the current project before closing Web Title Pro?',
-      );
+      if (!pendingClose) {
+        pendingClose = confirmProceedWithUnsavedProject(
+          'Do you want to save the current project before closing Web Title Pro?',
+        ).finally(() => {
+          pendingClose = null;
+        });
+      }
+      const shouldProceed = await pendingClose;
 
       if (!shouldProceed) {
         return false;
@@ -459,9 +490,9 @@ export function useProjectActions({
           : 'no custom templates referenced';
       pushFeedback(`Bundle exported: ${projectSummary}, ${templateSummary}`);
     } catch (requestError) {
-      pushFeedback(requestError.message);
+      pushError(requestError.message);
     }
-  }, [buildProjectDocument, persistDraft, pushFeedback]);
+  }, [buildProjectDocument, persistDraft, pushFeedback, pushError]);
 
   // Bundle import accepts a File object (caller provides the picker).
   // Uploads as multipart, lets the server unpack templates, then applies
@@ -505,10 +536,10 @@ export function useProjectActions({
             : 'Bundle imported (no bundled templates)',
         );
       } catch (requestError) {
-        pushFeedback(requestError.message);
+        pushError(cleanIpcError(requestError.message));
       }
     },
-    [applyProjectDocument, confirmProceedWithUnsavedProject, pushFeedback],
+    [applyProjectDocument, confirmProceedWithUnsavedProject, pushFeedback, pushError],
   );
 
   return {

@@ -1,5 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CopyIcon, EditIcon, TrashIcon } from '../icons.jsx';
+import { alertAppDialog, confirmAppDialog } from '../app-dialog.jsx';
+
+// Compact output markers shown on a title row; more than this collapses to "+N".
+const MAX_OUTPUT_MARKERS = 4;
 
 const formatVmixInputRef = (entry) => {
   if (!entry) return 'Input ?';
@@ -38,24 +42,46 @@ export default function ConfigTab({
   const [draggingOutputId, setDraggingOutputId] = useState(null);
   const [draggingEntryId, setDraggingEntryId] = useState(null);
   const [dropTarget, setDropTarget] = useState({ kind: null, id: null });
+  // Inline rename (window.prompt is not supported in Electron, so the old
+  // prompt-based Rename button silently did nothing in the desktop app).
+  const [renamingOutputId, setRenamingOutputId] = useState(null);
+  const [renameDraft, setRenameDraft] = useState('');
+  // Enter commits and unmounts the input, which can also fire blur — the ref
+  // makes the second commit a no-op.
+  const renamingRef = useRef(null);
 
-  const handleRenameOutput = (output) => {
-    const next = window.prompt('Output name', output.name);
-    if (next !== null && next.trim()) {
-      onUpdateOutput?.(output.id, { name: next.trim() });
+  const outputNumberById = new Map(outputs.map((output, index) => [output.id, index + 1]));
+  const selectedOutput = outputs.find((output) => output.id === selectedOutputId) || null;
+
+  const startRenameOutput = (output) => {
+    renamingRef.current = output.id;
+    setRenamingOutputId(output.id);
+    setRenameDraft(output.name);
+  };
+  const cancelRenameOutput = () => {
+    renamingRef.current = null;
+    setRenamingOutputId(null);
+    setRenameDraft('');
+  };
+  const commitRenameOutput = (output) => {
+    if (renamingRef.current !== output.id) return;
+    const next = renameDraft.trim();
+    cancelRenameOutput();
+    if (next && next !== output.name) {
+      onUpdateOutput?.(output.id, { name: next });
     }
   };
-  const handleDeleteOutput = (output) => {
+  const handleDeleteOutput = async (output) => {
     if (outputs.length <= 1) {
-      window.alert('At least one output is required.');
+      await alertAppDialog({ message: 'At least one output is required.' });
       return;
     }
-    if (window.confirm(`Delete output «${output.name}»?`)) {
+    if (await confirmAppDialog({ title: 'Delete output', message: `Delete output «${output.name}»?`, confirmLabel: 'Delete', destructive: true })) {
       onDeleteOutput?.(output.id);
     }
   };
-  const handleDeleteEntry = (entry) => {
-    if (window.confirm(`Delete title «${entry.name}»?`)) {
+  const handleDeleteEntry = async (entry) => {
+    if (await confirmAppDialog({ title: 'Delete title', message: `Delete title «${entry.name}»?`, confirmLabel: 'Delete', destructive: true })) {
       onRemoveEntry?.(entry);
     }
   };
@@ -151,11 +177,12 @@ export default function ConfigTab({
               const currentEntry = entries.find((entry) => entry.id === output.selectedEntryId);
               const isVmix = currentEntry?.entryType === 'vmix';
               const subline = isVmix
-                ? `VMIX · ${formatVmixInputRef(currentEntry)} · ${currentEntry?.vmixInputTitle || ''}`
+                ? `VMIX · ${formatVmixInputRef(currentEntry)}${currentEntry?.vmixInputTitle ? ` · ${currentEntry.vmixInputTitle}` : ''}`
                 : currentEntry
-                  ? `LOCAL · ${currentEntry.templateName || currentEntry.name}`
-                  : 'No title assigned';
+                  ? 'LOCAL'
+                  : '';
               const target = renderTargetById.get(output.id);
+              const isRenaming = renamingOutputId === output.id;
               const isSelected = output.id === selectedOutputId;
               const isDragging = output.id === draggingOutputId;
               const isDropTarget =
@@ -164,7 +191,7 @@ export default function ConfigTab({
                 <div
                   key={output.id}
                   className={`config-item-v2 ${isSelected ? 'is-selected has-urls' : ''} ${isVmix ? 'is-vmix-entry' : currentEntry ? 'is-local-entry' : ''} ${isDragging ? 'is-dragging' : ''} ${isDropTarget ? 'is-drop-target' : ''}`}
-                  draggable
+                  draggable={!isRenaming}
                   onDragStart={onOutputDragStart(output)}
                   onDragOver={onOutputDragOver(output)}
                   onDrop={onOutputDrop(output)}
@@ -176,17 +203,54 @@ export default function ConfigTab({
                   }}
                 >
                   <span className="grip" aria-hidden title="Drag to reorder">⋮⋮</span>
-                  <button
-                    type="button"
-                    className="main"
-                    onClick={() => onSelectOutput?.(output.id)}
-                    style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', textAlign: 'left' }}
-                  >
-                    <strong>{output.name}</strong>
-                    <span>{subline}</span>
-                  </button>
+                  {isRenaming ? (
+                    <div className="main">
+                      <input
+                        className="config-rename-input-v2"
+                        value={renameDraft}
+                        autoFocus
+                        onFocus={(event) => event.target.select()}
+                        onChange={(event) => setRenameDraft(event.target.value)}
+                        onBlur={() => commitRenameOutput(output)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') commitRenameOutput(output);
+                          if (event.key === 'Escape') cancelRenameOutput();
+                        }}
+                        aria-label="Output name"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="main"
+                      onClick={() => onSelectOutput?.(output.id)}
+                      onDoubleClick={() => startRenameOutput(output)}
+                      style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', textAlign: 'left' }}
+                    >
+                      <div className="config-entry-title-row">
+                        <span className="config-output-num-v2">#{outputNumberById.get(output.id)}</span>
+                        <strong>{output.name}</strong>
+                      </div>
+                      <span className={`config-output-binding-v2 ${currentEntry ? '' : 'is-empty'}`}>
+                        {currentEntry ? (
+                          <>
+                            {'→ '}
+                            <b>{currentEntry.name}</b>
+                            {subline ? <em>{` · ${subline}`}</em> : null}
+                          </>
+                        ) : 'No title assigned'}
+                      </span>
+                    </button>
+                  )}
                   <div className="actions">
-                    <button type="button" className="cfg-icon-btn-v2" onClick={() => handleRenameOutput(output)} title="Rename" aria-label="Rename output">
+                    <button
+                      type="button"
+                      className="cfg-icon-btn-v2"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => (isRenaming ? commitRenameOutput(output) : startRenameOutput(output))}
+                      title="Rename"
+                      aria-label="Rename output"
+                    >
                       <EditIcon />
                     </button>
                     <button
@@ -228,26 +292,37 @@ export default function ConfigTab({
             Titles
             <small>{entries.length} entr{entries.length === 1 ? 'y' : 'ies'}</small>
           </h3>
+          {selectedOutput && (
+            <div className="config-assign-hint-v2">
+              Click a title to put it on
+              <span className="config-assign-target-v2">
+                <span className="config-output-num-v2">#{outputNumberById.get(selectedOutput.id)}</span>
+                {selectedOutput.name}
+              </span>
+            </div>
+          )}
           <div className="config-list-v2">
             {entries.map((entry) => {
               const isVmix = entry.entryType === 'vmix';
-              const assignedOutputs = outputs
-                .filter((output) => output.selectedEntryId === entry.id)
-                .map((output) => output.name);
-              // Subline is type info only; the output binding is now shown as
-              // chips next to the entry name so director can scan a column
-              // of titles and see "this one's on OUTPUT 1" in one glance.
+              const assignedOutputs = outputs.filter((output) => output.selectedEntryId === entry.id);
+              const visibleMarkers = assignedOutputs.slice(0, MAX_OUTPUT_MARKERS);
+              const hiddenMarkerCount = assignedOutputs.length - visibleMarkers.length;
+              const usedOn = assignedOutputs.map((output) => output.name).join(', ');
+              // Subline is type info only; the outputs using this title are
+              // compact numbered markers (#1 #2 …) that match the numbers in
+              // the Outputs list, so many bindings stay readable.
               const subline = isVmix
                 ? `VMIX · ${formatVmixInputRef(entry)}`
                 : `LOCAL · ${entry.templateName || entry.name || 'untitled'}`;
               const isSelected = entry.id === selectedEntry?.id;
+              const isAssignedHere = Boolean(selectedOutput && selectedOutput.selectedEntryId === entry.id);
               const isDragging = entry.id === draggingEntryId;
               const isDropTarget =
                 dropTarget.kind === 'entry' && dropTarget.id === entry.id && draggingEntryId && draggingEntryId !== entry.id;
               return (
                 <div
                   key={entry.id}
-                  className={`config-item-v2 ${isSelected ? 'is-selected' : ''} ${isVmix ? 'is-vmix-entry' : 'is-local-entry'} ${isDragging ? 'is-dragging' : ''} ${isDropTarget ? 'is-drop-target' : ''}`}
+                  className={`config-item-v2 ${isSelected ? 'is-selected' : ''} ${isAssignedHere ? 'is-assigned' : ''} ${isVmix ? 'is-vmix-entry' : 'is-local-entry'} ${isDragging ? 'is-dragging' : ''} ${isDropTarget ? 'is-drop-target' : ''}`}
                   draggable
                   onDragStart={onEntryDragStart(entry)}
                   onDragOver={onEntryDragOver(entry)}
@@ -264,21 +339,30 @@ export default function ConfigTab({
                     type="button"
                     className="main"
                     onClick={() => onSelectEntry?.(entry.id)}
+                    title={selectedOutput ? (isAssignedHere ? `On ${selectedOutput.name}` : `Put on ${selectedOutput.name}`) : undefined}
+                    aria-pressed={isAssignedHere}
                     style={{ background: 'none', border: 'none', color: 'inherit', font: 'inherit', textAlign: 'left' }}
                   >
                     <div className="config-entry-title-row">
+                      <span className={`config-assign-radio-v2 ${isAssignedHere ? 'is-on' : ''}`} aria-hidden />
                       <strong>{entry.name}</strong>
+                    </div>
+                    <div className="config-entry-subline-v2">
+                      <span>{subline}</span>
                       {assignedOutputs.length > 0 && (
-                        <span className="config-entry-output-chips" aria-label={`Active on ${assignedOutputs.join(', ')}`}>
-                          {assignedOutputs.map((name) => (
-                            <span key={name} className="config-entry-output-chip" title={`Currently bound to ${name}`}>
-                              {name}
+                        <span className="config-entry-outputs-v2" aria-label={`Used on ${usedOn}`} title={`Used on ${usedOn}`}>
+                          {visibleMarkers.map((output) => (
+                            <span
+                              key={output.id}
+                              className={`config-output-num-v2 ${output.id === selectedOutputId ? 'is-current' : ''}`}
+                            >
+                              #{outputNumberById.get(output.id)}
                             </span>
                           ))}
+                          {hiddenMarkerCount > 0 && <span className="config-output-num-v2 is-more">+{hiddenMarkerCount}</span>}
                         </span>
                       )}
                     </div>
-                    <span>{subline}</span>
                   </button>
                   <div className="actions">
                     {canManageEntryAppearance?.(entry) && (
