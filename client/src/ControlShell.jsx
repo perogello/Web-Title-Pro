@@ -547,6 +547,42 @@ function ControlShell() {
     }
   }, [activeSourceRows]);
 
+  // ...and the other way round: when the server moves an output's applied row
+  // on its own (Companion / MIDI / plugins stepping rows via /api/command), adopt
+  // it so the highlighted row follows. Only real server-side transitions count:
+  // an unchanged value, or the echo of what this panel just sent, is ignored —
+  // otherwise a stale snapshot arriving right after a click would snap the
+  // highlight back.
+  const serverAppliedRowRef = useRef({});
+  useEffect(() => {
+    if (!sourcesHydratedRef.current) {
+      return;
+    }
+    const adopted = {};
+    for (const output of snapshot?.outputs || []) {
+      const applied = output.appliedRow;
+      const signature = applied?.sourceId && applied?.rowId ? `${applied.sourceId}:${applied.rowId}` : '';
+      const previous = serverAppliedRowRef.current[output.id];
+      serverAppliedRowRef.current[output.id] = signature;
+      if (previous === signature && previous !== undefined) continue;
+      if (appliedRowSentRef.current[output.id] === signature) continue;
+      if (previous === undefined && !signature) continue;
+      appliedRowSentRef.current[output.id] = signature;
+      adopted[output.id] = signature ? { sourceId: applied.sourceId, rowId: applied.rowId } : null;
+    }
+    if (!Object.keys(adopted).length) {
+      return;
+    }
+    setActiveSourceRows((current) => {
+      const next = { ...current };
+      for (const [outputId, binding] of Object.entries(adopted)) {
+        if (binding) next[outputId] = binding;
+        else delete next[outputId];
+      }
+      return next;
+    });
+  }, [snapshot?.outputs]);
+
   useEffect(() => {
     if (!sourceLibrary.length) {
       setSelectedSourceId('');

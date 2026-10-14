@@ -1,5 +1,15 @@
 {
   "$comment": "Per-version changelog shown in the post-update dialog and on the Updates page. Keep entries short (see release-notes style). Add a new top-level key for each release; the desktop shell picks the entry matching the running app version. ru/en are arrays of bullet strings.",
+  "0.5.3": {
+    "date": "2026-10-14",
+    "title": "Web Title Pro 0.5.3",
+    "ru": [
+      "Подсветка строки в Live и Data теперь переезжает, когда строки переключают из Bitfocus Companion, MIDI или плагина (ROW ▲/▼)."
+    ],
+    "en": [
+      "The highlighted row in Live and Data now follows when rows are stepped from Bitfocus Companion, MIDI or a plugin (ROW ▲/▼)."
+    ]
+  },
   "0.5.2": {
     "date": "2026-10-14",
     "title": "Web Title Pro 0.5.2",

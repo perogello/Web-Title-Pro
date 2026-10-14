@@ -1,8 +1,9 @@
 # Plugin System — Readiness & Roadmap
 
-Status: **in progress.** Phase 1 (data → server) and the unified command bus
-(start of Phase 2) are implemented and tested; the plugin host itself is not
-built yet. This document is the agreed direction for turning Web Title Pro into
+Status: **implemented.** Phases 1–5 (data on the server, unified command bus,
+plugin host with sandboxed iframes, bridge and grants, Settings › Plugins with
+per-plugin settings) shipped in 0.5.0. Kept as the design record; the user and
+developer guide is [PLUGINS.md](PLUGINS.md). This document is the agreed direction for turning Web Title Pro into
 a host that third-party (or in-house) plugins can extend, without destabilising
 live playout.
 

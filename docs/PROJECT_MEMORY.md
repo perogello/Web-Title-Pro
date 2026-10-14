@@ -1,10 +1,10 @@
 # Project Memory
 
-Last updated: 2026-10-14
+Last updated: 2026-10-14 (v0.5.3)
 
 ## Current Branch Context
 
-- Releases are committed straight to `main`; current release: `v0.5.2` (GitHub Latest).
+- Releases are committed straight to `main`; current release: `v0.5.3` (GitHub Latest).
 - `v0.5.0` only exists as the pre-release `v0.5.0-rc1`; `v0.5.1` was the first Latest installer build.
 - Distribution (since 0.5.0): per-user NSIS installer + `electron-updater` + `asar`.
   Data lives in `%APPDATA%\web-title-pro` and survives updates.
@@ -12,8 +12,9 @@ Last updated: 2026-10-14
   1. `npm version X --no-git-tag-version`; add the `X` entry to `desktop/changelog.json`; write `docs/RELEASE_X.md` (short, RU + EN).
   2. `npm run test:all` (unit + build + Companion module + Playwright).
   3. `npm run package:win` → `release/WebTitlePro-Setup-X.exe`, `.blockmap`, `latest.yml`.
-  4. Commit "Release X …", `git push origin main`.
-  5. `gh release create vX --target main --latest --notes-file docs/RELEASE_X.md` with all three files.
+  4. Before publishing, check ALL docs (`docs/*.md`, README EN/RU, this file, `companion-module/companion/HELP.md`) against the code and fix anything stale. README screenshots live in `docs/screenshots/` (1600×900 shots of the desktop app on a demo project); retake them when the UI changes noticeably, and never include personal paths.
+  5. Commit "Release X …", `git push origin main`.
+  6. `gh release create vX --target main --latest --notes-file docs/RELEASE_X.md` with all three files.
      `latest.yml` is mandatory (electron-updater feed); keep tags exactly `v<version>` (differential updates look the previous blockmap up by tag).
 - Old portable 0.4.x builds cannot auto-update to the installer cleanly; release notes tell those users to install manually.
 
@@ -22,6 +23,7 @@ Last updated: 2026-10-14
 - In-app dialogs (`client/src/control-shell/app-dialog.jsx`, `desktop/integrations/app-dialog.cjs`): the main process renders message boxes inside the window via `window.__webTitleShowDialog`, native dialog only as a fallback. Shortcuts are suspended while a dialog is open.
 - Notifications toast with a mode in Settings › System: all / errors only / none (`lib/use-feedback.js`, `pushFeedback` / `pushError`, localStorage `wtp.notifications`).
 - File shortcuts Ctrl+N/O/S/Shift+S (`lib/use-project-shortcuts.js`, matched by physical key so they work on the RU layout).
+- Applied data row is two-way (0.5.3): the panel pushes its row to the server (`POST /api/outputs/<id>/applied-row`) and adopts rows the server moves on its own (Companion / MIDI / plugins `rowNext`/`rowPrev`) from `snapshot.outputs[].appliedRow`, ignoring the echo of its own pushes, so the highlighted row always follows.
 - Bitfocus Companion module (0.5.2):
   - Sources `companion-module/src` (`model.js`, `presets.js` are pure and unit-tested; `main.js` is the instance).
   - Build `npm run build:companion` (`scripts/build-companion-module.mjs`): one esbuild CJS bundle for `node18` with `@companion-module/base@1.11.3` inside (API 1.11 → Companion 3.5+). Output: `companion-module/dist/web-title-pro/` (developer-modules layout) and `web-title-pro-<ver>.tgz` (Import module package; first tar entry must be the root dir).
@@ -150,7 +152,8 @@ Last updated: 2026-10-14
   - Program-state tests cover stable output-to-title assignments when adding titles and outputs.
   - Add Title modal styling is covered: segmented mode switch, vMix accent, hidden native file input, styled upload picker.
   - Bundle tests cover custom template inclusion, zip-slip rejection, project summary counts, local/vMix title preservation, data sources, vMix discovered input export, keyboard/global shortcuts, and MIDI bindings.
-  - Updater tests cover stable/prerelease release selection, incomplete download streams, truncated executable packages, invalid executable signatures, required secondary launcher replacement, generated PowerShell syntax, script-scoped status window state, stale update-state normalization, and non-Latin launcher paths.
+  - Updater tests: `auto-updater.test.js` (numeric version compare, network-error classification, missing-manifest detection, legacy portable scratch cleanup) and `updates.test.js` (server-side release selection used by the browser build). The 0.4.x portable-updater tests were removed with the portable updater in 0.5.0.
+  - Playwright also covers: Companion card and per-command Companion fields, notifications modes, file shortcuts, Config rename/markers, Live column resize, row highlight following externally stepped rows.
   - MIDI regression tests cover name/id/index input opening, missing devices, open timeout, JZZ device-change auto-refresh, Learn, CC faders, and value rules.
 - `dev:server` uses a narrowed nodemon watch (`server`, `package.json`) so Playwright `test-results/`, Vite build output, and local files do not restart the backend during UI tests.
 - Companion module: `tests/companion-module.test.js` (choices, variables, presets), `tests/companion-installer.test.js` (install / restart prompt / live reload / startup sync on temp dirs); Playwright covers the Integrations card and the per-command Companion fields.

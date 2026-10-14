@@ -862,3 +862,40 @@ test('Controls: each command shows the exact Companion fields to copy', async ({
   await expect(fields).toContainText('header input(JSON)');
   await expect(fields.locator('.ctl-cp-copy')).toHaveCount(3);
 });
+
+test('Live: row highlight follows rows stepped from outside (Companion / MIDI)', async ({ page, request }) => {
+  await waitForBackend(request);
+  const api = 'http://127.0.0.1:4000/api';
+  const before = await (await request.get(`${api}/state`)).json();
+  const output = before.outputs[0];
+  const previousSources = await (await request.get(`${api}/sources`)).json();
+  const entry = before.entries.find((item) => (item.templateFields || []).length >= 2);
+
+  try {
+    await request.post(`${api}/entries/${entry.id}/select`, { data: { outputId: output.id } });
+    await seedCustomSources(page, [makeSource([['Alice', 'Host'], ['Bob', 'Guest'], ['Carol', 'Expert']])]);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Live', exact: true }).click();
+    const rows = page.locator('table.source-v2 tbody tr');
+    await rows.nth(0).click();
+    await expect(rows.nth(0)).toHaveClass(/is-applied/);
+
+    // Companion / MIDI step rows through the command bus, not through this panel.
+    const step = (command) => request.post(`${api}/command`, { data: { actionId: `output:${output.id}:${command}` } });
+    await step('rowNext');
+    await expect(rows.nth(1)).toHaveClass(/is-applied/);
+    await expect(rows.nth(0)).not.toHaveClass(/is-applied/);
+    await step('rowNext');
+    await expect(rows.nth(2)).toHaveClass(/is-applied/);
+    await step('rowPrev');
+    await expect(rows.nth(1)).toHaveClass(/is-applied/);
+
+    // A click in the panel still wins and is not snapped back by a stale snapshot.
+    await rows.nth(0).click();
+    await expect(rows.nth(0)).toHaveClass(/is-applied/);
+    await page.waitForTimeout(800);
+    await expect(rows.nth(0)).toHaveClass(/is-applied/);
+  } finally {
+    await request.put(`${api}/sources`, { data: { items: previousSources } });
+  }
+});

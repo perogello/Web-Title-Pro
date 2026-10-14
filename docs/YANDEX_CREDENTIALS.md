@@ -29,10 +29,10 @@ That way:
 
 ## What users configure in the app
 
-Open:
+Open (desktop app only — the browser mode can't store credentials):
 
 ```text
-Settings -> Yandex
+Settings -> Integrations -> Yandex application settings -> Edit credentials
 ```
 
 Fill in:
@@ -57,7 +57,7 @@ The same redirect URI must also be configured in the Yandex OAuth application se
 
 ## Authorization flow
 
-1. Save Yandex application settings in the app.
+1. Save Yandex application settings in the app (`Save`).
 2. Click `Sign in with Yandex ID`.
 3. Complete login in the browser.
 4. Web Title Pro receives:
@@ -98,7 +98,7 @@ What this does not guarantee:
 Inside the app:
 
 1. Click `Sign out`
-2. Update `Client ID / Client Secret` if needed
+2. Click `Edit credentials` and update `Client ID / Client Secret` if needed
 3. Click `Save`
 4. Click `Sign in with Yandex ID`
 
@@ -113,8 +113,9 @@ Usually it is enough to:
 
 The intended UI model in Web Title Pro is:
 
-### In `Settings -> Yandex`
+### In `Settings -> Integrations` (Yandex cards)
 
+- keep explanatory text behind the `?` button next to `Yandex OAuth`
 - show application settings fields
 - show connection status
 - show connected account name or login if available
@@ -123,7 +124,7 @@ The intended UI model in Web Title Pro is:
 - do not show raw tokens in visible form
 - do not keep `Client ID` and `Client Secret` visible after saving
 
-### In `Data Source -> Yandex Disk`
+### In `Data -> Add Source -> Input Type: Yandex Disk`
 
 If the user is not authorized:
 

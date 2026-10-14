@@ -45,7 +45,7 @@ my-plugin/
 ```
 
 - **Built-in** plugins live in `plugins/` and get the id `builtin:<folder>`.
-- **Custom** plugins live in `storage/plugins/` and get the id `custom:<folder>`.
+- **Custom** plugins live in `storage/plugins/` (installed app: `%APPDATA%\web-title-pro\storage\plugins`) and get the id `custom:<folder>`.
 - All files are served at `/plugin-assets/<source>/<folder>/…`.
 
 ---
@@ -268,12 +268,13 @@ published at `GET /api/command/catalog` (with descriptions). The kinds:
 
 ## 14. Installing & managing
 
-- **Install:** Settings › Plugins → *Install from archive/files* (a `.zip` or a
-  set of files) or *Install from folder*. Or drop the folder into
-  `storage/plugins/`.
+- **Install:** Settings › Plugins → *Установить из архива/файлов* (install from
+  archive/files: a `.zip` or a set of files) or *Установить из папки* (install
+  from folder). Or drop the folder into `storage/plugins/` (installed app:
+  `%APPDATA%\web-title-pro\storage\plugins`).
 - **Enable / disable:** toggle in Settings › Plugins. Nothing from a disabled
   plugin runs.
-- **Remove:** the *Delete* button (custom plugins). Built-ins can't be removed.
+- **Remove:** the *Удалить* (delete) button, then confirm (custom plugins). Built-ins can't be removed.
 - **Settings & overlay URL:** shown per plugin in Settings › Plugins.
 
 ---

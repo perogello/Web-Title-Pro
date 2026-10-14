@@ -139,7 +139,8 @@ outputs[].id`).
 
 `titleIn` shows the output's currently selected title. `rowNext` / `rowPrev`
 step the data-source rows on that output (down = further, up = higher) and, if
-the title is on air, update it immediately.
+the title is on air, update it immediately. The highlighted row in WTP's Live and
+Data tabs follows (since 0.5.3).
 
 ### Per timer
 
