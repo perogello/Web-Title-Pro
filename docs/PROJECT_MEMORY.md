@@ -1,18 +1,34 @@
 # Project Memory
 
-Last updated: 2026-05-29
+Last updated: 2026-10-14
 
 ## Current Branch Context
 
-- Active release branch: `main`.
-- Current release target: final `v0.4.8`.
-- Current local build output: `release/WebTitlePro-0.4.8.exe` and stable launcher `release/WebTitlePro.exe`.
-- Final `WebTitlePro-0.4.8.exe` SHA-256: `f4c8299ab7b399e45a21edff6cac7c45c54022cea46e8fdda030c3cb37feee8b`.
-- GitHub branches:
-- `origin/main` is the release target for the current `0.4.x` line.
-- `origin/staging/0.4.0` was used for prerelease work and has been retired as the primary release target.
-- Local `.claude/worktrees/exciting-cerf-fb0314` is older than current `0.4.x` work.
-- Current recurring untracked local items: `templates/google-timer/`, `templates/google-timer-2/`, `templates/google-timer-3/`.
+- Releases are committed straight to `main`; current release: `v0.5.2` (GitHub Latest).
+- `v0.5.0` only exists as the pre-release `v0.5.0-rc1`; `v0.5.1` was the first Latest installer build.
+- Distribution (since 0.5.0): per-user NSIS installer + `electron-updater` + `asar`.
+  Data lives in `%APPDATA%\web-title-pro` and survives updates.
+- Release process:
+  1. `npm version X --no-git-tag-version`; add the `X` entry to `desktop/changelog.json`; write `docs/RELEASE_X.md` (short, RU + EN).
+  2. `npm run test:all` (unit + build + Companion module + Playwright).
+  3. `npm run package:win` → `release/WebTitlePro-Setup-X.exe`, `.blockmap`, `latest.yml`.
+  4. Commit "Release X …", `git push origin main`.
+  5. `gh release create vX --target main --latest --notes-file docs/RELEASE_X.md` with all three files.
+     `latest.yml` is mandatory (electron-updater feed); keep tags exactly `v<version>` (differential updates look the previous blockmap up by tag).
+- Old portable 0.4.x builds cannot auto-update to the installer cleanly; release notes tell those users to install manually.
+
+## 0.5.x Highlights
+
+- In-app dialogs (`client/src/control-shell/app-dialog.jsx`, `desktop/integrations/app-dialog.cjs`): the main process renders message boxes inside the window via `window.__webTitleShowDialog`, native dialog only as a fallback. Shortcuts are suspended while a dialog is open.
+- Notifications toast with a mode in Settings › System: all / errors only / none (`lib/use-feedback.js`, `pushFeedback` / `pushError`, localStorage `wtp.notifications`).
+- File shortcuts Ctrl+N/O/S/Shift+S (`lib/use-project-shortcuts.js`, matched by physical key so they work on the RU layout).
+- Bitfocus Companion module (0.5.2):
+  - Sources `companion-module/src` (`model.js`, `presets.js` are pure and unit-tested; `main.js` is the instance).
+  - Build `npm run build:companion` (`scripts/build-companion-module.mjs`): one esbuild CJS bundle for `node18` with `@companion-module/base@1.11.3` inside (API 1.11 → Companion 3.5+). Output: `companion-module/dist/web-title-pro/` (developer-modules layout) and `web-title-pro-<ver>.tgz` (Import module package; first tar entry must be the root dir).
+  - Module version = app version (baked in as `__WTP_MODULE_VERSION__`); on connect it compares with `GET /api/companion-module` and flags the connection when they differ.
+  - Server: `GET /api/companion-module` (info), `GET /api/companion-module/package` (.tgz).
+  - Desktop auto-install: `desktop/integrations/companion-installer.cjs` (IPC `companion:*`). Companion's launcher keeps `enable_developer` / `dev_modules_path` in `%APPDATA%\companion\config.json` and only reads it on start, so enabling developer modules needs Companion closed (the app asks, then restarts it). The module is copied to `%APPDATA%\web-title-pro\companion-modules\web-title-pro` and refreshed on every app start when the version changed. Never delete the module folder while Companion runs (Windows EPERM) — overwrite in place.
+  - UI: Settings › Integrations › Bitfocus Companion module; Settings › Controls shows exact Companion field values per command (`settings/CompanionCommandFields.jsx`).
 
 ## Current Architecture
 
@@ -33,8 +49,9 @@ Last updated: 2026-05-29
 - Renderer: `renderer/render.js`.
 - Desktop shell: Electron files under `desktop/`.
 - Project bundle support: `server/templates/bundle-service.js`.
+- Companion module: `companion-module/` (see 0.5.x Highlights).
 
-## Recent Fixes
+## Fixes History (0.4.x)
 
 - WebSocket `timer-tick` now sends only `{ serverTime, timers }`, not the full project snapshot.
 - Live Data Source row selection updates only title `fields`; it must not overwrite the title `name`.
@@ -136,6 +153,8 @@ Last updated: 2026-05-29
   - Updater tests cover stable/prerelease release selection, incomplete download streams, truncated executable packages, invalid executable signatures, required secondary launcher replacement, generated PowerShell syntax, script-scoped status window state, stale update-state normalization, and non-Latin launcher paths.
   - MIDI regression tests cover name/id/index input opening, missing devices, open timeout, JZZ device-change auto-refresh, Learn, CC faders, and value rules.
 - `dev:server` uses a narrowed nodemon watch (`server`, `package.json`) so Playwright `test-results/`, Vite build output, and local files do not restart the backend during UI tests.
+- Companion module: `tests/companion-module.test.js` (choices, variables, presets), `tests/companion-installer.test.js` (install / restart prompt / live reload / startup sync on temp dirs); Playwright covers the Integrations card and the per-command Companion fields.
+- Desktop flows (save/open/recent, dialogs, updater) are verified ad hoc with Playwright `_electron` and an isolated `--user-data-dir`, replacing native `dialog.*` in the main process.
 - Full verification:
   - `npm.cmd run test:all`
 

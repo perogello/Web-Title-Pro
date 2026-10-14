@@ -2,9 +2,35 @@
 
 > Русская версия: [BITFOCUS_RU.md](BITFOCUS_RU.md)
 
-Web Title Pro talks to Companion through its **Generic HTTP** module — no custom
-plugin install is required. Every button hits **one endpoint**; only the
-`actionId` in the request body changes.
+## Web Title Pro module for Companion (recommended)
+
+The app ships a ready-made Companion connection module: buttons with live
+on-air feedback, variables (output name, selected title and its fields, timer
+time) and presets for every output, title and timer. Works with Companion 3.5+.
+
+Everything is in **Settings → Integrations → Bitfocus Companion module** (or the
+"Модуль Companion…" button in Settings → Controls):
+
+- **Install into Companion** — automatic when Companion runs on this machine:
+  copies the module into Companion's developer modules folder and enables it.
+  If Companion is running and developer modules are off, the app asks and
+  restarts Companion (buttons pause for a few seconds — not during a show). With
+  a developer folder already set, Companion picks the module up live. Updating
+  Web Title Pro refreshes the installed module automatically.
+- **Manual, developer mode:** Companion launcher → cog → *Developer* → *Select*
+  the folder shown as *Developer path* → *Enable Developer Modules*.
+- **Companion on another machine / no developer mode:** download the `.tgz` →
+  Companion web UI → *Modules* → *Import module package*.
+
+Then *Connections* → *Add connection* → **Web Title Pro** → Host `127.0.0.1`
+(or the WTP machine's IP), Port `4000` → *Presets* tab.
+
+Module sources live in `companion-module/`; build with `npm run build:companion`.
+
+## Without the module: Generic HTTP
+
+Companion's built-in **Generic HTTP** module works too. Every button hits **one
+endpoint**; only the `actionId` in the request body changes.
 
 ## Setup (5 minutes)
 

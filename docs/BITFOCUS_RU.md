@@ -1,10 +1,37 @@
 # Интеграция с Bitfocus Companion
 
-Web Title Pro общается с Companion через встроенный модуль **Generic HTTP** —
-устанавливать отдельный плагин не нужно. Все кнопки бьют в **один endpoint**;
-меняется только `actionId` в теле запроса.
-
 > Английская версия: [BITFOCUS.md](BITFOCUS.md)
+
+## Модуль Web Title Pro для Companion (рекомендуется)
+
+С приложением поставляется готовый модуль Companion: кнопки с живой подсветкой
+эфира, переменные (название output, выбранный титр и его поля, время таймеров)
+и пресеты для каждого output, титра и таймера. Работает с Companion 3.5 и новее.
+
+Всё — в **Settings → Integrations → Bitfocus Companion module** (или кнопка
+«Модуль Companion…» в Settings → Controls):
+
+- **Установить в Companion** — автоматически, если Companion стоит на этом ПК:
+  кладёт модуль в папку developer-модулей и включает их в Companion. Если
+  Companion запущен и developer-модули ещё не включены, приложение спросит и
+  перезапустит Companion (кнопки на несколько секунд перестанут работать — не
+  делайте этого в эфире). Если developer-папка уже настроена, Companion
+  подхватывает модуль сам, без перезапуска. При обновлении Web Title Pro
+  установленный модуль обновляется автоматически.
+- **Вручную, developer-режим:** launcher Companion → шестерёнка → *Developer* →
+  *Select* → папка из строки *Developer path* → *Enable Developer Modules*.
+- **Companion на другом ПК / без developer-режима:** «Скачать» пакет `.tgz` →
+  в веб-интерфейсе Companion *Modules* → *Import module package*.
+
+Дальше: *Connections* → *Add connection* → **Web Title Pro** → Host
+`127.0.0.1` (или IP машины с WTP), Port `4000` → вкладка *Presets*.
+
+Исходники модуля — `companion-module/`, сборка — `npm run build:companion`.
+
+## Без модуля: Generic HTTP
+
+Можно обойтись встроенным модулем Companion **Generic HTTP**. Все кнопки бьют
+в **один endpoint**; меняется только `actionId` в теле запроса.
 
 ## Настройка (5 минут)
 

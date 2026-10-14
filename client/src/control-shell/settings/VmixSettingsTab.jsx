@@ -1,3 +1,5 @@
+import HelpToggle from '../HelpToggle.jsx';
+
 export default function VmixSettingsTab({
   vmixState,
   vmixHostDraft,
@@ -20,7 +22,15 @@ export default function VmixSettingsTab({
       <div className="vmix-settings-head">
         <div>
           <span className="kicker-v3">Integration</span>
-          <h3>vMix Connection</h3>
+          <h3>
+            vMix Connection{' '}
+            <HelpToggle align="left">
+              <span>
+                IP и порт компьютера с vMix (по умолчанию 8088). В vMix должен быть включён Web Controller: Settings →
+                Web Controller.
+              </span>
+            </HelpToggle>
+          </h3>
         </div>
         <div className="vmix-settings-status">
           <span className={`vmix-status-dot ${connected ? 'is-on' : 'is-off'}`} />
@@ -63,12 +73,6 @@ export default function VmixSettingsTab({
         </div>
         {error && (
           <div className="vmix-readout-error">{error}</div>
-        )}
-        {!error && !connected && (
-          <p className="note-v3">
-            Enter the IP and port of your vMix machine (default 8088 on the host running vMix).
-            Make sure “Web Controller” / TCP API is enabled inside vMix Settings → Web Controller.
-          </p>
         )}
       </div>
     </section>

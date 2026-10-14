@@ -9,6 +9,7 @@ import {
   readCommand,
   timerActionId,
 } from '../shortcut-model.js';
+import CompanionCommandFields from './CompanionCommandFields.jsx';
 
 export default function ShortcutsSettingsTab({
   learningShortcut,
@@ -28,7 +29,7 @@ export default function ShortcutsSettingsTab({
   onStopMidiLearn,
   onClearMidiBinding,
   onUpdateMidiBinding,
-  onCopyBitfocusUrl,
+  onOpenCompanionModule,
 }) {
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState({});
@@ -130,7 +131,9 @@ export default function ShortcutsSettingsTab({
       hint,
       keyboard: readCommand(shortcutBindings, action),
       midi: midiByAction[action],
-      url: bitfocusByAction.get(action),
+      // Output / timer / global commands go through POST /api/command, so
+      // Companion can fire them; plugin commands run in the plugin's iframe.
+      companion: !action.startsWith('plugin:') && Boolean(bitfocusByAction.get(action) || /^(output|timer|global):/.test(action)),
       conflict: conflictByAction.get(action),
     });
 
@@ -219,6 +222,11 @@ export default function ShortcutsSettingsTab({
           <span className="ctl-legend-chip"><span className="md">🎹</span> MIDI</span>
           <span className="ctl-legend-chip"><span className="cp">🔗</span> Companion</span>
         </div>
+        {onOpenCompanionModule && (
+          <button type="button" className="btn-v3-ghost btn-v3-sm" onClick={onOpenCompanionModule} title="Модуль Web Title Pro для Bitfocus Companion: путь, установка, гайд">
+            Модуль Companion…
+          </button>
+        )}
         <div className="ctl-midi-status" title={midiState?.error || midiStatusLabel}>
           <span className={`ctl-midi-dot ${midiState?.enabled ? 'is-on' : 'is-off'}`} />
           <span>{midiStatusLabel}</span>
@@ -301,8 +309,7 @@ export default function ShortcutsSettingsTab({
                               </span>
                             )}
                             {row.midi && <span className="ctl-binding-pill ctl-pill-md" title="MIDI binding">🎹 {formatMidiBinding(row.midi)}</span>}
-                            {row.url && <span className="ctl-binding-pill ctl-pill-cp" title="Companion URL configured">🔗</span>}
-                            {!row.keyboard && !row.midi && !row.url && <span className="ctl-binding-empty">Not bound</span>}
+                            {!row.keyboard && !row.midi && <span className="ctl-binding-empty">Not bound</span>}
                           </span>
                           <span className="ctl-row-chevron">{isExpanded ? '▾' : '▸'}</span>
                         </button>
@@ -379,13 +386,10 @@ export default function ShortcutsSettingsTab({
                             </>
                             )}
                             {/* COMPANION */}
-                            {row.url && (
-                              <div className="ctl-detail-row">
+                            {row.companion && (
+                              <div className="ctl-detail-row ctl-detail-row-cp">
                                 <span className="ctl-detail-label">🔗 Companion</span>
-                                <code className="ctl-binding-value" title={row.url.url || ''}>{row.url.url}</code>
-                                <div className="ctl-detail-actions">
-                                  <button type="button" className="btn-v3-ghost btn-v3-sm" onClick={() => onCopyBitfocusUrl?.(row.url)}>Copy URL</button>
-                                </div>
+                                <CompanionCommandFields action={row.action} outputs={outputs} timers={timers} />
                               </div>
                             )}
                           </div>

@@ -24,5 +24,8 @@ export const config = {
   customTemplatesDir: path.join(storageDir, 'templates'),
   builtinPluginsDir: path.join(builtinRootDir, 'plugins'),
   customPluginsDir: path.join(storageDir, 'plugins'),
+  // Built Bitfocus Companion module (scripts/build-companion-module.mjs);
+  // asarUnpack'd so it can be copied into Companion's developer folder.
+  companionModuleDistDir: path.join(builtinRootDir, 'companion-module', 'dist'),
   stateFile: path.join(dataDir, 'state.json'),
 };

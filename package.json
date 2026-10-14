@@ -1,6 +1,6 @@
 {
   "name": "web-title-pro",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Low-latency web title control system for vMix Browser Input",
   "type": "module",
   "main": "desktop/main.cjs",
@@ -9,15 +9,16 @@
     "dev:server": "nodemon --watch server --watch package.json --ext js,json server/index.js",
     "dev:client": "vite",
     "build": "vite build",
+    "build:companion": "node scripts/build-companion-module.mjs",
     "start": "node server/index.js",
-    "desktop": "npm run build && node scripts/run-desktop.cjs",
+    "desktop": "npm run build && npm run build:companion && node scripts/run-desktop.cjs",
     "desktop:dev": "node scripts/run-desktop.cjs",
-    "package:win": "npm run build && electron-builder --win nsis --publish never",
+    "package:win": "npm run build && npm run build:companion && electron-builder --win nsis --publish never",
     "test": "node --test tests/*.test.js",
     "test:unit": "node --test tests/*.test.js",
     "test:ui": "playwright test",
     "test:ui:install": "playwright install chromium",
-    "test:all": "npm run test:unit && npm run build && npm run test:ui"
+    "test:all": "npm run test:unit && npm run build && npm run build:companion && npm run test:ui"
   },
   "keywords": [
     "vmix",
@@ -38,11 +39,13 @@
     "url": "https://github.com/perogello/Web-Title-Pro/issues"
   },
   "devDependencies": {
+    "@companion-module/base": "1.11.3",
     "@playwright/test": "^1.60.0",
     "@vitejs/plugin-react": "^6.0.1",
     "concurrently": "^9.2.1",
     "electron": "^41.0.4",
     "electron-builder": "^26.8.1",
+    "esbuild": "0.27.7",
     "nodemon": "^3.1.14",
     "vite": "^8.0.3"
   },
@@ -68,7 +71,8 @@
     "asar": true,
     "asarUnpack": [
       "templates/**",
-      "plugins/**"
+      "plugins/**",
+      "companion-module/dist/**"
     ],
     "directories": {
       "output": "release"
@@ -80,6 +84,7 @@
       "server/**/*",
       "templates/**/*",
       "plugins/**/*",
+      "companion-module/dist/**/*",
       "package.json"
     ],
     "extraMetadata": {

@@ -3453,6 +3453,8 @@ function ControlShell() {
           onUninstallApp={() => window.webTitleDesktop?.uninstallApp?.().catch(() => {})}
           feedbackMode={feedbackMode}
           onSetFeedbackMode={setFeedbackMode}
+          pushFeedback={pushFeedback}
+          pushError={pushError}
         />
       )}
 

@@ -11,6 +11,7 @@ const { collectCleanupTargets, buildCleanupScript } = require('./integrations/ma
 const { createYandexAuthIntegration } = require('./integrations/yandex-auth.cjs');
 const { createSystemFontsIntegration } = require('./integrations/system-fonts.cjs');
 const { createAppDialog } = require('./integrations/app-dialog.cjs');
+const { createCompanionInstaller } = require('./integrations/companion-installer.cjs');
 
 const app = electron.app;
 const BrowserWindow = electron.BrowserWindow;
@@ -383,6 +384,26 @@ ipcMain.handle('settings:save-yandex-auth', async (_event, payload = {}) => yand
 ipcMain.handle('settings:disconnect-yandex-auth', async () => yandexAuthIntegration.disconnect());
 
 ipcMain.handle('settings:start-yandex-auth', async () => yandexAuthIntegration.connect());
+
+// Bitfocus Companion module (built into companion-module/dist, asarUnpack'd).
+const companionInstaller = createCompanionInstaller({
+  app,
+  log: (message) => log(message),
+  getModuleDistDir: () =>
+    app.isPackaged
+      ? path.join(process.resourcesPath, 'app.asar.unpacked', 'companion-module', 'dist')
+      : path.join(__dirname, '..', 'companion-module', 'dist'),
+});
+
+ipcMain.handle('companion:get-status', async () => companionInstaller.getStatus());
+ipcMain.handle('companion:install', async (_event, payload = {}) =>
+  companionInstaller.install({ restartCompanion: Boolean(payload?.restartCompanion) }));
+ipcMain.handle('companion:launch', async () => companionInstaller.launchCompanion());
+ipcMain.handle('companion:open-folder', async (_event, payload = {}) => {
+  const target = payload?.path || companionInstaller.moduleSourceDir();
+  const error = await shell.openPath(target);
+  return error ? { ok: false, error } : { ok: true };
+});
 
 ipcMain.handle('system:get-fonts', async (_event, payload = {}) => systemFontsIntegration.getFonts({
   force: Boolean(payload?.force),
@@ -1312,6 +1333,7 @@ const bootstrap = async () => {
   await yieldToEventLoop();
   await createMainWindow();
   void runStartupUpdateCheck();
+  void companionInstaller.syncOnStartup();
 };
 
 app.whenReady().then(bootstrap).catch((error) => {

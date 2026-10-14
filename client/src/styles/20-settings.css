@@ -298,3 +298,60 @@
   background: rgba(249, 50, 50, 0.12);
   border-color: var(--live-v2);
 }
+
+/* "?" help popover (HelpToggle) — explanatory prose on demand. */
+.shell-v2 .help-toggle-v2 { position: relative; display: inline-flex; vertical-align: middle; }
+.shell-v2 .help-toggle-btn-v2 {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong-v2);
+  background: var(--bg-2-v2);
+  color: var(--text-dim-v2);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-grid;
+  place-items: center;
+}
+.shell-v2 .help-toggle-btn-v2:hover,
+.shell-v2 .help-toggle-btn-v2.is-open {
+  color: var(--text-v2);
+  border-color: var(--select-accent-v2);
+  background: rgba(139, 158, 255, 0.14);
+}
+.shell-v2 .help-toggle-pop-v2 {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 50;
+  width: max-content;
+  max-width: min(380px, 80vw);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong-v2);
+  background: var(--card-2-v2);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+  color: var(--text-dim-v2);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: normal;
+}
+.shell-v2 .help-toggle-pop-v2.is-right { right: 0; }
+.shell-v2 .help-toggle-pop-v2.is-left { left: 0; }
+.shell-v2 .help-toggle-pop-v2 code {
+  font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-size: 11px;
+  padding: 0 4px;
+  border-radius: 3px;
+  background: var(--bg-2-v2);
+  color: var(--text-v2);
+}

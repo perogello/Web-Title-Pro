@@ -8,6 +8,8 @@ import { dispatchCommand } from '../state/command-bus.js';
 import { buildCommandCatalog, COMMAND_API_VERSION, COMMAND_API_VERSION_STRING } from '../state/command-catalog.js';
 import { ALL_CAPABILITIES, CAPABILITIES } from '../state/access.js';
 import { applySettingsDefaults } from '../plugins/plugin-service.js';
+import { getCompanionModuleInfo } from '../companion/companion-module.js';
+import { config } from '../config.js';
 import {
   createProjectBundleStream,
   getBundleFilename,
@@ -121,6 +123,22 @@ export const createApiRouter = ({ store, templateService, pluginService, midiSer
     } catch (error) {
       sendError(response, error);
     }
+  });
+
+  // Bitfocus Companion module shipped with the app: info + .tgz download for
+  // Companion's "Import module package" (works from any machine's browser).
+  router.get('/companion-module', (_request, response) => {
+    const { folder, packagePath, ...info } = getCompanionModuleInfo(config.companionModuleDistDir);
+    response.json({ ...info, folder, hasPackage: Boolean(packagePath) });
+  });
+
+  router.get('/companion-module/package', (_request, response) => {
+    const info = getCompanionModuleInfo(config.companionModuleDistDir);
+    if (!info.packagePath) {
+      response.status(404).json({ error: info.error || 'Module package not found' });
+      return;
+    }
+    response.download(info.packagePath, info.packageName);
   });
 
   router.get('/app/meta', (_request, response) => {

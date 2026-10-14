@@ -1,5 +1,21 @@
 {
   "$comment": "Per-version changelog shown in the post-update dialog and on the Updates page. Keep entries short (see release-notes style). Add a new top-level key for each release; the desktop shell picks the entry matching the running app version. ru/en are arrays of bullet strings.",
+  "0.5.2": {
+    "date": "2026-10-14",
+    "title": "Web Title Pro 0.5.2",
+    "ru": [
+      "Собственный модуль Bitfocus Companion: кнопки с живой подсветкой эфира, переменные и готовые пресеты для каждого output, титра и таймера.",
+      "Установка модуля в Companion одной кнопкой (Settings › Integrations); модуль обновляется вместе с приложением. Для Companion на другом ПК — пакет .tgz для Import module package.",
+      "Settings › Controls: для каждой команды — точные значения полей Companion (модуль или Generic HTTP POST) с кнопками Copy.",
+      "Пояснения в Settings › Integrations спрятаны за кнопку «?»."
+    ],
+    "en": [
+      "Own Bitfocus Companion module: buttons with live on-air feedback, variables and ready-made presets for every output, title and timer.",
+      "One-click install into Companion (Settings › Integrations); the module updates together with the app. For Companion on another PC — a .tgz for Import module package.",
+      "Settings › Controls: exact Companion field values for every command (module or Generic HTTP POST) with Copy buttons.",
+      "Explanations in Settings › Integrations are tucked behind a \"?\" button."
+    ]
+  },
   "0.5.1": {
     "date": "2026-10-10",
     "title": "Web Title Pro 0.5.1",

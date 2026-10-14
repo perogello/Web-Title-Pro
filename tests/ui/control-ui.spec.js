@@ -818,3 +818,47 @@ test('Settings: notifications can be set to all / errors only / none', async ({ 
   const added = state.outputs[state.outputs.length - 1];
   if (state.outputs.length > 1) await request.delete(`http://127.0.0.1:4000/api/outputs/${added.id}`);
 });
+
+test('Settings: Companion module card shows the module path, package and guide', async ({ page, request }) => {
+  await waitForBackend(request);
+  const info = await (await request.get('http://127.0.0.1:4000/api/companion-module')).json();
+  expect(info.available, 'run npm run build:companion first').toBe(true);
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.locator('.settings-nav-item', { hasText: 'Integrations' }).click();
+  const card = page.locator('.companion-settings-card');
+  await expect(card).toBeVisible();
+  await expect(card).toContainText(`v${info.version}`);
+  await expect(card).toContainText(info.folder);
+  await expect(card).toContainText('Import module package');
+
+  const download = page.waitForEvent('download');
+  await card.getByRole('link', { name: 'Скачать' }).click();
+  expect((await download).suggestedFilename()).toBe(`web-title-pro-${info.version}.tgz`);
+
+  // The Controls tab links to the card.
+  await page.locator('.settings-nav-item', { hasText: 'Controls' }).click();
+  await page.getByRole('button', { name: 'Модуль Companion…' }).click();
+  await expect(card).toBeVisible();
+});
+
+test('Controls: each command shows the exact Companion fields to copy', async ({ page, request }) => {
+  await waitForBackend(request);
+  const state = await (await request.get('http://127.0.0.1:4000/api/state')).json();
+  const output = state.outputs[0];
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await page.locator('.settings-nav-item', { hasText: 'Controls' }).click();
+  await page.locator('.ctl-row .ctl-row-label').first().click();
+
+  const fields = page.locator('.ctl-detail-row-cp').first();
+  await expect(fields).toContainText('Output: command');
+  await expect(fields).toContainText(`#1 ${output.name}`);
+  await expect(fields).toContainText('Title IN (show on air)');
+  await expect(fields).toContainText('/api/command');
+  await expect(fields).toContainText(JSON.stringify({ actionId: `output:${output.id}:titleIn` }));
+  await expect(fields).toContainText('header input(JSON)');
+  await expect(fields.locator('.ctl-cp-copy')).toHaveCount(3);
+});

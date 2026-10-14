@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 
+import HelpToggle from '../HelpToggle.jsx';
+
 export default function YandexSettingsTab({
   yandexAuthState,
   yandexDeviceAuth,
@@ -77,11 +79,21 @@ export default function YandexSettingsTab({
   return (
     <div className="integration-grid">
       <div className="info-card-v3">
-        <span className="info-label-v3">Yandex OAuth</span>
-        <strong>{supported ? 'Desktop-only local credentials' : 'Unavailable in browser mode'}</strong>
-        <span className="note-v3">
-          These values are stored locally on this computer only. They are not written into the project file and are not included in GitHub releases.
+        <span className="info-label-v3">
+          Yandex OAuth{' '}
+          <HelpToggle align="left">
+            <span>
+              Client ID, Client Secret и токены хранятся только на этом компьютере: они не попадают в файл проекта и в
+              релизы на GitHub.
+            </span>
+            <span>
+              Токены скрыты; чтобы их обновить — Sign out и снова Sign in. Client ID и Secret после сохранения нельзя
+              скопировать обратно: замена — через Edit credentials, затем Save и повторный вход.
+            </span>
+            <span>Sign out удаляет токены из Web Title Pro, но не выходит из Яндекса в браузере.</span>
+          </HelpToggle>
         </span>
+        <strong>{supported ? 'Desktop-only local credentials' : 'Unavailable in browser mode'}</strong>
       </div>
       <div className="output-settings-card">
         <div className="panel-head-v3 output-settings-head">
@@ -122,13 +134,10 @@ export default function YandexSettingsTab({
                       ? 'Token saved'
                       : 'Not connected'}
             </strong>
-            <span className="note-v3">
-              {yandexDeviceAuth?.status === 'waiting'
-                ? 'The Yandex authorization page is open in your browser. Complete login there and return will happen through your redirect URI.'
-                : 'Use Sign in with Yandex ID to receive access and refresh tokens automatically.'}
-            </span>
+            {yandexDeviceAuth?.status === 'waiting' && (
+              <span className="note-v3">Завершите вход на открывшейся странице Яндекса в браузере.</span>
+            )}
             {connected && <span className="note-v3">Connected as {accountLabel}</span>}
-            {connected && <span className="note-v3">Sign out clears local tokens from Web Title Pro, but does not log you out of Yandex in the browser.</span>}
             {yandexDeviceAuth?.error && <span className="danger-note">{yandexDeviceAuth.error}</span>}
           </div>
         </div>
@@ -161,9 +170,6 @@ export default function YandexSettingsTab({
         <div className="info-card-v3">
           <span className="info-label-v3">Tokens</span>
           <strong>Access and refresh tokens are hidden</strong>
-          <span className="note-v3">
-            Web Title Pro stores them locally after successful authorization. To rotate them, use `Sign out` and then sign in again.
-          </span>
         </div>
         {isEditingCredentials ? (
           <div className="output-settings-fields yandex-auth-grid">
@@ -204,9 +210,6 @@ export default function YandexSettingsTab({
             <div className="info-card-v3">
               <span className="info-label-v3">Credentials</span>
               <strong>Client ID and Client Secret are hidden after saving</strong>
-              <span className="note-v3">
-                They cannot be copied back out of the UI. To replace them, use `Edit credentials`, then save and sign in again.
-              </span>
             </div>
             <div className="info-card-v3">
               <span className="info-label-v3">Saved values</span>

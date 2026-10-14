@@ -7,11 +7,12 @@ import YandexSettingsTab from './settings/YandexSettingsTab.jsx';
 import VmixSettingsTab from './settings/VmixSettingsTab.jsx';
 import AboutSettingsTab from './settings/AboutSettingsTab.jsx';
 import NotificationsSettingsTab from './settings/NotificationsSettingsTab.jsx';
+import CompanionSettingsTab from './settings/CompanionSettingsTab.jsx';
 
 const NAV = [
   { id: 'outputs', label: 'Outputs', hint: 'Render & preview URLs' },
   { id: 'controls', label: 'Controls', hint: 'Keyboard, MIDI, Companion' },
-  { id: 'integrations', label: 'Integrations', hint: 'Yandex, Google Sheets' },
+  { id: 'integrations', label: 'Integrations', hint: 'vMix, Companion, Yandex' },
   { id: 'plugins', label: 'Plugins', hint: 'Extensions & panels' },
   { id: 'system', label: 'System', hint: 'Notifications, updates, app info' },
 ];
@@ -72,6 +73,8 @@ export default function SettingsPanel({
   onUninstallApp,
   feedbackMode,
   onSetFeedbackMode,
+  pushFeedback,
+  pushError,
 }) {
   const activeId = settingsTab === 'output' ? 'outputs' : (settingsTab || 'outputs');
   const activeNav = NAV.find((item) => item.id === activeId) || NAV[0];
@@ -136,6 +139,7 @@ export default function SettingsPanel({
               onClearMidiBinding={onClearMidiBinding}
               onUpdateMidiBinding={onUpdateMidiBinding}
               onCopyBitfocusUrl={onCopyBitfocusUrl}
+              onOpenCompanionModule={() => onSetSettingsTab('integrations')}
             />
           )}
           {activeId === 'integrations' && (
@@ -147,6 +151,7 @@ export default function SettingsPanel({
                 onConnectVmix={onConnectVmix}
                 onRefreshVmixState={onRefreshVmixState}
               />
+              <CompanionSettingsTab outputInfo={outputInfo} pushFeedback={pushFeedback} pushError={pushError} />
               <YandexSettingsTab
                 yandexAuthState={yandexAuthState}
                 yandexDeviceAuth={yandexDeviceAuth}

@@ -17,7 +17,7 @@ It is designed for directors, title operators, stream technicians, and small pro
 - Live Data Source view for row-by-row rundown operation.
 - Resizable Live Notes panel with rich-text formatting.
 - Timers with countdown/countup modes and color triggers.
-- Keyboard, mouse, MIDI, and Bitfocus Companion controls.
+- Keyboard, mouse, MIDI, and Bitfocus Companion controls, including a bundled Companion module (live on-air feedback, variables, presets) with one-click install.
 - MIDI Learn for notes, pads, buttons, knobs, and faders.
 - MIDI CC value rules for faders: any movement, exact value, at/above threshold, or at/below threshold.
 - Project files and `.wtpkg` project bundles for moving full productions between machines.
@@ -58,6 +58,9 @@ release/WebTitlePro-Setup-<version>.exe.blockmap
 release/latest.yml
 ```
 
+`package:win` also builds the Companion module (`npm run build:companion` →
+`companion-module/dist/`), which ships inside the installer.
+
 ### Validation
 
 ```bash
@@ -75,6 +78,7 @@ npm.cmd run test:all
 - [Bitfocus Companion](docs/BITFOCUS.md)
 - [Bitfocus Companion RU](docs/BITFOCUS_RU.md)
 - [Project Memory](docs/PROJECT_MEMORY.md)
+- [Release 0.5.2](docs/RELEASE_0.5.2.md)
 - [Release 0.5.1](docs/RELEASE_0.5.1.md)
 - [Release 0.5.0](docs/RELEASE_0.5.0.md)
 - [Release 0.4.6](docs/RELEASE_0.4.6.md)
@@ -97,7 +101,7 @@ Web Title Pro - локальное Windows desktop-приложение для �
 - Live Data Source для работы по строкам rundown.
 - Live Notes справа от таблицы с базовым rich-text редактором.
 - Таймеры countdown/countup и цветовые триггеры.
-- Управление через keyboard, mouse, MIDI и Bitfocus Companion.
+- Управление через keyboard, mouse, MIDI и Bitfocus Companion, включая собственный модуль Companion (подсветка эфира, переменные, пресеты) с установкой одной кнопкой.
 - MIDI Learn для keys, pads, buttons, knobs и faders.
 - MIDI CC value rules для фейдеров: любое движение, точное значение, выше/равно порогу или ниже/равно порогу.
 - Project files и `.wtpkg` project bundles для переноса полной постановки между машинами.
@@ -138,6 +142,9 @@ release/WebTitlePro-Setup-<version>.exe.blockmap
 release/latest.yml
 ```
 
+`package:win` заодно собирает модуль Companion (`npm run build:companion` →
+`companion-module/dist/`), он входит в инсталлятор.
+
 ### Проверка
 
 ```bash
@@ -155,6 +162,7 @@ npm.cmd run test:all
 - [Bitfocus Companion](docs/BITFOCUS.md)
 - [Bitfocus Companion RU](docs/BITFOCUS_RU.md)
 - [Project Memory](docs/PROJECT_MEMORY.md)
+- [Release 0.5.2](docs/RELEASE_0.5.2.md)
 - [Release 0.5.1](docs/RELEASE_0.5.1.md)
 - [Release 0.5.0](docs/RELEASE_0.5.0.md)
 - [Release 0.4.6](docs/RELEASE_0.4.6.md)
