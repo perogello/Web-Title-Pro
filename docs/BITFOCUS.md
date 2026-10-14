@@ -2,113 +2,173 @@
 
 > Русская версия: [BITFOCUS_RU.md](BITFOCUS_RU.md)
 
-## Web Title Pro module for Companion (recommended)
+Two ways to drive Web Title Pro (WTP) from Companion:
 
-The app ships a ready-made Companion connection module: buttons with live
-on-air feedback, variables (output name, selected title and its fields, timer
-time) and presets for every output, title and timer. Works with Companion 3.5+.
+1. **The Web Title Pro module** (recommended, since 0.5.2) — buttons with live
+   on-air feedback, variables and ready-made presets.
+2. **Companion's built-in Generic HTTP module** — no extra module, but no
+   button feedback.
 
-Everything is in **Settings → Integrations → Bitfocus Companion module** (or the
-"Модуль Companion…" button in Settings → Controls):
+Both fire the same commands (`POST /api/command`, see [Commands](#commands)).
 
-- **Install into Companion** — automatic when Companion runs on this machine:
-  copies the module into Companion's developer modules folder and enables it.
-  If Companion is running and developer modules are off, the app asks and
-  restarts Companion (buttons pause for a few seconds — not during a show). With
-  a developer folder already set, Companion picks the module up live. Updating
-  Web Title Pro refreshes the installed module automatically.
-- **Manual, developer mode:** Companion launcher → cog → *Developer* → *Select*
-  the folder shown as *Developer path* → *Enable Developer Modules*.
-- **Companion on another machine / no developer mode:** download the `.tgz` →
-  Companion web UI → *Modules* → *Import module package*.
+## 1. Web Title Pro module (recommended)
 
-Then *Connections* → *Add connection* → **Web Title Pro** → Host `127.0.0.1`
-(or the WTP machine's IP), Port `4000` → *Presets* tab.
+Works with **Companion 3.5 and newer** (tested on 5.1). Everything lives in
+**Settings → Integrations → Bitfocus Companion module** (also reachable from
+the "Модуль Companion…" button in Settings → Controls).
 
-Module sources live in `companion-module/`; build with `npm run build:companion`.
+### Install
 
-## Without the module: Generic HTTP
+| Situation | How |
+|---|---|
+| Companion on **this** computer | **Install into Companion** button (desktop app only). It copies the module into Companion's developer modules folder and turns developer modules on. If Companion is running and that needs a restart, the app asks first, then closes and relaunches Companion — buttons pause for a few seconds, so don't do it on air. If a developer folder is already set up, Companion picks the module up live without a restart. |
+| Manually, developer mode | Companion launcher → cog (top right) → *Developer* → *Select* the folder shown as **Developer path** in the card (the one that *contains* the `web-title-pro` folder) → *Enable Developer Modules* → *Launch GUI*. |
+| Companion on **another** computer, or no developer mode | **Download** the `.tgz` from the card → Companion web UI → *Modules* → *Import module package* → pick the file. |
 
-Companion's built-in **Generic HTTP** module works too. Every button hits **one
-endpoint**; only the `actionId` in the request body changes.
+### Add the connection
 
-## Setup (5 minutes)
+*Connections* → *Add connection* → search **Web Title Pro** → set:
 
-1. In Companion, add a new connection of type **generic-http**.
-2. Set the base host to `http://<wtp-machine-ip>:4000` (use `127.0.0.1` if WTP
-   and Companion run on the same machine).
-3. For every button, add an **HTTP POST** action:
-   - **URL:** `http://<wtp-host>:4000/api/command`
-   - **Header:** `Content-Type: application/json`
-   - **Body (JSON):** `{ "actionId": "<command>" }` — the id from the tables below.
+| Field | Value |
+|---|---|
+| Host | `127.0.0.1` if Companion runs on the WTP computer, otherwise that computer's IP |
+| Port | `4000` |
 
-> WTP must be running when Companion fires the action — otherwise Companion
-> shows an "ECONNREFUSED" error.
+The connection turns green when it reaches WTP. Then open its **Presets** tab
+and drag buttons onto a page.
 
-> Ready-made URL + payload pairs for every button can be copied straight from the
-> app: **Settings → Controls**, Companion block — "Copy URL" / "Copy payload".
+### What you get
+
+**Presets**
+
+- *Output #N* — a toggle button (shows the output name and the first field of the
+  selected title, red while on air) plus IN, OUT, PVW IN/OUT, ROW ▲/▼ and the row
+  timer start/stop/reset.
+- *Titles → #N* — one button per title that puts it on that output (blue while
+  selected).
+- *Timers* — start/stop with the live time (colour follows the timer's colour
+  rules) and reset.
+- *Global* — panic (hide every output) and an on-air counter.
+
+**Actions**
+
+| Action | Options |
+|---|---|
+| Output: command | Output, Command (Title IN/OUT, Preview IN/OUT, Row ▲/▼, row timer start/stop/reset) |
+| Output: toggle title on/off air | Output |
+| Output: select title | Output, Title, "Show it on air right away" |
+| Timer: start / stop / reset | Timer, Command |
+| Timer: start / stop toggle | Timer |
+| Panic: hide every output | — |
+| Any Web Title Pro command (incl. plugins) | any command id, incl. plugin commands and overlays |
+
+**Feedbacks:** title on air · title on the preview bus · this title selected ·
+any output on air · timer running · timer colour (from WTP colour rules) ·
+connected.
+
+**Variables** (outputs are numbered as in the WTP Config tab: `o1`, `o2`, …;
+timers `t1`, `t2`, …):
+
+| Variable | Meaning |
+|---|---|
+| `o1_name` | output name |
+| `o1_title` | selected title |
+| `o1_value1`, `o1_value2` | first / second field of the selected title |
+| `o1_on_air`, `o1_preview` | `ON` / `OFF` |
+| `o1_row` | applied data row number |
+| `t1_name`, `t1_time`, `t1_running` | timer name, current time, `ON` / `OFF` |
+| `on_air_count`, `connected` | outputs on air; `YES` / `NO` |
+| `module_version`, `module_update` | this module's version; the newer version WTP ships (empty = up to date) |
+
+### Updates and versions
+
+The module's version is the app's version, and the module ships inside the app:
+
+- **Installed with the button (this computer):** updated automatically — after
+  a WTP update the next start copies the new module in and Companion reloads it.
+- **Imported `.tgz` (another computer):** re-import after updating WTP. When the
+  versions differ, the connection turns yellow with
+  *"Module vX, Web Title Pro ships vY — update: …"*.
+
+The card in Settings → Integrations shows the installed and bundled versions.
+
+Module sources: `companion-module/`; build: `npm run build:companion` (also run
+by `npm run package:win`).
+
+## 2. Generic HTTP (no module)
+
+1. *Connections* → *Add connection* → **Generic HTTP**. Leave **Base URL** empty.
+2. For every button add the **POST** action and fill its fields:
+
+| Generic HTTP field | Value |
+|---|---|
+| URL | `http://<wtp-host>:4000/api/command` (`127.0.0.1` on the same computer) |
+| Body | `{"actionId":"<command>"}` — command ids below |
+| header input(JSON) | leave empty |
+| Content Type | `application/json` (the default) |
+
+> **Settings → Controls** in WTP lists, for every command, the exact values for
+> each field (and the module action + options) with a **Copy** button per value.
+
+WTP must be running when Companion fires the action, otherwise Companion
+reports `ECONNREFUSED`. Generic HTTP gives no on-air button colours — use the
+module for that.
 
 ## Commands
 
-All are `POST http://<wtp-host>:4000/api/command` with body `{ "actionId": "…" }`.
+All commands are `POST http://<wtp-host>:4000/api/command` with body
+`{ "actionId": "…" }`. The full live list (with ids for the current project) is
+at `GET /api/command/catalog`.
 
 ### Per output
 
-`<id>` is the output id (default `output-main`; visible in Settings and in
-`GET /api/render/state → outputs[].id`).
+`<id>` is the output id (default `output-main`; see `GET /api/state →
+outputs[].id`).
 
-| Button          | actionId                  |
+| Command         | actionId                  |
 |-----------------|---------------------------|
-| TITLE IN        | `output:<id>:titleIn`     |
-| TITLE OUT       | `output:<id>:titleOut`    |
-| PREVIEW IN      | `output:<id>:previewIn`   |
-| PREVIEW OUT     | `output:<id>:previewOut`  |
-| ROW ▲ (prev)    | `output:<id>:rowPrev`     |
-| ROW ▼ (next)    | `output:<id>:rowNext`     |
+| Title IN        | `output:<id>:titleIn`     |
+| Title OUT       | `output:<id>:titleOut`    |
+| Preview IN      | `output:<id>:previewIn`   |
+| Preview OUT     | `output:<id>:previewOut`  |
+| Row ▲ (prev)    | `output:<id>:rowPrev`     |
+| Row ▼ (next)    | `output:<id>:rowNext`     |
 | Row timer Start | `output:<id>:timerStart`  |
 | Row timer Stop  | `output:<id>:timerStop`   |
 | Row timer Reset | `output:<id>:timerReset`  |
 
-`titleIn` shows the output's currently selected title. `rowNext`/`rowPrev` step
-the data-source rows on that output (down = further, up = higher) and, if the
-title is on air, update it immediately.
+`titleIn` shows the output's currently selected title. `rowNext` / `rowPrev`
+step the data-source rows on that output (down = further, up = higher) and, if
+the title is on air, update it immediately.
 
 ### Per timer
 
-`<id>` is the timer id (default `main`; from `GET /api/render/state → timers[].id`).
+`<id>` is the timer id (see `GET /api/state → timers[].id`).
 
-| Button | actionId            |
-|--------|---------------------|
-| Start  | `timer:<id>:start`  |
-| Stop   | `timer:<id>:stop`   |
-| Reset  | `timer:<id>:reset`  |
+| Command | actionId            |
+|---------|---------------------|
+| Start   | `timer:<id>:start`  |
+| Stop    | `timer:<id>:stop`   |
+| Reset   | `timer:<id>:reset`  |
 
 ### Global
 
-| Button                  | actionId               |
+| Command                 | actionId               |
 |-------------------------|------------------------|
-| ALL OUTPUTS OUT (panic) | `global:allOutputsOut` |
+| All outputs OUT (panic) | `global:allOutputsOut` |
+
+Plugin commands (`plugin:<pluginId>:<command>`) run inside the plugin in the
+control panel and can't be fired from Companion; plugin overlays can
+(`overlay:<pluginId>:in|out`, via the module's "Any command" action).
 
 ## Low-level REST routes (if needed)
 
-The unified `/api/command` covers every button. If you need raw access, these
-stay stable: `POST /api/program/show|update|hide`,
-`POST /api/preview/show|hide`, `POST /api/timers/<id>/start|stop|reset`,
-`POST /api/outputs/<id>/select`, `POST /api/entries/<id>/select`.
-
-The legacy verbs `/api/commands/:action`, `/api/program/live` and
-`/api/timers/:id/toggle` have been **removed** — use `/api/command`.
-
-## Feedback / state
-
-Companion's Generic HTTP module supports HTTP-poll feedbacks. Point it at
-`GET /api/render/state` and parse the JSON to drive button colors:
-
-- `outputs[i].program.visible === true` → ON AIR (red tone on TITLE OUT)
-- `selectedOutput.id` → highlight the current output button
-- `timers[i].running === true` → blink the timer Start/Stop button
-
-Poll interval 500–1000 ms is reasonable for a single LAN station.
+`/api/command` covers every button. Stable raw routes:
+`POST /api/program/show|update|hide`, `POST /api/preview/show|hide`,
+`POST /api/timers/<id>/start|stop|reset`, `POST /api/outputs/<id>/select`,
+`POST /api/entries/<id>/select`. Live state: `GET /api/state` and the WebSocket
+`ws://<wtp-host>:4000/ws` (full snapshot on change + timer ticks), which the
+module uses.
 
 ## Quickstart curl snippets
 
@@ -118,48 +178,13 @@ CMD=http://127.0.0.1:4000/api/command
 curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"output:output-main:titleIn"}'
 curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"output:output-main:titleOut"}'
 curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"output:output-main:rowNext"}'
-curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"timer:main:start"}'
 curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"global:allOutputsOut"}'
 ```
 
-## Companion preset (documentation example)
-
-Every button shares one URL; only the body differs. Fastest workflow:
-
-1. Make one button in Companion (URL `/api/command`, header
-   `Content-Type: application/json`, body `{"actionId":"output:output-main:titleIn"}`).
-2. Right-click → Copy. Paste onto the rest of the page.
-3. Edit the `actionId` in each body.
-
-```json
-{
-  "version": "1.0",
-  "type": "page",
-  "name": "Web Title Pro",
-  "note": "Every button: POST http://127.0.0.1:4000/api/command, header Content-Type: application/json, body below.",
-  "controls": {
-    "0/0": { "label": "TITLE IN",  "body": { "actionId": "output:output-main:titleIn" },  "color": "#5ddb92" },
-    "0/1": { "label": "TITLE OUT", "body": { "actionId": "output:output-main:titleOut" }, "color": "#ff5d6d" },
-    "0/2": { "label": "PVW IN",    "body": { "actionId": "output:output-main:previewIn" } },
-    "0/3": { "label": "ROW ▲",     "body": { "actionId": "output:output-main:rowPrev" } },
-    "0/4": { "label": "ROW ▼",     "body": { "actionId": "output:output-main:rowNext" } },
-    "1/0": { "label": "TIMER ▶",   "body": { "actionId": "timer:main:start" }, "color": "#5ddb92" },
-    "1/1": { "label": "TIMER ■",   "body": { "actionId": "timer:main:stop" } },
-    "1/2": { "label": "TIMER ↻",   "body": { "actionId": "timer:main:reset" } },
-    "1/4": { "label": "PANIC",     "body": { "actionId": "global:allOutputsOut" }, "color": "#ff5d6d" }
-  }
-}
-```
-
-> The schema above is a documentation example, not a literal Companion export.
-> Companion 3's actual page export contains additional plumbing (instance IDs,
-> trigger configs).
-
 ## Known limitations
 
-- **WTP does not track vMix's real state.** The ON AIR / OFF badge reflects the
-  **last command** sent from this app, not the title's actual state in vMix. If
-  an operator toggles a title directly in vMix, our UI won't know.
-- WTP listens on `0.0.0.0:4000` without authentication. On an open network,
-  anyone on the same subnet can POST to /api. On untrusted networks, isolate it
-  or use a dedicated VLAN.
+- **WTP does not read vMix's real state.** ON AIR reflects the **last command**
+  sent through WTP; a title toggled directly in vMix is not noticed.
+- WTP listens on `0.0.0.0:4000` without authentication. For Companion on another
+  computer port 4000 must be reachable (firewall); on untrusted networks isolate
+  it (dedicated VLAN).

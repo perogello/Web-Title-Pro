@@ -15,7 +15,9 @@ Control [Web Title Pro](https://github.com/perogello/Web-Title-Pro) titles, outp
 
 **Feedbacks:** title on air, preview bus, title selected, any output on air, timer running, timer colour, connected.
 
-**Variables:** `o1_name`, `o1_title`, `o1_value1`, `o1_value2`, `o1_on_air`, `o1_preview`, `o1_row` (o2_…, o3_… for the next outputs — numbered as in the Web Title Pro Config tab), `t1_name`, `t1_time`, `t1_running` per timer, `on_air_count`, `connected`.
+**Variables:** `o1_name`, `o1_title`, `o1_value1`, `o1_value2`, `o1_on_air`, `o1_preview`, `o1_row` (o2_…, o3_… for the next outputs — numbered as in the Web Title Pro Config tab), `t1_name`, `t1_time`, `t1_running` per timer, `on_air_count`, `connected`, `module_version`, `module_update` (newer module version shipped with Web Title Pro; empty = up to date).
+
+**Updates:** the module ships with Web Title Pro. Installed from the app on the same computer it updates itself; an imported `.tgz` must be re-imported after updating Web Title Pro — the connection shows a warning when versions differ.
 
 ---
 

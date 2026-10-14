@@ -1,167 +1,190 @@
 # Интеграция с Bitfocus Companion
 
-> Английская версия: [BITFOCUS.md](BITFOCUS.md)
+> English version: [BITFOCUS.md](BITFOCUS.md)
 
-## Модуль Web Title Pro для Companion (рекомендуется)
+Два способа управлять Web Title Pro (WTP) из Companion:
 
-С приложением поставляется готовый модуль Companion: кнопки с живой подсветкой
-эфира, переменные (название output, выбранный титр и его поля, время таймеров)
-и пресеты для каждого output, титра и таймера. Работает с Companion 3.5 и новее.
+1. **Модуль Web Title Pro** (рекомендуется, с 0.5.2) — кнопки с живой подсветкой
+   эфира, переменные и готовые пресеты.
+2. **Встроенный модуль Companion Generic HTTP** — без отдельного модуля, но и без
+   подсветки кнопок.
 
-Всё — в **Settings → Integrations → Bitfocus Companion module** (или кнопка
-«Модуль Companion…» в Settings → Controls):
+Оба отправляют одни и те же команды (`POST /api/command`, см. [Команды](#команды)).
 
-- **Установить в Companion** — автоматически, если Companion стоит на этом ПК:
-  кладёт модуль в папку developer-модулей и включает их в Companion. Если
-  Companion запущен и developer-модули ещё не включены, приложение спросит и
-  перезапустит Companion (кнопки на несколько секунд перестанут работать — не
-  делайте этого в эфире). Если developer-папка уже настроена, Companion
-  подхватывает модуль сам, без перезапуска. При обновлении Web Title Pro
-  установленный модуль обновляется автоматически.
-- **Вручную, developer-режим:** launcher Companion → шестерёнка → *Developer* →
-  *Select* → папка из строки *Developer path* → *Enable Developer Modules*.
-- **Companion на другом ПК / без developer-режима:** «Скачать» пакет `.tgz` →
-  в веб-интерфейсе Companion *Modules* → *Import module package*.
+## 1. Модуль Web Title Pro (рекомендуется)
 
-Дальше: *Connections* → *Add connection* → **Web Title Pro** → Host
-`127.0.0.1` (или IP машины с WTP), Port `4000` → вкладка *Presets*.
+Работает с **Companion 3.5 и новее** (проверен на 5.1). Всё находится в
+**Settings → Integrations → Bitfocus Companion module** (туда же ведёт кнопка
+«Модуль Companion…» в Settings → Controls).
 
-Исходники модуля — `companion-module/`, сборка — `npm run build:companion`.
+### Установка
 
-## Без модуля: Generic HTTP
+| Ситуация | Как |
+|---|---|
+| Companion на **этом** компьютере | Кнопка **«Установить в Companion»** (только в десктопном приложении). Кладёт модуль в папку developer-модулей Companion и включает их. Если Companion запущен и для этого нужен его перезапуск, приложение сначала спросит, затем закроет и снова запустит Companion — кнопки на несколько секунд перестанут работать, не делайте этого в эфире. Если developer-папка уже настроена, Companion подхватит модуль сам, без перезапуска. |
+| Вручную, developer-режим | Launcher Companion → шестерёнка справа вверху → *Developer* → *Select* → папка из строки **Developer path** в карточке (та, в которой *лежит* папка `web-title-pro`) → *Enable Developer Modules* → *Launch GUI*. |
+| Companion на **другом** компьютере или без developer-режима | Кнопка **«Скачать»** `.tgz` в карточке → веб-интерфейс Companion → *Modules* → *Import module package* → выбрать файл. |
 
-Можно обойтись встроенным модулем Companion **Generic HTTP**. Все кнопки бьют
-в **один endpoint**; меняется только `actionId` в теле запроса.
+### Подключение
 
-## Настройка (5 минут)
+*Connections* → *Add connection* → найти **Web Title Pro** → заполнить:
 
-1. В Companion добавь новое подключение типа **generic-http**.
-2. В качестве base host укажи `http://<ip-машины-с-wtp>:4000` (если WTP и
-   Companion на одной машине — `127.0.0.1`).
-3. На каждую кнопку добавь **HTTP POST** action:
-   - **URL:** `http://<wtp-host>:4000/api/command`
-   - **Header:** `Content-Type: application/json`
-   - **Body (JSON):** `{ "actionId": "<команда>" }` — id команды из таблиц ниже.
+| Поле | Значение |
+|---|---|
+| Host | `127.0.0.1`, если Companion на компьютере с WTP, иначе IP этого компьютера |
+| Port | `4000` |
 
-> **Важно:** WTP должен быть запущен, когда Companion шлёт команду — иначе
-> Companion покажет "ECONNREFUSED".
+Когда подключение достучится до WTP, оно станет зелёным. Дальше — вкладка
+**Presets** подключения: перетащите кнопки на страницу.
 
-> Готовые пары URL + payload для каждой кнопки можно скопировать прямо из
-> приложения: **Settings → Controls**, блок Companion — кнопки «Copy URL» и
-> «Copy payload».
+### Что даёт модуль
+
+**Пресеты**
+
+- *Output #N* — кнопка-переключатель (имя output и первое поле выбранного титра,
+  красная в эфире), плюс IN, OUT, PVW IN/OUT, ROW ▲/▼ и таймер строки
+  старт/стоп/сброс.
+- *Titles → #N* — по кнопке на каждый титр: ставит его на этот output (синяя,
+  пока титр выбран).
+- *Timers* — старт/стоп с живым временем (цвет — по цветовым правилам таймера) и
+  сброс.
+- *Global* — Panic (снять всё) и счётчик титров в эфире.
+
+**Действия**
+
+| Действие | Поля |
+|---|---|
+| Output: command | Output, Command (Title IN/OUT, Preview IN/OUT, Row ▲/▼, таймер строки start/stop/reset) |
+| Output: toggle title on/off air | Output |
+| Output: select title | Output, Title, «Show it on air right away» |
+| Timer: start / stop / reset | Timer, Command |
+| Timer: start / stop toggle | Timer |
+| Panic: hide every output | — |
+| Any Web Title Pro command (incl. plugins) | любой id команды, включая оверлеи плагинов |
+
+**Фидбеки (подсветка):** титр в эфире · титр на превью · этот титр выбран ·
+что-то в эфире · таймер идёт · цвет таймера (по правилам WTP) · есть связь.
+
+**Переменные** (output нумеруются как во вкладке Config WTP: `o1`, `o2`, …;
+таймеры — `t1`, `t2`, …):
+
+| Переменная | Значение |
+|---|---|
+| `o1_name` | имя output |
+| `o1_title` | выбранный титр |
+| `o1_value1`, `o1_value2` | первое / второе поле выбранного титра |
+| `o1_on_air`, `o1_preview` | `ON` / `OFF` |
+| `o1_row` | номер применённой строки данных |
+| `t1_name`, `t1_time`, `t1_running` | имя таймера, текущее время, `ON` / `OFF` |
+| `on_air_count`, `connected` | сколько output в эфире; `YES` / `NO` |
+| `module_version`, `module_update` | версия модуля; более новая версия в WTP (пусто — актуальная) |
+
+### Обновления и версии
+
+Версия модуля совпадает с версией приложения, модуль входит в его состав:
+
+- **Установлен кнопкой (на этом ПК):** обновляется сам — после обновления WTP при
+  следующем запуске новая версия кладётся на место, Companion её подхватывает.
+- **Импортирован `.tgz` (на другом ПК):** после обновления WTP импортируйте
+  заново. Если версии разошлись, подключение в Companion станет жёлтым с текстом
+  *«Module vX, Web Title Pro ships vY — update: …»*.
+
+Карточка в Settings → Integrations показывает установленную и встроенную версии.
+
+Исходники модуля — `companion-module/`, сборка — `npm run build:companion`
+(запускается и в `npm run package:win`).
+
+## 2. Generic HTTP (без модуля)
+
+1. *Connections* → *Add connection* → **Generic HTTP**. Поле **Base URL** оставьте
+   пустым.
+2. На каждую кнопку добавьте действие **POST** и заполните его поля:
+
+| Поле Generic HTTP | Что вводить |
+|---|---|
+| URL | `http://<ip-машины-с-wtp>:4000/api/command` (`127.0.0.1` на том же ПК) |
+| Body | `{"actionId":"<команда>"}` — id команд ниже |
+| header input(JSON) | оставить пустым |
+| Content Type | `application/json` (по умолчанию) |
+
+> В WTP в **Settings → Controls** для каждой команды выведены точные значения
+> всех полей (и действие модуля с его полями) с кнопкой **Copy** у каждого.
+
+WTP должен быть запущен, когда Companion шлёт команду, иначе Companion покажет
+`ECONNREFUSED`. Подсветки эфира на кнопках Generic HTTP не даёт — для неё нужен
+модуль.
 
 ## Команды
 
-Все — `POST http://<wtp-host>:4000/api/command`, тело `{ "actionId": "…" }`.
+Все команды — `POST http://<wtp-host>:4000/api/command` с телом
+`{ "actionId": "…" }`. Полный живой список (с id текущего проекта) —
+`GET /api/command/catalog`.
 
 ### На выход (output)
 
-`<id>` — id выхода (по умолчанию `output-main`; виден в Settings и в
-`GET /api/render/state → outputs[].id`).
+`<id>` — id output (по умолчанию `output-main`; см. `GET /api/state →
+outputs[].id`).
 
-| Кнопка              | actionId                       |
-|---------------------|--------------------------------|
-| TITLE IN            | `output:<id>:titleIn`          |
-| TITLE OUT           | `output:<id>:titleOut`         |
-| PREVIEW IN          | `output:<id>:previewIn`        |
-| PREVIEW OUT         | `output:<id>:previewOut`       |
-| ROW ▲ (строка выше) | `output:<id>:rowPrev`          |
-| ROW ▼ (строка ниже) | `output:<id>:rowNext`          |
-| Таймер строки Start | `output:<id>:timerStart`       |
-| Таймер строки Stop  | `output:<id>:timerStop`        |
-| Таймер строки Reset | `output:<id>:timerReset`       |
+| Команда            | actionId                  |
+|--------------------|---------------------------|
+| Title IN           | `output:<id>:titleIn`     |
+| Title OUT          | `output:<id>:titleOut`    |
+| Preview IN         | `output:<id>:previewIn`   |
+| Preview OUT        | `output:<id>:previewOut`  |
+| Строка ▲ (пред.)   | `output:<id>:rowPrev`     |
+| Строка ▼ (след.)   | `output:<id>:rowNext`     |
+| Таймер строки Start | `output:<id>:timerStart` |
+| Таймер строки Stop  | `output:<id>:timerStop`  |
+| Таймер строки Reset | `output:<id>:timerReset` |
 
-`titleIn` показывает текущий выбранный титр выхода. `rowNext`/`rowPrev` листают
-строки источника данных на этом выходе (вниз — дальше, вверх — выше) и, если
-титр в эфире, сразу обновляют его.
+`titleIn` выводит выбранный на output титр. `rowNext` / `rowPrev` переключают
+строки источника данных на этом output (вниз — дальше, вверх — выше); если титр
+в эфире, он сразу обновляется.
 
-### На конкретный таймер
+### На таймер
 
-`<id>` — id таймера (по умолчанию `main`; из `GET /api/render/state → timers[].id`).
+`<id>` — id таймера (см. `GET /api/state → timers[].id`).
 
-| Кнопка | actionId             |
-|--------|----------------------|
-| Start  | `timer:<id>:start`   |
-| Stop   | `timer:<id>:stop`    |
-| Reset  | `timer:<id>:reset`   |
+| Команда | actionId            |
+|---------|---------------------|
+| Start   | `timer:<id>:start`  |
+| Stop    | `timer:<id>:stop`   |
+| Reset   | `timer:<id>:reset`  |
 
 ### Глобально
 
-| Кнопка                    | actionId               |
-|---------------------------|------------------------|
-| ALL OUTPUTS OUT (паника)  | `global:allOutputsOut` |
+| Команда                       | actionId               |
+|-------------------------------|------------------------|
+| Снять все output (panic)      | `global:allOutputsOut` |
+
+Команды плагинов (`plugin:<pluginId>:<command>`) выполняются внутри плагина в
+панели управления, из Companion их не вызвать; оверлеи плагинов — можно
+(`overlay:<pluginId>:in|out`, через действие модуля «Any command»).
 
 ## Низкоуровневые REST-роуты (при необходимости)
 
-Единый `/api/command` покрывает все кнопки пульта. Если нужен «сырой» доступ,
-стабильными остаются: `POST /api/program/show|update|hide`,
-`POST /api/preview/show|hide`, `POST /api/timers/<id>/start|stop|reset`,
-`POST /api/outputs/<id>/select`, `POST /api/entries/<id>/select`.
+`/api/command` покрывает все кнопки. Стабильные «сырые» роуты:
+`POST /api/program/show|update|hide`, `POST /api/preview/show|hide`,
+`POST /api/timers/<id>/start|stop|reset`, `POST /api/outputs/<id>/select`,
+`POST /api/entries/<id>/select`. Живое состояние: `GET /api/state` и WebSocket
+`ws://<wtp-host>:4000/ws` (полный снимок при изменениях + тики таймеров) — его
+использует модуль.
 
-Устаревшие глаголы `/api/commands/:action`, `/api/program/live` и
-`/api/timers/:id/toggle` **удалены** — используй `/api/command`.
-
-## Feedback / подсветка кнопок по состоянию
-
-Generic HTTP module умеет HTTP-poll feedbacks. Целься на
-`GET /api/render/state` и парси JSON:
-
-- `outputs[i].program.visible === true` → ON AIR (красная подложка на TITLE OUT).
-- `selectedOutput.id` → подсветка кнопки текущего выхода.
-- `timers[i].running === true` → мигание кнопки Start/Stop таймера.
-
-Интервал опроса 500–1000 мс достаточно для одной станции в LAN.
-
-## Quickstart — curl-снипеты
+## Quickstart — curl
 
 ```bash
-# Замени 127.0.0.1 на IP машины с WTP если нужно.
+# Замените 127.0.0.1 на IP машины с WTP, если нужно.
 CMD=http://127.0.0.1:4000/api/command
 curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"output:output-main:titleIn"}'
 curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"output:output-main:titleOut"}'
 curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"output:output-main:rowNext"}'
-curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"timer:main:start"}'
 curl -X POST $CMD -H "Content-Type: application/json" -d '{"actionId":"global:allOutputsOut"}'
 ```
 
-## Companion preset (документация-пример)
-
-Все кнопки — один URL, отличается только body. Быстрее всего:
-
-1. Сделай одну кнопку в Companion вручную (URL `/api/command`, header
-   `Content-Type: application/json`, body `{"actionId":"output:output-main:titleIn"}`).
-2. ПКМ → Copy. Вставь на остальные кнопки страницы.
-3. Поправь `actionId` в body у каждой.
-
-```json
-{
-  "version": "1.0",
-  "type": "page",
-  "name": "Web Title Pro",
-  "note": "Каждая кнопка: POST http://127.0.0.1:4000/api/command, header Content-Type: application/json, body ниже.",
-  "controls": {
-    "0/0": { "label": "TITLE IN",  "body": { "actionId": "output:output-main:titleIn" },  "color": "#5ddb92" },
-    "0/1": { "label": "TITLE OUT", "body": { "actionId": "output:output-main:titleOut" }, "color": "#ff5d6d" },
-    "0/2": { "label": "PVW IN",    "body": { "actionId": "output:output-main:previewIn" } },
-    "0/3": { "label": "ROW ▲",     "body": { "actionId": "output:output-main:rowPrev" } },
-    "0/4": { "label": "ROW ▼",     "body": { "actionId": "output:output-main:rowNext" } },
-    "1/0": { "label": "TIMER ▶",   "body": { "actionId": "timer:main:start" }, "color": "#5ddb92" },
-    "1/1": { "label": "TIMER ■",   "body": { "actionId": "timer:main:stop" } },
-    "1/2": { "label": "TIMER ↻",   "body": { "actionId": "timer:main:reset" } },
-    "1/4": { "label": "PANIC",     "body": { "actionId": "global:allOutputsOut" }, "color": "#ff5d6d" }
-  }
-}
-```
-
-> Это документация-пример, не настоящий Companion export: реальный page export
-> Companion 3 содержит служебные поля (instance ID, trigger config).
-
 ## Известные ограничения
 
-- **WTP не отслеживает реальное состояние vMix.** ON AIR / OFF badge
-  показывает **последнюю команду** из этого приложения, а не фактическое
-  состояние титра в vMix. Если оператор переключил титр прямо в vMix — наш UI
-  про это не узнает.
-- WTP слушает на `0.0.0.0:4000` без аутентификации. В открытом Wi-Fi любой в
-  той же подсети может POST'ить на /api. Для чужих сетей — изолируй или
-  используй отдельный VLAN.
+- **WTP не читает реальное состояние vMix.** ON AIR отражает **последнюю команду**,
+  отправленную через WTP; титр, включённый прямо в vMix, WTP не заметит.
+- WTP слушает `0.0.0.0:4000` без авторизации. Для Companion на другом компьютере
+  порт 4000 должен быть доступен (файрвол); в недоверенных сетях изолируйте его
+  (отдельный VLAN).
