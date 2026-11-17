@@ -1,5 +1,17 @@
 {
   "$comment": "Per-version changelog shown in the post-update dialog and on the Updates page. Keep entries short (see release-notes style). Add a new top-level key for each release; the desktop shell picks the entry matching the running app version. ru/en are arrays of bullet strings.",
+  "0.5.4": {
+    "date": "2026-11-17",
+    "title": "Web Title Pro 0.5.4",
+    "ru": [
+      "Клик по строке во вкладке Data больше не меняет титр, даже при включённой Live-правке. Строки по-прежнему применяются во вкладке Live.",
+      "Кнопки редактирования, дублирования и удаления строк закреплены справа и доступны в узком окне и при горизонтальной прокрутке."
+    ],
+    "en": [
+      "Clicking a row in Data no longer changes the title, even with Live-edit enabled. You can still apply rows from Live.",
+      "Edit, duplicate and delete buttons stay pinned to the right in narrow windows and during horizontal scrolling."
+    ]
+  },
   "0.5.3": {
     "date": "2026-10-14",
     "title": "Web Title Pro 0.5.3",

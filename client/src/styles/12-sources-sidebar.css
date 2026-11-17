@@ -26,7 +26,7 @@
 /* ---- Sources tab layout ---- */
 .shell-v2 .content-v2-inner .source-layout {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: clamp(180px, 35%, 280px) minmax(0, 1fr);
   gap: 14px;
   min-height: 0;
 }
@@ -58,7 +58,7 @@
   background: var(--select-bg-v2);
 }
 @media (max-width: 800px) {
-  .shell-v2 .content-v2-inner .source-layout { grid-template-columns: 1fr; }
+  .shell-v2 .content-v2-inner .source-layout { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ---- Yandex / MIDI / Bitfocus lists ---- */

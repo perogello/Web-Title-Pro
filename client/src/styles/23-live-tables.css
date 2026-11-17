@@ -60,15 +60,22 @@
   color: var(--text-faint-v2);
   font-variant-numeric: tabular-nums;
 }
-/* Last column = action column, narrow */
-.shell-v2 .source-table th:last-child,
-.shell-v2 .source-table td:last-child {
-  width: 76px;
-  min-width: 76px;
+/* Keep row actions reachable while the data columns scroll horizontally. */
+.shell-v2 .content-v2-inner .source-table .source-column-actions-head,
+.shell-v2 .content-v2-inner .source-table .source-row-actions-cell {
+  position: sticky;
+  right: 0;
+  width: 108px;
+  min-width: 108px;
+  max-width: 108px;
+  box-shadow: inset 1px 0 var(--border-v2);
 }
-/* Actions cell never applies the row (clicks are swallowed in SourcesTab). */
-.shell-v2 .source-table td.source-row-actions-cell {
-  cursor: default;
+.shell-v2 .content-v2-inner .source-table .source-row-actions-cell {
+  z-index: 1;
+  background: var(--bg-2-v2);
+}
+.shell-v2 .content-v2-inner .source-table .source-column-actions-head {
+  z-index: 3;
 }
 .shell-v2 .source-table .source-row-actions {
   display: inline-flex !important;

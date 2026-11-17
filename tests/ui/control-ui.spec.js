@@ -597,45 +597,120 @@ const makeSource = (rows) => ({
   })),
 });
 
-test('Data: a click that misses a row action button does not apply that row', async ({ page, request }) => {
+test('Data: row clicks leave the on-air title unchanged even with Live-edit on', async ({ page, request }) => {
   await waitForBackend(request);
-  const apiState = async () => (await request.get('http://127.0.0.1:4000/api/state')).json();
+  const api = 'http://127.0.0.1:4000/api';
+  const apiState = async () => (await request.get(`${api}/state`)).json();
   const before = await apiState();
-  const output = before.outputs?.[0];
-  const previousSelectedEntryId = output?.selectedEntryId || null;
-  const previousSources = await (await request.get('http://127.0.0.1:4000/api/sources')).json();
-  const entry = before.entries.find((item) => (item.templateFields || []).length >= 2);
-  expect(entry).toBeTruthy();
+  const previousSources = await (await request.get(`${api}/sources`)).json();
+  const entry = await (await request.post(`${api}/entries`, {
+    data: { templateId: 'builtin:lower-third', name: 'Data safety test title' },
+  })).json();
+  const output = await (await request.post(`${api}/outputs`, { data: { name: 'Data safety test output' } })).json();
 
   try {
-    await request.post(`http://127.0.0.1:4000/api/entries/${entry.id}/select`, { data: { outputId: output.id } });
-    await seedCustomSources(page, [makeSource([['Alice', 'Host'], ['Bob', 'Guest']])]);
+    const source = makeSource([['Alice', 'Host'], ['Bob', 'Guest']]);
+    await request.put(`${api}/sources`, { data: { items: [source] } });
+    await request.post(`${api}/outputs/${output.id}/select`);
+    await request.post(`${api}/program/show`, { data: { outputId: output.id, entryId: entry.id } });
+    await page.addInitScript(() => window.localStorage.setItem('wtp.live-edit', '1'));
     await page.goto('/');
-    await page.getByRole('button', { name: /DATA/i }).click();
+    await page.getByRole('button', { name: 'Live', exact: true }).click();
+    await page.locator('table.source-v2 tbody tr').filter({ hasText: 'Alice' }).click();
+    const readOutput = async () => (await apiState()).outputs.find((item) => item.id === output.id);
+    await expect.poll(async () => (await readOutput()).appliedRow).toEqual({ sourceId: source.id, rowId: 'rr-1' });
+    const onAir = (await readOutput()).program;
+    expect(onAir.visible).toBe(true);
+    expect(Object.values(onAir.fields)).toContain('Alice');
+    const titleFields = (await apiState()).entries.find((item) => item.id === entry.id).fields;
+
+    const outputWrites = [];
+    page.on('request', (req) => {
+      const { pathname } = new URL(req.url());
+      if (req.method() !== 'GET' && [
+        `/api/entries/${entry.id}`,
+        `/api/outputs/${output.id}/applied-row`,
+        '/api/program/update',
+      ].includes(pathname)) {
+        outputWrites.push(pathname);
+      }
+    });
+    await page.getByRole('button', { name: 'Data', exact: true }).click();
 
     const row1 = page.locator('.source-table tr[data-source-row-id="rr-1"]');
     const row2 = page.locator('.source-table tr[data-source-row-id="rr-2"]');
-    await row1.locator('td').nth(1).click();
     await expect(row1).toHaveClass(/is-active-source-row/);
-
-    // Click the padding of row 2's actions cell — next to, not on, the Edit
-    // button. This used to bubble to the row and send it to air.
+    await row2.getByText('Bob', { exact: true }).click();
+    await row2.locator('td').first().getByText('2', { exact: true }).click();
     await row2.locator('td.source-row-actions-cell').click({ position: { x: 2, y: 2 } });
-    await page.waitForTimeout(300);
-    await expect(row1).toHaveClass(/is-active-source-row/);
-    await expect(row2).not.toHaveClass(/is-active-source-row/);
-
-    // Edit itself still works and doesn't apply the row either.
     await row2.getByRole('button', { name: 'Edit row' }).click();
-    await expect(row2.locator('input.source-table-input').first()).toBeVisible();
-    await expect(row2).not.toHaveClass(/is-active-source-row/);
-    const fields = (await apiState()).entries.find((item) => item.id === entry.id)?.fields || {};
-    expect(Object.values(fields)).not.toContain('Bob');
+    await row2.locator('input.source-table-input').first().fill('Bob Edited');
+    await row2.getByRole('button', { name: 'Save row' }).click();
+    await expect.poll(async () => {
+      const [savedSource] = await (await request.get(`${api}/sources`)).json();
+      return savedSource.rows[1].values[0];
+    }).toBe('Bob Edited');
+    expect(outputWrites).toEqual([]);
+    await expect(row1).toHaveClass(/is-active-source-row/);
+    expect((await readOutput()).program).toEqual(onAir);
+    expect((await apiState()).entries.find((item) => item.id === entry.id).fields).toEqual(titleFields);
   } finally {
-    await request.put('http://127.0.0.1:4000/api/sources', { data: { items: previousSources } });
-    if (previousSelectedEntryId) {
-      await request.post(`http://127.0.0.1:4000/api/entries/${previousSelectedEntryId}/select`, { data: { outputId: output.id } });
+    await page.close();
+    await request.delete(`${api}/outputs/${output.id}`);
+    await request.delete(`${api}/entries/${entry.id}`);
+    await request.put(`${api}/sources`, { data: { items: previousSources } });
+    await request.post(`${api}/outputs/${before.selectedOutputId}/select`);
+  }
+});
+
+test('Data: edit, duplicate and delete stay visible when a wide table is narrowed', async ({ page, request }) => {
+  await waitForBackend(request);
+  const sourcesUrl = 'http://127.0.0.1:4000/api/sources';
+  const previousSources = await (await request.get(sourcesUrl)).json();
+  const extraValues = Array.from({ length: 6 }, (_, index) => `Speaker detail ${index + 1}`);
+  const source = makeSource([['Alice', 'Host', ...extraValues], ['Bob', 'Guest', ...extraValues]]);
+  source.columns.push(...extraValues.map((label, index) => ({ id: `extra-${index}`, label })));
+
+  try {
+    await request.put(sourcesUrl, { data: { items: [source] } });
+    await page.setViewportSize({ width: 1600, height: 950 });
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Data', exact: true }).click();
+    const wrapper = page.locator('.source-table-wrapper');
+    const row = wrapper.locator('tr[data-source-row-id="rr-1"]');
+    const speaker = row.getByText('Alice', { exact: true });
+    const edit = row.getByRole('button', { name: 'Edit row' });
+    const duplicate = row.getByRole('button', { name: 'Duplicate row' });
+    const remove = row.getByRole('button', { name: 'Delete row' });
+    for (const width of [900, 640]) {
+      await page.setViewportSize({ width, height: 950 });
+      await speaker.scrollIntoViewIfNeeded();
+      expect(await wrapper.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
+      await wrapper.evaluate((element) => { element.scrollLeft = 0; });
+      await speaker.click({ trial: true });
+      for (const fraction of [0, 0.5, 1]) {
+        await wrapper.evaluate((element, value) => {
+          element.scrollLeft = (element.scrollWidth - element.clientWidth) * value;
+        }, fraction);
+        for (const button of [edit, duplicate, remove]) {
+          await expect(button).toBeInViewport({ ratio: 1 });
+          const box = await button.boundingBox();
+          expect(box.x + box.width).toBeLessThanOrEqual(width);
+        }
+      }
     }
+
+    await wrapper.evaluate((element) => { element.scrollLeft = 0; });
+    await edit.click();
+    await expect(row.locator('.source-table-input').first()).toBeEditable();
+    await row.getByRole('button', { name: 'Save row' }).click();
+    await duplicate.click();
+    await expect(wrapper.locator('tbody tr')).toHaveCount(3);
+    await remove.click();
+    await expect(row).toHaveCount(0);
+  } finally {
+    await page.close();
+    await request.put(sourcesUrl, { data: { items: previousSources } });
   }
 });
 

@@ -53,7 +53,6 @@ export default function SourcesTab({
   onReplaceSelectedSourceFile,
   onUpdateSourceColumnLabel,
   getSourceRowEditKey,
-  onApplySourceRow,
   onUpdateSourceRowCell,
   onSaveSourceRowEdit,
   onStartSourceRowEdit,
@@ -420,7 +419,6 @@ export default function SourcesTab({
                           className="source-column-name-input"
                           value={column.label}
                           onChange={(event) => onUpdateSourceColumnLabel(selectedSource.id, column.id, event.target.value)}
-                          onClick={(event) => event.stopPropagation()}
                           placeholder="Column name"
                         />
                       </th>
@@ -441,7 +439,6 @@ export default function SourcesTab({
                         className={`${activeSourceBinding?.sourceId === selectedSource.id && activeSourceBinding?.rowId === row.id ? 'is-active-source-row' : ''} ${draggedSourceRowId === row.id ? 'is-dragging' : ''}`}
                         onDragOver={handleRowDragOver(row.id)}
                         onDrop={handleRowDrop(row.id)}
-                        onClick={() => !isEditing && onApplySourceRow(row)}
                       >
                         <td>
                           <div className="source-row-index-cell">
@@ -451,7 +448,6 @@ export default function SourcesTab({
                                 draggable
                                 onDragStart={handleRowDragStart(row.id)}
                                 onDragEnd={handleRowDragEnd}
-                                onClick={(event) => event.stopPropagation()}
                                 title="Drag row to reorder"
                                 aria-label="Drag row to reorder"
                               >
@@ -467,7 +463,6 @@ export default function SourcesTab({
                               <input
                                 className="source-table-input"
                                 value={rowValues[index] || ''}
-                                onClick={(event) => event.stopPropagation()}
                                 onChange={(event) => onUpdateSourceRowCell(selectedSource.id, row.id, index, event.target.value)}
                               />
                             ) : (
@@ -475,10 +470,7 @@ export default function SourcesTab({
                             )}
                           </td>
                         ))}
-                        {/* The whole actions cell swallows clicks, not just the button strip:
-                            a click that misses a small button by a few px used to bubble to
-                            the row and apply it (to air, with Live-edit on). */}
-                        <td className="source-row-actions-cell" onClick={(event) => event.stopPropagation()}>
+                        <td className="source-row-actions-cell">
                           <div className="source-row-actions">
                             <button
                               className="btn-v3-ghost btn-v3-sm btn-v3-icon"
@@ -513,7 +505,7 @@ export default function SourcesTab({
               </table>
             </div>
           ) : (
-            <div className="empty-v3 source-empty">Load a source on the left, then use a row here to feed the current title.</div>
+            <div className="empty-v3 source-empty">No data source selected.</div>
           )}
           <div className="manual-row-card">
             <div className="panel-head-v3">

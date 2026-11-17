@@ -1,10 +1,10 @@
 # Project Memory
 
-Last updated: 2026-10-14 (v0.5.3)
+Last updated: 2026-11-17 (v0.5.4)
 
 ## Current Branch Context
 
-- Releases are committed straight to `main`; current release: `v0.5.3` (GitHub Latest).
+- Releases are committed straight to `main`; current release: `v0.5.4` (GitHub Latest).
 - `v0.5.0` only exists as the pre-release `v0.5.0-rc1`; `v0.5.1` was the first Latest installer build.
 - Distribution (since 0.5.0): per-user NSIS installer + `electron-updater` + `asar`.
   Data lives in `%APPDATA%\web-title-pro` and survives updates.
@@ -52,6 +52,11 @@ Last updated: 2026-10-14 (v0.5.3)
 - Desktop shell: Electron files under `desktop/`.
 - Project bundle support: `server/templates/bundle-service.js`.
 - Companion module: `companion-module/` (see 0.5.x Highlights).
+
+## 0.5.4 Fixes
+
+- Data is for managing sources: clicking a table row does not apply it to a title, even with Live-edit on. Apply rows from Live.
+- Data pins edit/save, duplicate, and delete at the table's right edge when data columns scroll horizontally.
 
 ## Fixes History (0.4.x)
 
@@ -149,6 +154,7 @@ Last updated: 2026-10-14 (v0.5.3)
   - Playwright starts `npm run dev` automatically through `webServer`.
   - Current UI smoke covers Notes open-state persistence, selected-text rich formatting, color application, and Notes panel resize.
   - UI smoke covers external rich-text paste normalization in Notes and local Data source row reordering.
+  - Data UI regressions cover harmless row clicks with an on-air title and Live-edit on, plus row actions at narrow widths and across horizontal scroll positions.
   - Program-state tests cover stable output-to-title assignments when adding titles and outputs.
   - Add Title modal styling is covered: segmented mode switch, vMix accent, hidden native file input, styled upload picker.
   - Bundle tests cover custom template inclusion, zip-slip rejection, project summary counts, local/vMix title preservation, data sources, vMix discovered input export, keyboard/global shortcuts, and MIDI bindings.

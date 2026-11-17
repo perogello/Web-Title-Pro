@@ -51,6 +51,8 @@ PVW IN / PVW OUT put the title on a preview bus. The preview panel shows the **p
 
 Text typed by hand, **TXT / CSV** files, **CSV by URL**, **Google Sheets** links and **Yandex Disk** public links (XLSX with sheet switching). Rows can be edited, duplicated, reordered and added with a form built from the title's fields; remote sources refresh on demand.
 
+Clicking a row in **Data** does not change the title. Apply rows from **Live**. Row actions stay at the right edge of the table while its columns scroll horizontally.
+
 ![Data tab: the Speakers source with seven rows](docs/screenshots/data.png)
 
 #### Timers
@@ -88,7 +90,7 @@ New / Open / Save / Save As (**Ctrl+N / Ctrl+O / Ctrl+S / Ctrl+Shift+S**), Recen
 - [Plugins](docs/PLUGINS.md) · [RU](docs/PLUGINS_RU.md) · [starter template](docs/plugin-template/)
 - [Yandex credentials](docs/YANDEX_CREDENTIALS.md)
 - [Project memory](docs/PROJECT_MEMORY.md) — architecture and decisions
-- Release notes: [0.5.3](docs/RELEASE_0.5.3.md) · [0.5.2](docs/RELEASE_0.5.2.md) · [0.5.1](docs/RELEASE_0.5.1.md) · [0.5.0](docs/RELEASE_0.5.0.md) · [all releases](https://github.com/perogello/Web-Title-Pro/releases)
+- Release notes: [0.5.4](docs/RELEASE_0.5.4.md) · [0.5.3](docs/RELEASE_0.5.3.md) · [0.5.2](docs/RELEASE_0.5.2.md) · [0.5.1](docs/RELEASE_0.5.1.md) · [0.5.0](docs/RELEASE_0.5.0.md) · [all releases](https://github.com/perogello/Web-Title-Pro/releases)
 
 ### Run from source
 
@@ -165,6 +167,8 @@ PVW IN / PVW OUT выводят титр на превью. Панель пре�
 
 Текст вручную, файлы **TXT / CSV**, **CSV по ссылке**, ссылки **Google Sheets** и публичные ссылки **Яндекс Диска** (XLSX с выбором листа). Строки можно править, дублировать, переставлять и добавлять через форму по полям титра; удалённые источники обновляются по кнопке.
 
+Клик по строке в **Data** не меняет титр. Применяйте строки во вкладке **Live**. Кнопки действий остаются у правого края таблицы при горизонтальной прокрутке.
+
 ![Вкладка Data: источник Speakers на семь строк](docs/screenshots/data.png)
 
 #### Таймеры
@@ -202,7 +206,7 @@ New / Open / Save / Save As (**Ctrl+N / Ctrl+O / Ctrl+S / Ctrl+Shift+S**), не�
 - [Плагины](docs/PLUGINS_RU.md) · [EN](docs/PLUGINS.md) · [шаблон плагина](docs/plugin-template/)
 - [Yandex: учётные данные](docs/YANDEX_CREDENTIALS.md)
 - [Project memory](docs/PROJECT_MEMORY.md) — архитектура и решения
-- Заметки релизов: [0.5.3](docs/RELEASE_0.5.3.md) · [0.5.2](docs/RELEASE_0.5.2.md) · [0.5.1](docs/RELEASE_0.5.1.md) · [0.5.0](docs/RELEASE_0.5.0.md) · [все релизы](https://github.com/perogello/Web-Title-Pro/releases)
+- Заметки релизов: [0.5.4](docs/RELEASE_0.5.4.md) · [0.5.3](docs/RELEASE_0.5.3.md) · [0.5.2](docs/RELEASE_0.5.2.md) · [0.5.1](docs/RELEASE_0.5.1.md) · [0.5.0](docs/RELEASE_0.5.0.md) · [все релизы](https://github.com/perogello/Web-Title-Pro/releases)
 
 ### Запуск из исходников
 

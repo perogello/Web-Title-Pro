@@ -3545,7 +3545,6 @@ function ControlShell() {
           onReplaceSelectedSourceFile={replaceSelectedSourceFromFile}
           onUpdateSourceColumnLabel={updateSourceColumnLabel}
           getSourceRowEditKey={getSourceRowEditKey}
-          onApplySourceRow={applySourceRow}
           onUpdateSourceRowCell={updateSourceRowCell}
           onSaveSourceRowEdit={saveSourceRowEdit}
           onStartSourceRowEdit={startSourceRowEdit}
